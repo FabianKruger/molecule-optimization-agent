@@ -19,11 +19,9 @@ flowchart TD
 
     parse -->|Valid JSON| validation
     parse -->|Invalid JSON| generation
-    parse -->|Max iterations| final
 
     validation -->|Valid SMILES| prediction
     validation -->|Invalid SMILES| generation
-    validation -->|Max iterations| final
 
     prediction -->|Continue| generation
     prediction -->|Target reached| final
