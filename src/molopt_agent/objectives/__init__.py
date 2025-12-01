@@ -2,12 +2,14 @@ from typing import Dict, Type
 
 from .base import Objective
 from .opioid_ki import OpioidKiObjective
+from .qed import QedObjective
 from ..config import ObjectiveConfig
 from ..oracles.base import Oracle
 
 
 OBJECTIVE_REGISTRY: Dict[str, Type[Objective]] = {
     "opioid_ki": OpioidKiObjective,
+    "qed": QedObjective,
 }
 
 
