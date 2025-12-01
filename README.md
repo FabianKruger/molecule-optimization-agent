@@ -23,7 +23,7 @@ flowchart TD
     validation -->|Valid SMILES| prediction
     validation -->|Invalid SMILES| generation
 
-    prediction -->|Continue| generation
+    prediction -->|Furher Optimization| generation
     prediction -->|Target reached| final
     prediction -->|Max iterations| final
 
