@@ -2,11 +2,13 @@ from typing import Dict, Type
 
 from .base import Oracle, OracleResult
 from .opioid_ki import MolEncoderOpioidKiOracle
+from .qed import ExplainableQedOracle
 from ..config import OracleConfig
 
 
 ORACLE_REGISTRY: Dict[str, Type[Oracle]] = {
     "opioid_ki": MolEncoderOpioidKiOracle,
+    "qed": ExplainableQedOracle,
 }
 
 
