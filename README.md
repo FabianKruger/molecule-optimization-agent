@@ -43,11 +43,23 @@ flowchart TD
 cd molecule-optimization-agent
 pixi install
 ```
+## Environment Variables
+
+Set your API key before running:
+```bash
+export OPENAI_API_KEY=sk-...
+```
+
+Or use a `.env` file in the project root (loaded automatically):
+```
+OPENAI_API_KEY=sk-...
+```
 
 ## Usage
 
 ```bash
-pixi run molopt --config config/experiments/opioid_ki.yaml
+pixi run molopt --config config/experiments/<your_experiment>.yaml  
+# e.g.: pixi run molopt --config config/experiments/opioid_ki.yaml
 ```
 
 ## Configuration
@@ -61,10 +73,10 @@ log_dir: data/runs
 recursion_limit: 100
 
 llm:
-  model: gpt-4.1
+  model: gpt-5.1
   temperature: 0.3
   api_key_env: OPENAI_API_KEY
-  base_url: https://custom-endpoint.example.com/v1  # Optional: for corporate proxies
+  base_url: https://custom-endpoint.example.com/v1  # Optional. Add this keyword with url for Bayer here if you use internal model
 
 oracle:
   name: opioid_ki
@@ -84,10 +96,16 @@ For corporate API proxies, add `base_url` under `llm`. If omitted, the default O
 
 ## Output
 
-Results are saved to `log_dir` as JSON files containing:
-- Full conversation history
-- Molecule trace (SMILES, scores, reasoning per iteration)
-- Final summary
+Results are saved to `log_dir` as JSON files with the following structure:
+
+| Key | Description |
+|-----|-------------|
+| `timestamp` | Run timestamp (YYYYMMDD_HHMMSS) |
+| `experiment` | Experiment name from config |
+| `conversation` | Full message history (role + content) |
+| `trace` | List of iterations with SMILES, scores, and reasoning |
+| `iterations` | Total iteration count |
+| `summary` | LLM-generated summary of the optimization |
 
 Console output shows the best molecule, iteration count, and summary.
 
@@ -99,7 +117,7 @@ src/molopt_agent/
 ├── config.py            # Config dataclasses and YAML loading
 ├── state.py             # LangGraph workflow state definition
 ├── system_prompt.py     # Fixed system prompt for the LLM
-├── save_experiment.py   # Results persistence
+├── save_experiment.py   # Results saving logic
 ├── cli/                 # Argument parsing
 ├── graph/               # LangGraph workflow
 │   ├── builder.py       # Graph construction
@@ -205,12 +223,4 @@ objective:
     max_iterations: 30
 ```
 
-## Environment Variables
-
-Set your API key before running:
-```bash
-export OPENAI_API_KEY=sk-...
-```
-
-Or use a `.env` file in the project root (loaded automatically).
 
