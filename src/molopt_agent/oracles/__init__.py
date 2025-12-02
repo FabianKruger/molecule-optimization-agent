@@ -2,6 +2,7 @@ from typing import Dict, Type
 
 from .base import Oracle, OracleResult
 from .opioid_ki import MolEncoderOpioidKiOracle
+from .pubchem_novelty import PubChemNoveltyOracle
 from .qed import ExplainableQedOracle
 from .tanimoto_similarity import TanimotoSimilarityOracle
 from ..config import OracleConfig
@@ -9,6 +10,7 @@ from ..config import OracleConfig
 
 ORACLE_REGISTRY: Dict[str, Type[Oracle]] = {
     "opioid_ki": MolEncoderOpioidKiOracle,
+    "pubchem_novelty": PubChemNoveltyOracle,
     "qed": ExplainableQedOracle,
     "tanimoto_similarity": TanimotoSimilarityOracle,
 }
