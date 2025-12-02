@@ -51,7 +51,7 @@ Evaluation of your last proposal:
 
 SMILES: {state['current_smiles']}
 Predicted Ki: {ki:.2f} nM (lower is better)
-Target: Ki < {self._target_ki_nM:.2f} nM.
+Goal: Ki < {self._target_ki_nM:.2f} nM.
 Iteration: {state['iteration_count']} / {self._max_iterations}
 
 Oracle explanation:
