@@ -2,6 +2,7 @@ from typing import Dict, Type
 
 from .base import Objective
 from .opioid_ki import OpioidKiObjective
+from .pubchem_novelty import PubChemNoveltyObjective
 from .qed import QedObjective
 from .tanimoto_similarity import TanimotoSimilarityObjective
 from ..config import ObjectiveConfig
@@ -10,6 +11,7 @@ from ..oracles.base import Oracle
 
 OBJECTIVE_REGISTRY: Dict[str, Type[Objective]] = {
     "opioid_ki": OpioidKiObjective,
+    "pubchem_novelty": PubChemNoveltyObjective,
     "qed": QedObjective,
     "tanimoto_similarity": TanimotoSimilarityObjective,
 }
