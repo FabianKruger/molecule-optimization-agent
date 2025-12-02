@@ -53,7 +53,8 @@ class QedObjective:
 
         return f"""
 SMILES: {state['current_smiles']}
-QED: {qed_score:.3f} / {self._target_qed:.2f} (target)
+QED: {qed_score:.3f}
+Goal: achieve QED ≥ {self._target_qed:.2f}
 Iteration: {state['iteration_count']} / {self._max_iterations}
 
 {explanation}
