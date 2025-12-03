@@ -125,10 +125,16 @@ src/molopt_agent/
 │   └── routing.py       # Conditional routing logic
 ├── oracles/             # Scoring functions
 │   ├── base.py          # Oracle protocol
-│   └── opioid_ki.py     # Ki prediction oracle
+│   ├── opioid_ki.py     # Ki prediction oracle
+│   ├── pubchem_novelty.py   # PubChem novelty oracle
+│   ├── qed.py           # QED (drug-likeness) oracle
+│   └── tanimoto_similarity.py  # Tanimoto similarity oracle
 └── objectives/          # Optimization objectives
     ├── base.py          # Objective protocol
-    └── opioid_ki.py     # Opioid Ki minimization objective
+    ├── opioid_ki.py     # Opioid Ki minimization objective
+    ├── pubchem_novelty.py   # PubChem novelty objective
+    ├── qed.py           # QED maximization objective
+    └── tanimoto_similarity.py  # Tanimoto similarity objective
 ```
 
 ## Adding Custom Oracles
