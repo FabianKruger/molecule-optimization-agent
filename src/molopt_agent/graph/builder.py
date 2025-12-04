@@ -20,11 +20,14 @@ from .routing import (
 )
 
 
+API_KEY_ENV = "OPENAI_API_KEY"
+
+
 def build_workflow(objective: Objective, cfg: ExperimentConfig):
-    api_key = os.environ.get(cfg.llm.api_key_env)
+    api_key = os.environ.get(API_KEY_ENV)
     if not api_key:
         raise RuntimeError(
-            f"Missing API key in env var {cfg.llm.api_key_env!r}"
+            f"Missing API key: set {API_KEY_ENV} environment variable"
         )
 
     llm_kwargs = {

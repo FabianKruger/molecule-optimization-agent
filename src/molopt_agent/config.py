@@ -8,7 +8,6 @@ import yaml
 class LLMConfig:
     model: str
     temperature: float
-    api_key_env: str
     base_url: Optional[str] = None
 
 
@@ -53,13 +52,12 @@ def load_experiment_config(path: str) -> ExperimentConfig:
     llm_raw = raw["llm"]
     if not isinstance(llm_raw, dict):
         raise ValueError("Config.llm must be a mapping/object.")
-    for key in ("model", "temperature", "api_key_env"):
+    for key in ("model", "temperature"):
         if key not in llm_raw:
             raise ValueError(f"Missing required key in config.llm: '{key}'")
     llm = LLMConfig(
         model=str(llm_raw["model"]),
         temperature=float(llm_raw["temperature"]),
-        api_key_env=str(llm_raw["api_key_env"]),
         base_url=llm_raw.get("base_url"),  # Optional
     )
 

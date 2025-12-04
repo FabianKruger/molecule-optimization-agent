@@ -75,7 +75,6 @@ recursion_limit: 100
 llm:
   model: gpt-5.1
   temperature: 0.3
-  api_key_env: OPENAI_API_KEY
   base_url: https://custom-endpoint.example.com/v1  # Optional. Add this keyword with url for Bayer here if you use internal model
 
 oracle:
