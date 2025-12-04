@@ -4,8 +4,9 @@ from .base import Oracle, OracleResult
 
 
 class CompositeOracleResult(OracleResult):
-    """Extended result that includes individual sub-scores."""
+    """Extended result that includes individual sub-scores and explanations."""
     scores: dict[str, float]
+    explanations: dict[str, str]
 
 
 class CompositeOracle:
@@ -13,8 +14,9 @@ class CompositeOracle:
     Combines multiple oracles into one.
     
     - Scores are combined as a weighted sum (normalized by sum of weights).
-    - Explanations from each oracle are concatenated.
+    - Explanations from each oracle are concatenated in result["explanation"].
     - Individual scores are available in result["scores"] dict.
+    - Individual explanations are available in result["explanations"] dict.
     """
 
     def __init__(
@@ -62,10 +64,11 @@ class CompositeOracle:
             w * r["score"] for w, r in zip(self.normalized_weights, results)
         )
         
-        # Store individual scores by name
+        # Store individual scores and explanations by name
         scores = {name: r["score"] for name, r in zip(self.names, results)}
+        explanations = {name: r["explanation"] for name, r in zip(self.names, results)}
         
-        # Concatenate explanations with simple headers
+        # Concatenate explanations with simple headers for combined explanation
         explanation_parts = []
         for name, result in zip(self.names, results):
             explanation_parts.append(f"{name}:\n{result['explanation']}")
@@ -76,5 +79,6 @@ class CompositeOracle:
             "score": combined_score,
             "explanation": combined_explanation,
             "scores": scores,
+            "explanations": explanations,
         }
 

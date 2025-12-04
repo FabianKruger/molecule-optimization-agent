@@ -1,3 +1,5 @@
+from typing import Literal
+
 from ..oracles.base import Oracle, OracleResult
 from ..state import WorkflowState
 
@@ -49,12 +51,14 @@ class SimilarityAndQedObjective:
         min_similarity: float = 0.6,
         min_qed: float = 0.5,
         max_iterations: int = 20,
+        xai: Literal["full", "partial", "none"] = "full",
     ):
         self.oracle = oracle
         self._target_score = float(target_score)
         self._min_similarity = float(min_similarity)
         self._min_qed = float(min_qed)
         self._max_iterations = int(max_iterations)
+        self._xai = xai
 
         # Extract from oracle
         oracle_params = self._extract_from_oracle(oracle)
@@ -102,9 +106,26 @@ class SimilarityAndQedObjective:
         smiles = state["current_smiles"]
         return self.oracle(smiles)
 
+    def _get_explanation(self, result: OracleResult) -> str:
+        """Get explanation based on xai setting."""
+        explanations = result.get("explanations", {})
+        similarity_explanation = explanations.get(self.SIMILARITY_KEY, "")
+        qed_explanation = explanations.get(self.QED_KEY, "")
+
+        if self._xai == "none":
+            similarity_text = "No explanation provided."
+            qed_text = "No explanation provided."
+        elif self._xai == "partial":
+            similarity_text = "No explanation provided."
+            qed_text = qed_explanation or "No explanation provided."
+        else:  # "full"
+            similarity_text = similarity_explanation or "No explanation provided."
+            qed_text = qed_explanation or "No explanation provided."
+
+        return f"Similarity:\n{similarity_text}\n\nQED:\n{qed_text}"
+
     def build_feedback(self, state: WorkflowState, result: OracleResult) -> str:
         combined_score = result["score"]
-        explanation = result["explanation"]
         scores = result.get("scores", {})
 
         similarity_score = scores.get(self.SIMILARITY_KEY, 0.0)
@@ -115,7 +136,9 @@ class SimilarityAndQedObjective:
         combined_ok = combined_score >= self._target_score
 
         # Check if molecule is identical to target
-        is_identical = "IDENTICAL MOLECULE" in explanation
+        is_identical = "IDENTICAL MOLECULE" in result["explanation"]
+
+        explanation = self._get_explanation(result)
 
         feedback = f"""SMILES: {state['current_smiles']}
 Iteration: {state['iteration_count']} / {self._max_iterations}
@@ -123,6 +146,8 @@ Iteration: {state['iteration_count']} / {self._max_iterations}
 Combined score: {combined_score:.4f} (target: ≥ {self._target_score:.2f}) {"✓" if combined_ok else "✗"}
 Similarity: {similarity_score:.4f} (min: {self._min_similarity:.2f}) {"✓" if sim_ok else "✗"}
 QED: {qed_score:.4f} (min: {self._min_qed:.2f}) {"✓" if qed_ok else "✗"}
+
+Explanation:
 
 {explanation}"""
 
