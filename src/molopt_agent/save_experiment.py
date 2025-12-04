@@ -1,12 +1,15 @@
 import json
+from dataclasses import asdict
 from pathlib import Path
 from datetime import datetime
 
+from .config import ExperimentConfig
 from .state import WorkflowState
 
 
 def save_conversation_log(
     state: WorkflowState,
+    config: ExperimentConfig,
     output_dir: str,
     experiment_name: str,
 ) -> str:
@@ -22,6 +25,7 @@ def save_conversation_log(
     data = {
         "timestamp": ts,
         "experiment": experiment_name,
+        "config": asdict(config),
         "conversation": conversation,
         "trace": state["trace"],
         "iterations": state["iteration_count"],
