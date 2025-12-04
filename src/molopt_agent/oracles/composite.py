@@ -45,6 +45,15 @@ class CompositeOracle:
         total = sum(self.weights)
         self.normalized_weights = [w / total for w in self.weights]
 
+    def get_params(self) -> dict:
+        """Return oracle configuration for sharing with objectives."""
+        return {
+            "weights": self.weights,
+            "normalized_weights": self.normalized_weights,
+            "names": self.names,
+            "oracles": self.oracles,
+        }
+
     def __call__(self, smiles: str) -> CompositeOracleResult:
         results = [oracle(smiles) for oracle in self.oracles]
         

@@ -45,22 +45,48 @@ class SimilarityAndQedObjective:
     def __init__(
         self,
         oracle: Oracle,
-        target_smiles: str,
         target_score: float = 0.75,
         min_similarity: float = 0.6,
         min_qed: float = 0.5,
-        similarity_weight: float = 0.5,
-        qed_weight: float = 0.5,
         max_iterations: int = 20,
     ):
         self.oracle = oracle
-        self._target_smiles = target_smiles
         self._target_score = float(target_score)
         self._min_similarity = float(min_similarity)
         self._min_qed = float(min_qed)
-        self._similarity_weight = float(similarity_weight)
-        self._qed_weight = float(qed_weight)
         self._max_iterations = int(max_iterations)
+
+        # Extract from oracle
+        oracle_params = self._extract_from_oracle(oracle)
+        self._target_smiles = oracle_params["target_smiles"]
+        self._similarity_weight = float(oracle_params["weights"][0])
+        self._qed_weight = float(oracle_params["weights"][1])
+
+    def _extract_from_oracle(self, oracle: Oracle) -> dict:
+        """Extract shared params from oracle via get_params()."""
+        if not hasattr(oracle, "get_params"):
+            raise ValueError("Oracle must implement get_params() for SimilarityAndQedObjective")
+        
+        params = oracle.get_params()
+        extracted = {}
+        
+        # Get weights from composite oracle
+        if "weights" not in params:
+            raise ValueError("Oracle must provide 'weights' in get_params()")
+        extracted["weights"] = params["weights"]
+        
+        # Check sub-oracles for target_smiles
+        for sub_oracle in params.get("oracles", []):
+            if hasattr(sub_oracle, "get_params"):
+                sub_params = sub_oracle.get_params()
+                if "target_smiles" in sub_params:
+                    extracted["target_smiles"] = sub_params["target_smiles"]
+                    break
+        
+        if "target_smiles" not in extracted:
+            raise ValueError("Could not extract target_smiles from oracle's sub-oracles")
+        
+        return extracted
 
     def first_message(self) -> str:
         return FIRST_MESSAGE_TEMPLATE.format(

@@ -86,6 +86,10 @@ class TanimotoSimilarityOracle:
 
         return {"score": similarity, "explanation": explanation}
 
+    def get_params(self) -> dict:
+        """Return oracle configuration for sharing with objectives."""
+        return {"target_smiles": self.target_smiles}
+
     def _build_explanation(
         self, 
         missing_from_query: set[int], 
