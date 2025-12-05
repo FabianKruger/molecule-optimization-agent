@@ -50,9 +50,15 @@ Set your API key before running:
 export OPENAI_API_KEY=sk-...
 ```
 
+For custom API endpoints (e.g., corporate proxies), optionally set:
+```bash
+export OPENAI_BASE_URL=https://custom-endpoint.example.com/v1
+```
+
 Or use a `.env` file in the project root (loaded automatically):
 ```
 OPENAI_API_KEY=sk-...
+OPENAI_BASE_URL=https://custom-endpoint.example.com/v1  # Optional
 ```
 
 ## Usage
@@ -75,7 +81,6 @@ recursion_limit: 100
 llm:
   model: gpt-5.1
   temperature: 0.3
-  base_url: https://custom-endpoint.example.com/v1  # Optional. Add this keyword with url for Bayer here if you use internal model
 
 oracle:
   name: opioid_ki
@@ -91,7 +96,7 @@ objective:
 
 ### Custom LLM Endpoint
 
-For corporate API proxies, add `base_url` under `llm`. If omitted, the default OpenAI endpoint is used.
+For corporate API proxies, set the `OPENAI_BASE_URL` environment variable. If not set, the default OpenAI endpoint is used.
 
 ## Output
 

@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import yaml
 
@@ -8,7 +8,6 @@ import yaml
 class LLMConfig:
     model: str
     temperature: float
-    base_url: Optional[str] = None
 
 
 @dataclass
@@ -58,7 +57,6 @@ def load_experiment_config(path: str) -> ExperimentConfig:
     llm = LLMConfig(
         model=str(llm_raw["model"]),
         temperature=float(llm_raw["temperature"]),
-        base_url=llm_raw.get("base_url"),  # Optional
     )
 
     # Oracle section

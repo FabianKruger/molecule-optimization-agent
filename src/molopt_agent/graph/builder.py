@@ -21,6 +21,7 @@ from .routing import (
 
 
 API_KEY_ENV = "OPENAI_API_KEY"
+BASE_URL_ENV = "OPENAI_BASE_URL"
 
 
 def build_workflow(objective: Objective, cfg: ExperimentConfig):
@@ -34,8 +35,10 @@ def build_workflow(objective: Objective, cfg: ExperimentConfig):
         "model": cfg.llm.model,
         "api_key": api_key,
     }
-    if cfg.llm.base_url:
-        llm_kwargs["base_url"] = cfg.llm.base_url
+    
+    base_url = os.environ.get(BASE_URL_ENV)
+    if base_url:
+        llm_kwargs["base_url"] = base_url
 
     llm_gen = ChatOpenAI(temperature=cfg.llm.temperature, **llm_kwargs)
     llm_sum = ChatOpenAI(temperature=0.0, **llm_kwargs)
