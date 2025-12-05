@@ -5,6 +5,7 @@ from .opioid_ki import OpioidKiObjective
 from .pubchem_novelty import PubChemNoveltyObjective
 from .qed import QedObjective
 from .tanimoto_similarity import TanimotoSimilarityObjective
+from .xgboost_sarscov2 import XGBoostSARSCoV2Objective
 from ..config import ObjectiveConfig
 from ..oracles.base import Oracle
 
@@ -14,6 +15,7 @@ OBJECTIVE_REGISTRY: Dict[str, Type[Objective]] = {
     "pubchem_novelty": PubChemNoveltyObjective,
     "qed": QedObjective,
     "tanimoto_similarity": TanimotoSimilarityObjective,
+    "xgboost_sarscov2": XGBoostSARSCoV2Objective,
 }
 
 
