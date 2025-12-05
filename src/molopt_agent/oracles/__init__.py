@@ -5,6 +5,7 @@ from .opioid_ki import MolEncoderOpioidKiOracle
 from .pubchem_novelty import PubChemNoveltyOracle
 from .qed import ExplainableQedOracle
 from .tanimoto_similarity import TanimotoSimilarityOracle
+from .xgboost_sarscov2 import XGBoostMaccsSARSCoV2Oracle
 from ..config import OracleConfig
 
 
@@ -13,6 +14,7 @@ ORACLE_REGISTRY: Dict[str, Type[Oracle]] = {
     "pubchem_novelty": PubChemNoveltyOracle,
     "qed": ExplainableQedOracle,
     "tanimoto_similarity": TanimotoSimilarityOracle,
+    "xgboost_sarscov2":XGBoostMaccsSARSCoV2Oracle,
 }
 
 
