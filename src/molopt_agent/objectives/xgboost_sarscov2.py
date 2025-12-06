@@ -9,7 +9,7 @@ FIRST_MESSAGE_TEMPLATE = """
 We are optimizing ligands for the SARS-COV-2 Main Protease (MPro).
 
 Objective:
-- Minimize the predicted inhibitory constant IC50 (in nM).
+- Minimize the predicted half maximal inhibitory concentration IC50 (in nM).
 - Target: IC50 < {target_ic50:.2f} nM.
 
 Step 1:
