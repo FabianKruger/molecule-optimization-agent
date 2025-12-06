@@ -26,10 +26,10 @@ Respond with a single JSON object:
 """.strip()
 
 
-class TanimotoSimilarityObjective:
+class SimilarityObjective:
     """Objective for maximizing Tanimoto similarity to a target molecule using MACCS keys."""
 
-    name = "tanimoto_similarity"
+    name = "similarity"
 
     def __init__(
         self, 
@@ -47,7 +47,7 @@ class TanimotoSimilarityObjective:
     def _extract_target_smiles(self, oracle: Oracle) -> str:
         """Extract target_smiles from oracle via get_params()."""
         if not hasattr(oracle, "get_params"):
-            raise ValueError("Oracle must implement get_params() for TanimotoSimilarityObjective")
+            raise ValueError("Oracle must implement get_params() for SimilarityObjective")
         params = oracle.get_params()
         if "target_smiles" not in params:
             raise ValueError("Oracle must provide 'target_smiles' in get_params()")
@@ -120,4 +120,3 @@ Respond with JSON only:
 
     def max_iterations(self) -> int:
         return self._max_iterations
-

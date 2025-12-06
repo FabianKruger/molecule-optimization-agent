@@ -23,8 +23,8 @@ Respond with a single JSON object:
 """.strip()
 
 
-class XGBoostSARSCoV2Objective:
-    name = "xgboost_sarscov2"
+class IC50MproObjective:
+    name = "ic50mpro"
 
     def __init__(self, oracle: Oracle, target_ic50_nM: float, max_iterations: int):
         self.oracle = oracle

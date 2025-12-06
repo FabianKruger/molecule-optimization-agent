@@ -10,7 +10,7 @@ from .utils import build_maccs_key_definitions
 MACCS_KEY_DEFINITIONS = build_maccs_key_definitions()
 
 
-class TanimotoSimilarityOracle:
+class SimilarityOracle:
     """
     Oracle computing Tanimoto similarity using MACCS keys against a target molecule.
     
@@ -88,4 +88,3 @@ class TanimotoSimilarityOracle:
                 lines.append(f"  Key {bit}: {desc}")
 
         return "\n".join(lines)
-

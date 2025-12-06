@@ -35,10 +35,10 @@ Respond with a single JSON object:
 """.strip()
 
 
-class SimilarityAndQedObjective:
-    """Multi-objective optimization for Tanimoto similarity AND QED."""
+class SimilarityQedObjective:
+    """Multi-objective optimization for Tanimoto similarity and QED."""
 
-    name = "similarity_and_qed"
+    name = "similarity_qed"
 
     # Keys used in the CompositeOracle's scores dict
     SIMILARITY_KEY = "Similarity"
@@ -69,7 +69,7 @@ class SimilarityAndQedObjective:
     def _extract_from_oracle(self, oracle: Oracle) -> dict:
         """Extract shared params from oracle via get_params()."""
         if not hasattr(oracle, "get_params"):
-            raise ValueError("Oracle must implement get_params() for SimilarityAndQedObjective")
+            raise ValueError("Oracle must implement get_params() for SimilarityQedObjective")
         
         params = oracle.get_params()
         extracted = {}
@@ -188,4 +188,3 @@ Respond with JSON only:
 
     def max_iterations(self) -> int:
         return self._max_iterations
-

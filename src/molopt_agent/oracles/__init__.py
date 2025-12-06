@@ -2,20 +2,20 @@ from typing import Dict, Type
 
 from .base import Oracle, OracleResult
 from .composite import CompositeOracle
+from .ic50mpro import IC50MproOracle
+from .novel import NovelOracle
 from .opioid_ki import MolEncoderOpioidKiOracle
-from .pubchem_novelty import PubChemNoveltyOracle
 from .qed import ExplainableQedOracle
-from .tanimoto_similarity import TanimotoSimilarityOracle
-from .xgboost_sarscov2 import XGBoostMaccsSARSCoV2Oracle
+from .similarity import SimilarityOracle
 from ..config import OracleConfig
 
 
 ORACLE_REGISTRY: Dict[str, Type[Oracle]] = {
+    "ic50mpro": IC50MproOracle,
+    "novel": NovelOracle,
     "opioid_ki": MolEncoderOpioidKiOracle,
-    "pubchem_novelty": PubChemNoveltyOracle,
     "qed": ExplainableQedOracle,
-    "tanimoto_similarity": TanimotoSimilarityOracle,
-    "xgboost_sarscov2":XGBoostMaccsSARSCoV2Oracle,
+    "similarity": SimilarityOracle,
     "composite": CompositeOracle,
 }
 
@@ -53,4 +53,3 @@ def build_oracle_from_config(cfg: OracleConfig) -> Oracle:
 
 
 __all__ = ["Oracle", "OracleResult", "build_oracle_from_config", "ORACLE_REGISTRY"]
-

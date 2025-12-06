@@ -3,7 +3,7 @@ import requests
 from .base import OracleResult
 
 
-class PubChemNoveltyOracle:
+class NovelOracle:
     """
     Oracle that checks if a molecule is novel (not present in PubChem).
     
@@ -49,4 +49,3 @@ class PubChemNoveltyOracle:
 
         # PubChem CIDs are positive integers; anything <= 0 is not a real compound ID
         return any(isinstance(cid, int) and cid > 0 for cid in cids)
-
