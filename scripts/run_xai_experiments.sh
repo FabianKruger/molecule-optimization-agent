@@ -219,6 +219,7 @@ trap cleanup_temp_configs EXIT
 # EXPERIMENT 1: similarity_qed with relevant_molecule
 # ==============================================================================
 
+: '
 echo "=============================================="
 echo "EXPERIMENT 1: similarity_qed - relevant_molecule"
 echo "=============================================="
@@ -269,6 +270,7 @@ for xai_mode in "full" "partial" "none"; do
         run_experiment "$config_path" "Repetition $rep / $num_repetitions"
     done
 done
+'
 
 echo ""
 echo "=============================================="
