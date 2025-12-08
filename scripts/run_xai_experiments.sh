@@ -12,7 +12,7 @@ set -e  # Exit on error
 
 # Molecule SMILES for similarity experiments
 relevant_molecule="O=C1c3c(O/C(=C1/O)c2ccc(O)c(O)c2)cc(O)cc3O"  # Quercetin
-random_molecule="CC(=O)Oc1ccccc1C(=O)O"  # Example: Aspirin
+random_molecule="C1CCC(CCCCC(C1)NC2=NCCN2)NC3=NCCN3"  # Example: Contains cyclodecane (https://pubchem.ncbi.nlm.nih.gov/compound/172054415)
 
 # Similarity + QED objective thresholds
 sim_threshold=0.7          # min_similarity
