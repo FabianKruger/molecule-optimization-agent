@@ -20,10 +20,10 @@ Respond with a single JSON object:
 """.strip()
 
 
-class PubChemNoveltyObjective:
+class NovelObjective:
     """Objective for generating novel molecules not present in PubChem."""
 
-    name = "pubchem_novelty"
+    name = "novel"
 
     def __init__(self, oracle: Oracle, max_iterations: int = 20):
         self.oracle = oracle
@@ -72,4 +72,3 @@ Respond with JSON only:
 
     def max_iterations(self) -> int:
         return self._max_iterations
-

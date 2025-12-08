@@ -129,16 +129,23 @@ src/molopt_agent/
 │   └── routing.py       # Conditional routing logic
 ├── oracles/             # Scoring functions
 │   ├── base.py          # Oracle protocol
-│   ├── opioid_ki.py     # Ki prediction oracle
-│   ├── pubchem_novelty.py   # PubChem novelty oracle
+│   ├── composite.py     # Composite oracle (combines multiple oracles)
+│   ├── ic50mpro.py      # SARS-CoV-2 MPro IC50 prediction oracle
+│   ├── novel.py         # PubChem novelty oracle
+│   ├── opioid_ki.py     # Opioid Ki prediction oracle
 │   ├── qed.py           # QED (drug-likeness) oracle
-│   └── tanimoto_similarity.py  # Tanimoto similarity oracle
+│   ├── similarity.py    # Tanimoto similarity oracle
+│   └── utils.py         # Shared utilities (MACCS key definitions)
 └── objectives/          # Optimization objectives
-    ├── base.py          # Objective protocol
-    ├── opioid_ki.py     # Opioid Ki minimization objective
-    ├── pubchem_novelty.py   # PubChem novelty objective
-    ├── qed.py           # QED maximization objective
-    └── tanimoto_similarity.py  # Tanimoto similarity objective
+    ├── base.py              # Objective protocol
+    ├── ic50mpro.py          # IC50 minimization objective
+    ├── ic50mpro_novel.py    # IC50 + novelty objective
+    ├── ic50mpro_qed_novel.py # IC50 + QED + novelty objective
+    ├── novel.py             # PubChem novelty objective
+    ├── opioid_ki.py         # Opioid Ki minimization objective
+    ├── qed.py               # QED maximization objective
+    ├── similarity.py        # Tanimoto similarity objective
+    └── similarity_qed.py    # Similarity + QED objective
 ```
 
 ## Adding Custom Oracles

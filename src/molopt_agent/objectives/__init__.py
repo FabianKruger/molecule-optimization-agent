@@ -1,21 +1,27 @@
 from typing import Dict, Type
 
 from .base import Objective
+from .ic50mpro import IC50MproObjective
+from .ic50mpro_novel import IC50MproNovelObjective
+from .ic50mpro_qed_novel import IC50MproQedNovelObjective
+from .novel import NovelObjective
 from .opioid_ki import OpioidKiObjective
-from .pubchem_novelty import PubChemNoveltyObjective
 from .qed import QedObjective
-from .tanimoto_similarity import TanimotoSimilarityObjective
-from .xgboost_sarscov2 import XGBoostSARSCoV2Objective
+from .similarity import SimilarityObjective
+from .similarity_qed import SimilarityQedObjective
 from ..config import ObjectiveConfig
 from ..oracles.base import Oracle
 
 
 OBJECTIVE_REGISTRY: Dict[str, Type[Objective]] = {
+    "ic50mpro": IC50MproObjective,
+    "ic50mpro_novel": IC50MproNovelObjective,
+    "ic50mpro_qed_novel": IC50MproQedNovelObjective,
+    "novel": NovelObjective,
     "opioid_ki": OpioidKiObjective,
-    "pubchem_novelty": PubChemNoveltyObjective,
     "qed": QedObjective,
-    "tanimoto_similarity": TanimotoSimilarityObjective,
-    "xgboost_sarscov2": XGBoostSARSCoV2Objective,
+    "similarity": SimilarityObjective,
+    "similarity_qed": SimilarityQedObjective,
 }
 
 

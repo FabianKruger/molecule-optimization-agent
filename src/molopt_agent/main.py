@@ -27,6 +27,7 @@ def run_experiment(cfg: ExperimentConfig):
 
     log_file = save_conversation_log(
         final_state,
+        config=cfg,
         output_dir=cfg.log_dir,
         experiment_name=cfg.experiment_name,
     )

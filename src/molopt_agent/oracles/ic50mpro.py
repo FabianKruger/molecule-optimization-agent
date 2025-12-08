@@ -8,7 +8,7 @@ from rdkit.Chem import MACCSkeys
 from .base import OracleResult
 from molopt_agent.oracles.utils import build_maccs_key_definitions
 
-class XGBoostMaccsSARSCoV2Oracle:
+class IC50MproOracle:
     """
     Oracle using XGBoost model trained using training script on SARS-CoV2 pIC50 data from https://polarishub.io/competitions/asap-discovery/antiviral-potency-2025 
 
@@ -103,4 +103,3 @@ class XGBoostMaccsSARSCoV2Oracle:
             "score": ic50_nM, 
             "explanation": explanation,
         }
-    

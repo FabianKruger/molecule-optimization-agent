@@ -68,15 +68,18 @@ def make_prediction_node(objective: Objective):
         result = objective.evaluate(state)
         state["oracle_result"] = result
 
-        state["trace"].append(
-            {
-                "iteration": state["iteration_count"],
-                "smiles": state["current_smiles"],
-                "reason": state["current_reason"],
-                "score": result["score"],
-                "explanation": result["explanation"],
-            }
-        )
+        trace_entry = {
+            "iteration": state["iteration_count"],
+            "smiles": state["current_smiles"],
+            "reason": state["current_reason"],
+            "score": result["score"],
+            "explanation": result["explanation"],
+        }
+        # Include individual scores from composite oracles
+        if "scores" in result:
+            trace_entry["scores"] = result["scores"]
+
+        state["trace"].append(trace_entry)
 
         feedback = objective.build_feedback(state, result)
         state["messages"].append(HumanMessage(content=feedback))
@@ -87,20 +90,20 @@ def make_prediction_node(objective: Objective):
 
 def make_final_response_node(llm: ChatOpenAI):
     def final_response_node(state: WorkflowState) -> WorkflowState:
+        # Extract the objective description from the first human message
+        objective_context = state["messages"][1].content if len(state["messages"]) > 1 else ""
+        
         summary_prompt = f"""
-You are given the factual trace of every iteration of a molecular optimization loop.
-Each entry includes:
-- iteration index
-- SMILES
-- the model's reason
-- oracle metrics
-- oracle explanation
+You are given the objective and trace of a molecular optimization loop.
 
-Trace:
+Objective:
+{objective_context}
+
+Trace (each entry includes iteration, SMILES, reason, score, explanation):
 {json.dumps(state['trace'], indent=2)}
 
 Write a concise scientific summary of the optimization process.
-Use ONLY the information in the trace. Do not invent any steps or molecules.
+Use ONLY the information provided. Do not invent any steps or molecules.
 """.strip()
 
         summary_response = llm.invoke([HumanMessage(content=summary_prompt)])

@@ -26,22 +26,32 @@ Respond with a single JSON object:
 """.strip()
 
 
-class TanimotoSimilarityObjective:
+class SimilarityObjective:
     """Objective for maximizing Tanimoto similarity to a target molecule using MACCS keys."""
 
-    name = "tanimoto_similarity"
+    name = "similarity"
 
     def __init__(
         self, 
         oracle: Oracle, 
-        target_smiles: str,
         target_similarity: float = 0.9, 
-        max_iterations: int = 20
+        max_iterations: int = 20,
     ):
         self.oracle = oracle
-        self._target_smiles = target_smiles
         self._target_similarity = float(target_similarity)
         self._max_iterations = int(max_iterations)
+        
+        # Extract target_smiles from oracle
+        self._target_smiles = self._extract_target_smiles(oracle)
+
+    def _extract_target_smiles(self, oracle: Oracle) -> str:
+        """Extract target_smiles from oracle via get_params()."""
+        if not hasattr(oracle, "get_params"):
+            raise ValueError("Oracle must implement get_params() for SimilarityObjective")
+        params = oracle.get_params()
+        if "target_smiles" not in params:
+            raise ValueError("Oracle must provide 'target_smiles' in get_params()")
+        return params["target_smiles"]
 
     def first_message(self) -> str:
         return FIRST_MESSAGE_TEMPLATE.format(
@@ -110,4 +120,3 @@ Respond with JSON only:
 
     def max_iterations(self) -> int:
         return self._max_iterations
-

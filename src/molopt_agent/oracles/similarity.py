@@ -10,7 +10,7 @@ from .utils import build_maccs_key_definitions
 MACCS_KEY_DEFINITIONS = build_maccs_key_definitions()
 
 
-class TanimotoSimilarityOracle:
+class SimilarityOracle:
     """
     Oracle computing Tanimoto similarity using MACCS keys against a target molecule.
     
@@ -51,24 +51,23 @@ class TanimotoSimilarityOracle:
         # Bits only in query (extra features not in target)
         extra_in_query = query_on_bits - self.target_on_bits
 
-        explanation = self._build_explanation(similarity, missing_from_query, extra_in_query)
+        explanation = self._build_explanation(missing_from_query, extra_in_query)
 
         return {"score": similarity, "explanation": explanation}
 
+    def get_params(self) -> dict:
+        """Return oracle configuration for sharing with objectives."""
+        return {"target_smiles": self.target_smiles}
+
     def _build_explanation(
         self, 
-        similarity: float, 
         missing_from_query: set[int], 
         extra_in_query: set[int]
     ) -> str:
-        lines = [
-            f"Tanimoto Similarity (MACCS keys): {similarity:.4f}",
-            "",
-        ]
-
         if not missing_from_query and not extra_in_query:
-            lines.append("All MACCS key bits match between query and target.")
-            return "\n".join(lines)
+            return "All MACCS key bits match between query and target."
+
+        lines = []
 
         # Report features that reduce similarity
         if missing_from_query:
@@ -89,4 +88,3 @@ class TanimotoSimilarityOracle:
                 lines.append(f"  Key {bit}: {desc}")
 
         return "\n".join(lines)
-

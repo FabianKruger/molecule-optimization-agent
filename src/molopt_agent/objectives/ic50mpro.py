@@ -9,7 +9,7 @@ FIRST_MESSAGE_TEMPLATE = """
 We are optimizing ligands for the SARS-COV-2 Main Protease (MPro).
 
 Objective:
-- Minimize the predicted inhibitory constant IC50 (in nM).
+- Minimize the predicted half maximal inhibitory concentration IC50 (in nM).
 - Target: IC50 < {target_ic50:.2f} nM.
 
 Step 1:
@@ -23,8 +23,8 @@ Respond with a single JSON object:
 """.strip()
 
 
-class XGBoostSARSCoV2Objective:
-    name = "xgboost_sarscov2"
+class IC50MproObjective:
+    name = "ic50mpro"
 
     def __init__(self, oracle: Oracle, target_ic50_nM: float, max_iterations: int):
         self.oracle = oracle
