@@ -39,7 +39,7 @@ NUM_REPETITIONS=1
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(dirname "$SCRIPT_DIR")"
-SAMPLED_MOLECULES_FILE="$REPO_DIR/src/sampling_molecule_targets/sampled_molecules.txt"
+SAMPLED_MOLECULES_FILE="$REPO_DIR/data/molecules/sampled_molecules.txt"
 TEMP_CONFIG_DIR="$REPO_DIR/.temp_configs"
 
 # ==============================================================================
