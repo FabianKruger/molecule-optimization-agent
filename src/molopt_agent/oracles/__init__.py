@@ -7,6 +7,7 @@ from .novel import NovelOracle
 from .opioid_ki import MolEncoderOpioidKiOracle
 from .qed import ExplainableQedOracle
 from .similarity import SimilarityOracle
+from .tdc_tasks import TdcOracle
 from ..config import OracleConfig
 
 
@@ -17,6 +18,7 @@ ORACLE_REGISTRY: Dict[str, Type[Oracle]] = {
     "qed": ExplainableQedOracle,
     "similarity": SimilarityOracle,
     "composite": CompositeOracle,
+    "tdc_tasks": TdcOracle,
 }
 
 
