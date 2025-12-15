@@ -93,14 +93,21 @@ def make_final_response_node(llm: ChatOpenAI):
         # Extract the objective description from the first human message
         objective_context = state["messages"][1].content if len(state["messages"]) > 1 else ""
         
+        # Remove explanations from trace so summary only sees what the generation
+        # model actually saw (respects xai filtering in objectives)
+        trace_for_summary = [
+            {k: v for k, v in entry.items() if k != "explanation"}
+            for entry in state['trace']
+        ]
+        
         summary_prompt = f"""
 You are given the objective and trace of a molecular optimization loop.
 
 Objective:
 {objective_context}
 
-Trace (each entry includes iteration, SMILES, reason, score, explanation):
-{json.dumps(state['trace'], indent=2)}
+Trace (each entry includes iteration, SMILES, reason, score):
+{json.dumps(trace_for_summary, indent=2)}
 
 Write a concise scientific summary of the optimization process.
 Use ONLY the information provided. Do not invent any steps or molecules.
