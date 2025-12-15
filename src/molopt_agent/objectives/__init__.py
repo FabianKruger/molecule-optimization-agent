@@ -9,6 +9,7 @@ from .opioid_ki import OpioidKiObjective
 from .qed import QedObjective
 from .similarity import SimilarityObjective
 from .similarity_qed import SimilarityQedObjective
+from .tdc_tasks import TdcObjective
 from ..config import ObjectiveConfig
 from ..oracles.base import Oracle
 
@@ -22,6 +23,7 @@ OBJECTIVE_REGISTRY: Dict[str, Type[Objective]] = {
     "qed": QedObjective,
     "similarity": SimilarityObjective,
     "similarity_qed": SimilarityQedObjective,
+    "tdc_tasks": TdcObjective,
 }
 
 

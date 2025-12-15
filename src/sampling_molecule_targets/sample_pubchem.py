@@ -2,7 +2,6 @@ import json
 import random
 from typing import List, Optional, Tuple
 from urllib.request import urlopen
-import os
 
 from rdkit import Chem, DataStructs
 from rdkit.Chem import Descriptors, QED, rdFingerprintGenerator
@@ -157,7 +156,4 @@ if __name__ == "__main__":
     for i, smi in enumerate(smiles_list, start=1):
         print(i, smi)
 
-    # Save in the same directory as this script
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    output_path = os.path.join(script_dir, "sampled_molecules.txt")
-    save_smiles_txt(smiles_list, output_path)
+    save_smiles_txt(smiles_list, "data/molecules/sampled_molecules.txt")
