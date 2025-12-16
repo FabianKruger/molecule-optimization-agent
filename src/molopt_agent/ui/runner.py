@@ -27,7 +27,7 @@ from .mol_utils import smiles_to_image
 DEFAULT_TARGET_SMILES = "O=C1c3c(O/C(=C1/O)c2ccc(O)c(O)c2)cc(O)cc3O"
 
 # Max iterations for post-feedback optimization rounds
-POST_FEEDBACK_MAX_ITERATIONS = 5
+POST_FEEDBACK_MAX_ITERATIONS = 10
 
 
 @dataclass
@@ -125,7 +125,7 @@ class InteractiveSession:
         target_score: float = 0.75,
         min_similarity: float = 0.7,
         min_qed: float = 0.7,
-        max_iterations: int = 10,
+        max_iterations: int = 20,
     ):
         self.target_smiles = target_smiles
         self.target_score = target_score
@@ -151,7 +151,7 @@ class InteractiveSession:
         return ExperimentConfig(
             experiment_name="interactive_similarity_qed",
             llm=LLMConfig(
-                model="gpt-4o",  # Good balance of quality/speed for interactive use
+                model="gpt-5.1",  
                 temperature=0.3,
             ),
             recursion_limit=150,
@@ -273,8 +273,10 @@ class InteractiveSession:
         ):
             self.state = event
             
-            # Check if we have a new molecule proposal (after prediction node)
-            if event.get("current_smiles") and event.get("iteration_count", 0) > len(self.trace):
+            # Only capture after prediction node has run (when internal trace is updated)
+            # This ensures we have the oracle scores
+            internal_trace = event.get("trace", [])
+            if len(internal_trace) > len(self.trace):
                 entry = self._create_trace_entry(event)
                 self.trace.append(entry)
                 self.current_trace_index = len(self.trace) - 1
@@ -359,8 +361,9 @@ Continue optimizing. Respond with JSON:
         ):
             self.state = event
             
-            # Check if we have a new molecule proposal
-            if event.get("current_smiles") and event.get("iteration_count", 0) > len(self.trace):
+            # Only capture after prediction node has run (when internal trace is updated)
+            internal_trace = event.get("trace", [])
+            if len(internal_trace) > len(self.trace):
                 entry = self._create_trace_entry(event)
                 self.trace.append(entry)
                 self.current_trace_index = len(self.trace) - 1
