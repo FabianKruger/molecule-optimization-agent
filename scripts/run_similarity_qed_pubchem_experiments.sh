@@ -15,7 +15,7 @@ set -e  # Exit on error
 XAI_MODE="full"
 
 # LLM model name
-LLM_MODEL="gpt-5.1"
+LLM_MODEL="claude-opus-4.5"
 
 # Results base directory (will be created if it doesn't exist)
 RESULTS_BASE_DIR="data/results"
@@ -24,7 +24,7 @@ RESULTS_BASE_DIR="data/results"
 MIN_SIMILARITY=0.7
 MIN_QED=0.7
 TARGET_SCORE=0.9
-MAX_ITERATIONS=1
+MAX_ITERATIONS=51
 
 # General experiment settings
 TEMPERATURE=0.0
@@ -33,6 +33,18 @@ RECURSION_LIMIT=300
 # Number of repetitions per molecule
 NUM_REPETITIONS=1
 
+# Skip these SMILES - important for broken up runs
+#SKIP_SMILES=(
+#    "Br[C@@H]1[C@H](Br)c2cccc3c2[C@](Br)(C3)[C@H]1Br"
+    #"C=C(CCC(O)Cl)NC(=C)C(=O)OCC"
+    #"CCc1ccccc1NC(=O)C=C(C)c1cc2c(-c3ccc(Br)cc3)coc2cc1OC"
+    #"O=CC1CCCCN1c1cc(C(F)(F)F)ncc1[N+](=O)[O-]"
+    #"C/C(=N/N(C)C(N)=S)C(C)(C)C"
+    #"Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C(F)(F)F)s3)cn2)c(F)c1"
+    #"COc1ccccc1CNc1nc(NCc2ccc(C(C)C)cc2)c2sccc2n1"
+    #"C/C1=C\CC[C@]23O[C@@H]2[C@@H](OC3=O)C2=C(C1)C(=O)C=CC2=O"
+    #"COC(=O)CCC#Cc1ccc(C(CC(=O)c2ccnc(C)c2)c2ccccc2C)cc1"
+#)
 # ==============================================================================
 # PATHS - Relative to molecule-optimization-agent directory
 # ==============================================================================
@@ -180,6 +192,17 @@ while IFS= read -r target_smiles || [ -n "$target_smiles" ]; do
     if [ -z "$target_smiles" ]; then
         continue
     fi
+
+    skip=false
+    for s in "${SKIP_SMILES[@]}"; do
+        if [[ "$target_smiles" == "$s" ]]; then
+            MOLECULE_INDEX=$((MOLECULE_INDEX + 1))
+            echo "Skipping SMILES: $s"
+            skip=true
+            break
+        fi
+    done
+    $skip && continue
     
     # Trim whitespace
     target_smiles=$(echo "$target_smiles" | xargs)

@@ -50,7 +50,7 @@ ORACLE_NAMES=(
 DIRECTION="maximize"
 
 # Maximum number of iterations per experiment
-MAX_ITERATIONS=2
+MAX_ITERATIONS=50
 
 # Number of repetitions per oracle
 NUM_REPETITIONS=1
@@ -59,7 +59,7 @@ NUM_REPETITIONS=1
 LLM_MODEL="gpt-5.1"
 
 # LLM temperature
-TEMPERATURE=0.3
+TEMPERATURE=0.0
 
 # Recursion limit for LangGraph
 RECURSION_LIMIT=100

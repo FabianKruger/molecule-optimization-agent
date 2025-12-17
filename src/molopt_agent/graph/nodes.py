@@ -5,6 +5,24 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from ..state import WorkflowState
 from ..objectives.base import Objective
+import re
+import time
+from openai import RateLimitError
+
+def rate_limit_sensible_llm_call(llm:ChatOpenAI, message, max_attempts=3):
+    delay = 60  # sensible default for hard limits
+
+    for attempt in range(max_attempts):
+        try:
+            return llm.invoke(message)
+
+        except RateLimitError:
+            if attempt == max_attempts - 1:
+                raise
+
+            print(f"... Wait {delay}s to not exceed rate limit")
+            time.sleep(delay)
+            delay = min(delay * 2, 300)  # cap at 10s
 
 
 def make_generation_node(objective: Objective, llm: ChatOpenAI, system_prompt: str):
@@ -21,7 +39,9 @@ def make_generation_node(objective: Objective, llm: ChatOpenAI, system_prompt: s
                 )
                 state["validation_error"] = ""
 
-        response = llm.invoke(state["messages"])
+
+        #response = llm.invoke(state["messages"])
+        response = rate_limit_sensible_llm_call(llm, state["messages"])
         state["messages"].append(response)
         state["raw_model_output"] = response.content.strip()
         state["iteration_count"] += 1
@@ -113,7 +133,8 @@ Write a concise scientific summary of the optimization process.
 Use ONLY the information provided. Do not invent any steps or molecules.
 """.strip()
 
-        summary_response = llm.invoke([HumanMessage(content=summary_prompt)])
+        #summary_response = llm.invoke([HumanMessage(content=summary_prompt)])
+        summary_response = rate_limit_sensible_llm_call(llm, [HumanMessage(content=summary_prompt)])
         state["final_response"] = summary_response.content
         return state
 
