@@ -3,11 +3,34 @@
 import gradio as gr
 from dotenv import load_dotenv
 
-from .runner import InteractiveSession, SessionResult, TraceEntry, DEFAULT_TARGET_SMILES
+from .runner import (
+    InteractiveSession,
+    IC50MproQedNovelSession,
+    SessionResult,
+    TraceEntry,
+    DEFAULT_TARGET_SMILES,
+    TaskType,
+)
 from .mol_utils import smiles_to_image
 
 
-# Apple-inspired custom CSS
+# Task definitions
+TASK_CONFIGS = {
+    "similarity_qed": {
+        "name": "Similarity + QED",
+        "description": "Optimize for similarity to a target molecule while maintaining drug-likeness",
+        "has_target_smiles": True,
+        "score_labels": ["Similarity", "QED", "Combined"],
+    },
+    "ic50mpro_qed_novel": {
+        "name": "IC50 MPro + QED + Novelty",
+        "description": "Optimize for SARS-CoV-2 MPro inhibition with drug-likeness and novelty constraints",
+        "has_target_smiles": False,
+        "score_labels": ["IC50 (nM)", "QED", "Novel"],
+    },
+}
+
+
 CUSTOM_CSS = """
 /* Global styles */
 .gradio-container {
@@ -225,9 +248,8 @@ CUSTOM_CSS = """
     object-fit: contain !important;
 }
 
-/* Fix double borders on slider number inputs */
 input[type="number"] {
-    border: 1px solid #D2D2D7 !important;
+    border: none !important;
     box-shadow: none !important;
     outline: none !important;
 }
@@ -235,6 +257,18 @@ input[type="number"] {
 input[type="number"]:focus {
     border-color: #007AFF !important;
     box-shadow: none !important;
+}
+
+/* Hide spinner buttons on score displays */
+.score-display input[type="number"]::-webkit-outer-spin-button,
+.score-display input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none !important;
+    margin: 0 !important;
+}
+
+.score-display input[type="number"] {
+    -moz-appearance: textfield !important;
+    appearance: textfield !important;
 }
 
 /* Remove wrapper borders around number inputs in sliders */
@@ -372,6 +406,7 @@ def create_app() -> tuple[gr.Blocks, gr.themes.Base, str]:
     ) as app:
         # Session state
         session_state = gr.State(None)
+        current_task_state = gr.State("similarity_qed")
         
         # Header
         gr.HTML("""
@@ -387,46 +422,76 @@ def create_app() -> tuple[gr.Blocks, gr.themes.Base, str]:
                 gr.HTML('<div class="card-header">Configuration</div>')
                 
                 task_dropdown = gr.Dropdown(
-                    choices=["similarity_qed"],
+                    choices=[
+                        ("Similarity + QED", "similarity_qed"),
+                        ("IC50 MPro + QED + Novelty", "ic50mpro_qed_novel"),
+                    ],
                     value="similarity_qed",
                     label="Task",
                     info="Select optimization objective",
                     interactive=True,
                 )
                 
-                target_smiles = gr.Textbox(
-                    label="Target SMILES",
-                    value=DEFAULT_TARGET_SMILES,
-                    info="Reference molecule for similarity calculation",
-                    lines=2,
-                    placeholder="Enter SMILES string...",
-                )
-                
-                target_score = gr.Slider(
-                    minimum=0.5,
-                    maximum=1.0,
-                    value=0.75,
-                    step=0.01,
-                    label="Target Score",
-                    info="Combined score threshold",
-                )
-                
-                with gr.Row():
-                    min_similarity = gr.Slider(
-                        minimum=0.3,
-                        maximum=1.0,
-                        value=0.7,
-                        step=0.01,
-                        label="Min Similarity",
-                        info="MACCS similarity",
+                # Similarity + QED specific configuration
+                with gr.Group(visible=True) as similarity_config:
+                    target_smiles = gr.Textbox(
+                        label="Target SMILES",
+                        value=DEFAULT_TARGET_SMILES,
+                        info="Reference molecule for similarity calculation",
+                        lines=2,
+                        placeholder="Enter SMILES string...",
                     )
-                    min_qed = gr.Slider(
+                    
+                    target_score = gr.Slider(
+                        minimum=0.5,
+                        maximum=1.0,
+                        value=0.75,
+                        step=0.01,
+                        label="Target Score",
+                        info="Combined score threshold",
+                    )
+                    
+                    with gr.Row():
+                        min_similarity = gr.Slider(
+                            minimum=0.3,
+                            maximum=1.0,
+                            value=0.7,
+                            step=0.01,
+                            label="Min Similarity",
+                            info="MACCS similarity",
+                        )
+                        min_qed_sim = gr.Slider(
+                            minimum=0.3,
+                            maximum=1.0,
+                            value=0.7,
+                            step=0.01,
+                            label="Min QED",
+                            info="Drug-likeness score",
+                        )
+                
+                # IC50 MPro + QED + Novelty specific configuration
+                with gr.Group(visible=False) as ic50_config:
+                    target_ic50 = gr.Slider(
+                        minimum=1.0,
+                        maximum=100.0,
+                        value=40.0,
+                        step=1.0,
+                        label="Target IC50 (nM)",
+                        info="Target inhibitory concentration (lower is better)",
+                    )
+                    
+                    min_qed_ic50 = gr.Slider(
                         minimum=0.3,
                         maximum=1.0,
                         value=0.7,
                         step=0.01,
                         label="Min QED",
-                        info="Drug-likeness score",
+                        info="Minimum drug-likeness score",
+                    )
+                    
+                    gr.Markdown(
+                        "*The final molecule must be **novel** (not found in PubChem).*",
+                        elem_classes=["info"],
                     )
                 
                 start_btn = gr.Button(
@@ -436,102 +501,121 @@ def create_app() -> tuple[gr.Blocks, gr.themes.Base, str]:
                     elem_classes=["primary-btn"],
                 )
             
-            # Right column: Results
-            with gr.Column(scale=2):
+            # Middle column: Result/Molecule
+            with gr.Column(scale=1):
                 gr.HTML('<div class="card-header">Result</div>')
                 
+                # Molecule display with target preview
+                result_image = gr.Image(
+                    label="Structure",
+                    type="pil",
+                    height=320,
+                    elem_classes=["molecule-image"],
+                    show_label=False,
+                )
+                # Target molecule preview (only for similarity task)
+                with gr.Group(visible=True) as target_preview_group:
+                    gr.HTML('<span style="font-size: 0.75rem; color: #6E6E73; display: block; margin-bottom: 4px;">Target molecule</span>')
+                    target_image = gr.Image(
+                        type="pil",
+                        height=100,
+                        show_label=False,
+                        interactive=False,
+                        elem_classes=["target-thumbnail"],
+                    )
+                
+                result_smiles = gr.Textbox(
+                    label="SMILES",
+                    interactive=False,
+                )
+                
+                # Score displays for Similarity + QED task
+                with gr.Row(visible=True) as scores_similarity:
+                    score_similarity = gr.Number(
+                        label="Similarity", 
+                        interactive=False,
+                        elem_classes=["score-display"],
+                    )
+                    score_qed_sim = gr.Number(
+                        label="QED", 
+                        interactive=False,
+                        elem_classes=["score-display"],
+                    )
+                    score_combined_sim = gr.Number(
+                        label="Combined", 
+                        interactive=False,
+                        elem_classes=["score-display"],
+                    )
+                
+                # Score displays for IC50 MPro + QED + Novelty task
+                with gr.Row(visible=False) as scores_ic50:
+                    score_ic50 = gr.Number(
+                        label="IC50 (nM)", 
+                        interactive=False,
+                        elem_classes=["score-display"],
+                    )
+                    score_qed_ic50 = gr.Number(
+                        label="QED", 
+                        interactive=False,
+                        elem_classes=["score-display"],
+                    )
+                    score_novelty = gr.Textbox(
+                        label="Novel", 
+                        interactive=False,
+                        elem_classes=["score-display"],
+                    )
+                
+                # Navigation controls
                 with gr.Row():
-                    with gr.Column(scale=1):
-                        # Molecule display with target preview
-                        result_image = gr.Image(
-                            label="Structure",
-                            type="pil",
-                            height=320,
-                            elem_classes=["molecule-image"],
-                            show_label=False,
-                        )
-                        # Target molecule preview
-                        gr.HTML('<span style="font-size: 0.75rem; color: #6E6E73; display: block; margin-bottom: 4px;">Target molecule</span>')
-                        target_image = gr.Image(
-                            type="pil",
-                            height=100,
-                            show_label=False,
-                            interactive=False,
-                            elem_classes=["target-thumbnail"],
-                        )
-                        
-                        result_smiles = gr.Textbox(
-                            label="SMILES",
-                            interactive=False,
-                        )
-                        
-                        with gr.Row():
-                            score_similarity = gr.Number(
-                                label="Similarity", 
-                                interactive=False,
-                                elem_classes=["score-display"],
-                            )
-                            score_qed = gr.Number(
-                                label="QED", 
-                                interactive=False,
-                                elem_classes=["score-display"],
-                            )
-                            score_combined = gr.Number(
-                                label="Combined", 
-                                interactive=False,
-                                elem_classes=["score-display"],
-                            )
-                        
-                        # Navigation controls
-                        with gr.Row():
-                            prev_btn = gr.Button(
-                                "← Previous", 
-                                size="sm", 
-                                scale=1,
-                                elem_classes=["nav-btn"],
-                            )
-                            nav_display = gr.Textbox(
-                                value="0 / 0",
-                                label="",
-                                interactive=False,
-                                scale=1,
-                                elem_classes=["nav-display"],
-                                show_label=False,
-                            )
-                            next_btn = gr.Button(
-                                "Next →", 
-                                size="sm", 
-                                scale=1,
-                                elem_classes=["nav-btn"],
-                            )
-                        
-                        iterations_display = gr.Number(
-                            label="Total Iterations", 
-                            interactive=False,
-                        )
-                    
-                    with gr.Column(scale=1):
-                        gr.HTML('<div class="card-header" style="border:none; padding-bottom:0;">Summary</div>')
-                        
-                        summary_text = gr.Markdown(
-                            value="Run optimization to see results.",
-                            elem_classes=["summary-text"],
-                        )
-                        
-                        judge_result_text = gr.Markdown(
-                            value="",
-                            visible=False,
-                            elem_classes=["judge-result"],
-                        )
-                        
-                        # Save button
-                        save_btn = gr.Button(
-                            "Save Conversation", 
-                            variant="secondary", 
-                            visible=False,
-                            elem_classes=["secondary-btn"],
-                        )
-                        save_status = gr.Markdown(value="", visible=False)
+                    prev_btn = gr.Button(
+                        "← Previous", 
+                        size="sm", 
+                        scale=1,
+                        elem_classes=["nav-btn"],
+                    )
+                    nav_display = gr.Textbox(
+                        value="0 / 0",
+                        label="",
+                        interactive=False,
+                        scale=1,
+                        elem_classes=["nav-display"],
+                        show_label=False,
+                    )
+                    next_btn = gr.Button(
+                        "Next →", 
+                        size="sm", 
+                        scale=1,
+                        elem_classes=["nav-btn"],
+                    )
+                
+                iterations_display = gr.Number(
+                    label="Total Iterations", 
+                    interactive=False,
+                )
+            
+            # Right column: Summary
+            with gr.Column(scale=1):
+                gr.HTML('<div class="card-header">Summary</div>')
+                
+                summary_text = gr.Markdown(
+                    value="Run optimization to see results.",
+                    elem_classes=["summary-text"],
+                )
+                
+                judge_result_text = gr.Markdown(
+                    value="",
+                    visible=False,
+                    elem_classes=["judge-result"],
+                )
+                
+                # Save button
+                save_btn = gr.Button(
+                    "Save Conversation", 
+                    variant="secondary", 
+                    visible=False,
+                    elem_classes=["secondary-btn"],
+                )
+                save_status = gr.Markdown(value="", visible=False)
         
         # Feedback section
         with gr.Row(visible=False) as feedback_section:
@@ -571,6 +655,17 @@ def create_app() -> tuple[gr.Blocks, gr.themes.Base, str]:
         
         # --- Event Handlers ---
         
+        def on_task_change(task: str):
+            """Handle task selection change - toggle config and score visibility."""
+            is_similarity = task == "similarity_qed"
+            return (
+                gr.update(visible=is_similarity),  # similarity_config
+                gr.update(visible=not is_similarity),  # ic50_config
+                gr.update(visible=is_similarity),  # target_preview_group
+                gr.update(visible=is_similarity),  # scores_similarity
+                gr.update(visible=not is_similarity),  # scores_ic50
+            )
+        
         def update_target_image(smiles: str):
             """Update target molecule preview image."""
             try:
@@ -579,20 +674,31 @@ def create_app() -> tuple[gr.Blocks, gr.themes.Base, str]:
                 return None
         
         def start_optimization(
+            task: str,
             target_smiles_val: str,
             target_score_val: float,
             min_similarity_val: float,
-            min_qed_val: float,
+            min_qed_sim_val: float,
+            target_ic50_val: float,
+            min_qed_ic50_val: float,
         ):
             """Start a new optimization session with streaming updates."""
             
-            # Create new session
-            session = InteractiveSession(
-                target_smiles=target_smiles_val,
-                target_score=target_score_val,
-                min_similarity=min_similarity_val,
-                min_qed=min_qed_val,
-            )
+            is_similarity_task = task == "similarity_qed"
+            
+            # Create appropriate session based on task
+            if is_similarity_task:
+                session = InteractiveSession(
+                    target_smiles=target_smiles_val,
+                    target_score=target_score_val,
+                    min_similarity=min_similarity_val,
+                    min_qed=min_qed_sim_val,
+                )
+            else:
+                session = IC50MproQedNovelSession(
+                    target_ic50_nM=target_ic50_val,
+                    min_qed=min_qed_ic50_val,
+                )
             
             # Stream through optimization
             for item in session.start_streaming():
@@ -601,32 +707,62 @@ def create_app() -> tuple[gr.Blocks, gr.themes.Base, str]:
                     nav_text = f"{item.iteration} / ..."
                     
                     if item.is_valid:
-                        yield (
-                            session,  # session_state
-                            item.image,  # result_image
-                            item.smiles,  # result_smiles
-                            round(item.scores.get("Similarity", 0.0), 2) if item.scores else None,
-                            round(item.scores.get("QED", 0.0), 2) if item.scores else None,
-                            round(item.combined_score, 2) if item.combined_score else None,
-                            nav_text,  # nav_display
-                            item.iteration,  # iterations_display
-                            f"Optimizing — Iteration {item.iteration}",  # summary_text
-                            "",  # judge_result_text
-                            gr.update(visible=False),  # judge_result visibility
-                            gr.update(visible=False),  # feedback_section
-                            gr.update(visible=False),  # save_btn
-                            gr.update(visible=False),  # save_status
-                            "**Accumulated Constraints:** None yet",  # accumulated_constraints
-                            "",  # feedback_input
-                            gr.update(visible=False),  # status_text
-                        )
+                        if is_similarity_task:
+                            yield (
+                                session,  # session_state
+                                task,  # current_task
+                                item.image,  # result_image
+                                item.smiles,  # result_smiles
+                                round(item.scores.get("Similarity", 0.0), 2) if item.scores else None,
+                                round(item.scores.get("QED", 0.0), 2) if item.scores else None,
+                                round(item.combined_score, 2) if item.combined_score else None,
+                                None, None, "",  # IC50 scores (not used)
+                                nav_text,  # nav_display
+                                item.iteration,  # iterations_display
+                                f"Optimizing — Iteration {item.iteration}",  # summary_text
+                                "",  # judge_result_text
+                                gr.update(visible=False),  # judge_result visibility
+                                gr.update(visible=False),  # feedback_section
+                                gr.update(visible=False),  # save_btn
+                                gr.update(visible=False),  # save_status
+                                "**Accumulated Constraints:** None yet",  # accumulated_constraints
+                                "",  # feedback_input
+                                gr.update(visible=False),  # status_text
+                            )
+                        else:
+                            # IC50 task
+                            novelty_val = item.scores.get("Novelty", 0.0) if item.scores else 0.0
+                            novelty_str = "✓ Yes" if novelty_val == 1.0 else "✗ No"
+                            yield (
+                                session,
+                                task,
+                                item.image,
+                                item.smiles,
+                                None, None, None,  # Similarity scores (not used)
+                                round(item.scores.get("IC50", 0.0), 2) if item.scores else None,
+                                round(item.scores.get("QED", 0.0), 2) if item.scores else None,
+                                novelty_str,
+                                nav_text,
+                                item.iteration,
+                                f"Optimizing — Iteration {item.iteration}",
+                                "",
+                                gr.update(visible=False),
+                                gr.update(visible=False),
+                                gr.update(visible=False),
+                                gr.update(visible=False),
+                                "**Accumulated Constraints:** None yet",
+                                "",
+                                gr.update(visible=False),
+                            )
                     else:
                         # Invalid SMILES
                         yield (
                             session,
+                            task,
                             None,  # No image
                             f"[Invalid] {item.smiles}",
                             None, None, None,
+                            None, None, "",
                             nav_text,
                             item.iteration,
                             f"Optimizing — Iteration {item.iteration} (validating...)",
@@ -644,36 +780,69 @@ def create_app() -> tuple[gr.Blocks, gr.themes.Base, str]:
                     # Final result
                     nav_text = f"{session.current_trace_index + 1} / {session.get_trace_length()}"
                     
-                    yield (
-                        session,
-                        item.image,
-                        item.smiles,
-                        round(item.scores.get("Similarity", 0.0), 2),
-                        round(item.scores.get("QED", 0.0), 2),
-                        round(item.combined_score, 2),
-                        nav_text,
-                        item.iteration_count,
-                        item.summary,
-                        "",
-                        gr.update(visible=False),
-                        gr.update(visible=True),  # Show feedback section
-                        gr.update(visible=True),  # Show save button
-                        gr.update(visible=False),
-                        "**Accumulated Constraints:** None yet",
-                        "",
-                        gr.update(visible=False),
-                    )
+                    if is_similarity_task:
+                        yield (
+                            session,
+                            task,
+                            item.image,
+                            item.smiles,
+                            round(item.scores.get("Similarity", 0.0), 2),
+                            round(item.scores.get("QED", 0.0), 2),
+                            round(item.combined_score, 2),
+                            None, None, "",
+                            nav_text,
+                            item.iteration_count,
+                            item.summary,
+                            "",
+                            gr.update(visible=False),
+                            gr.update(visible=True),  # Show feedback section
+                            gr.update(visible=True),  # Show save button
+                            gr.update(visible=False),
+                            "**Accumulated Constraints:** None yet",
+                            "",
+                            gr.update(visible=False),
+                        )
+                    else:
+                        novelty_val = item.scores.get("Novelty", 0.0)
+                        novelty_str = "✓ Yes" if novelty_val == 1.0 else "✗ No"
+                        yield (
+                            session,
+                            task,
+                            item.image,
+                            item.smiles,
+                            None, None, None,
+                            round(item.scores.get("IC50", 0.0), 2),
+                            round(item.scores.get("QED", 0.0), 2),
+                            novelty_str,
+                            nav_text,
+                            item.iteration_count,
+                            item.summary,
+                            "",
+                            gr.update(visible=False),
+                            gr.update(visible=True),
+                            gr.update(visible=True),
+                            gr.update(visible=False),
+                            "**Accumulated Constraints:** None yet",
+                            "",
+                            gr.update(visible=False),
+                        )
         
         def continue_optimization(
-            session: InteractiveSession,
+            session: InteractiveSession | IC50MproQedNovelSession,
+            task: str,
             feedback: str,
         ):
             """Continue optimization with user feedback."""
             
+            is_similarity_task = task == "similarity_qed"
+            
             if session is None:
                 yield (
                     None,
-                    None, "", None, None, None, "0 / 0", 0,
+                    task,
+                    None, "", None, None, None,
+                    None, None, "",
+                    "0 / 0", 0,
                     "No active session. Please start optimization first.",
                     "", gr.update(visible=False),
                     gr.update(visible=False),
@@ -688,7 +857,10 @@ def create_app() -> tuple[gr.Blocks, gr.themes.Base, str]:
             if not feedback.strip():
                 yield (
                     session,
-                    None, "", None, None, None, "0 / 0", 0,
+                    task,
+                    None, "", None, None, None,
+                    None, None, "",
+                    "0 / 0", 0,
                     "Please provide feedback to continue.",
                     "", gr.update(visible=False),
                     gr.update(visible=True),
@@ -706,31 +878,60 @@ def create_app() -> tuple[gr.Blocks, gr.themes.Base, str]:
                     nav_text = f"{item.iteration} / ..."
                     
                     if item.is_valid:
-                        yield (
-                            session,
-                            item.image,
-                            item.smiles,
-                            round(item.scores.get("Similarity", 0.0), 2) if item.scores else None,
-                            round(item.scores.get("QED", 0.0), 2) if item.scores else None,
-                            round(item.combined_score, 2) if item.combined_score else None,
-                            nav_text,
-                            item.iteration,
-                            f"Optimizing — Iteration {item.iteration}",
-                            "",
-                            gr.update(visible=False),
-                            gr.update(visible=False),
-                            gr.update(visible=False),
-                            gr.update(visible=False),
-                            _format_constraints(session.get_accumulated_constraints()),
-                            "",
-                            gr.update(visible=False),
-                        )
+                        if is_similarity_task:
+                            yield (
+                                session,
+                                task,
+                                item.image,
+                                item.smiles,
+                                round(item.scores.get("Similarity", 0.0), 2) if item.scores else None,
+                                round(item.scores.get("QED", 0.0), 2) if item.scores else None,
+                                round(item.combined_score, 2) if item.combined_score else None,
+                                None, None, "",
+                                nav_text,
+                                item.iteration,
+                                f"Optimizing — Iteration {item.iteration}",
+                                "",
+                                gr.update(visible=False),
+                                gr.update(visible=False),
+                                gr.update(visible=False),
+                                gr.update(visible=False),
+                                _format_constraints(session.get_accumulated_constraints()),
+                                "",
+                                gr.update(visible=False),
+                            )
+                        else:
+                            novelty_val = item.scores.get("Novelty", 0.0) if item.scores else 0.0
+                            novelty_str = "✓ Yes" if novelty_val == 1.0 else "✗ No"
+                            yield (
+                                session,
+                                task,
+                                item.image,
+                                item.smiles,
+                                None, None, None,
+                                round(item.scores.get("IC50", 0.0), 2) if item.scores else None,
+                                round(item.scores.get("QED", 0.0), 2) if item.scores else None,
+                                novelty_str,
+                                nav_text,
+                                item.iteration,
+                                f"Optimizing — Iteration {item.iteration}",
+                                "",
+                                gr.update(visible=False),
+                                gr.update(visible=False),
+                                gr.update(visible=False),
+                                gr.update(visible=False),
+                                _format_constraints(session.get_accumulated_constraints()),
+                                "",
+                                gr.update(visible=False),
+                            )
                     else:
                         yield (
                             session,
+                            task,
                             None,
                             f"[Invalid] {item.smiles}",
                             None, None, None,
+                            None, None, "",
                             nav_text,
                             item.iteration,
                             f"Optimizing — Iteration {item.iteration} (validating...)",
@@ -754,31 +955,60 @@ def create_app() -> tuple[gr.Blocks, gr.themes.Base, str]:
 
 {item.judge_result.reason}"""
                     
-                    yield (
-                        session,
-                        item.image,
-                        item.smiles,
-                        round(item.scores.get("Similarity", 0.0), 2),
-                        round(item.scores.get("QED", 0.0), 2),
-                        round(item.combined_score, 2),
-                        nav_text,
-                        item.iteration_count,
-                        item.summary,
-                        judge_text,
-                        gr.update(visible=bool(judge_text)),
-                        gr.update(visible=True),
-                        gr.update(visible=True),
-                        gr.update(visible=False),
-                        _format_constraints(session.get_accumulated_constraints()),
-                        "",
-                        gr.update(visible=False),
-                    )
+                    if is_similarity_task:
+                        yield (
+                            session,
+                            task,
+                            item.image,
+                            item.smiles,
+                            round(item.scores.get("Similarity", 0.0), 2),
+                            round(item.scores.get("QED", 0.0), 2),
+                            round(item.combined_score, 2),
+                            None, None, "",
+                            nav_text,
+                            item.iteration_count,
+                            item.summary,
+                            judge_text,
+                            gr.update(visible=bool(judge_text)),
+                            gr.update(visible=True),
+                            gr.update(visible=True),
+                            gr.update(visible=False),
+                            _format_constraints(session.get_accumulated_constraints()),
+                            "",
+                            gr.update(visible=False),
+                        )
+                    else:
+                        novelty_val = item.scores.get("Novelty", 0.0)
+                        novelty_str = "✓ Yes" if novelty_val == 1.0 else "✗ No"
+                        yield (
+                            session,
+                            task,
+                            item.image,
+                            item.smiles,
+                            None, None, None,
+                            round(item.scores.get("IC50", 0.0), 2),
+                            round(item.scores.get("QED", 0.0), 2),
+                            novelty_str,
+                            nav_text,
+                            item.iteration_count,
+                            item.summary,
+                            judge_text,
+                            gr.update(visible=bool(judge_text)),
+                            gr.update(visible=True),
+                            gr.update(visible=True),
+                            gr.update(visible=False),
+                            _format_constraints(session.get_accumulated_constraints()),
+                            "",
+                            gr.update(visible=False),
+                        )
         
-        def navigate_previous(session: InteractiveSession):
+        def navigate_previous(session: InteractiveSession | IC50MproQedNovelSession, task: str):
             """Navigate to previous molecule in trace."""
+            is_similarity_task = task == "similarity_qed"
+            
             if session is None or session.get_trace_length() == 0:
                 return (
-                    session, None, "", None, None, None, "0 / 0"
+                    session, None, "", None, None, None, None, None, "", "0 / 0"
                 )
             
             entry = session.navigate_previous()
@@ -786,34 +1016,52 @@ def create_app() -> tuple[gr.Blocks, gr.themes.Base, str]:
                 entry = session.get_current_entry()
             
             if entry is None:
-                return (session, None, "", None, None, None, "0 / 0")
+                return (session, None, "", None, None, None, None, None, "", "0 / 0")
             
             nav_text = f"{session.current_trace_index + 1} / {session.get_trace_length()}"
             
             if entry.is_valid:
-                return (
-                    session,
-                    entry.image,
-                    entry.smiles,
-                    round(entry.scores.get("Similarity", 0.0), 2) if entry.scores else None,
-                    round(entry.scores.get("QED", 0.0), 2) if entry.scores else None,
-                    round(entry.combined_score, 2) if entry.combined_score else None,
-                    nav_text,
-                )
+                if is_similarity_task:
+                    return (
+                        session,
+                        entry.image,
+                        entry.smiles,
+                        round(entry.scores.get("Similarity", 0.0), 2) if entry.scores else None,
+                        round(entry.scores.get("QED", 0.0), 2) if entry.scores else None,
+                        round(entry.combined_score, 2) if entry.combined_score else None,
+                        None, None, "",
+                        nav_text,
+                    )
+                else:
+                    novelty_val = entry.scores.get("Novelty", 0.0) if entry.scores else 0.0
+                    novelty_str = "✓ Yes" if novelty_val == 1.0 else "✗ No"
+                    return (
+                        session,
+                        entry.image,
+                        entry.smiles,
+                        None, None, None,
+                        round(entry.scores.get("IC50", 0.0), 2) if entry.scores else None,
+                        round(entry.scores.get("QED", 0.0), 2) if entry.scores else None,
+                        novelty_str,
+                        nav_text,
+                    )
             else:
                 return (
                     session,
                     None,
                     f"[INVALID] {entry.smiles}",
                     None, None, None,
+                    None, None, "",
                     nav_text,
                 )
         
-        def navigate_next(session: InteractiveSession):
+        def navigate_next(session: InteractiveSession | IC50MproQedNovelSession, task: str):
             """Navigate to next molecule in trace."""
+            is_similarity_task = task == "similarity_qed"
+            
             if session is None or session.get_trace_length() == 0:
                 return (
-                    session, None, "", None, None, None, "0 / 0"
+                    session, None, "", None, None, None, None, None, "", "0 / 0"
                 )
             
             entry = session.navigate_next()
@@ -821,30 +1069,46 @@ def create_app() -> tuple[gr.Blocks, gr.themes.Base, str]:
                 entry = session.get_current_entry()
             
             if entry is None:
-                return (session, None, "", None, None, None, "0 / 0")
+                return (session, None, "", None, None, None, None, None, "", "0 / 0")
             
             nav_text = f"{session.current_trace_index + 1} / {session.get_trace_length()}"
             
             if entry.is_valid:
-                return (
-                    session,
-                    entry.image,
-                    entry.smiles,
-                    round(entry.scores.get("Similarity", 0.0), 2) if entry.scores else None,
-                    round(entry.scores.get("QED", 0.0), 2) if entry.scores else None,
-                    round(entry.combined_score, 2) if entry.combined_score else None,
-                    nav_text,
-                )
+                if is_similarity_task:
+                    return (
+                        session,
+                        entry.image,
+                        entry.smiles,
+                        round(entry.scores.get("Similarity", 0.0), 2) if entry.scores else None,
+                        round(entry.scores.get("QED", 0.0), 2) if entry.scores else None,
+                        round(entry.combined_score, 2) if entry.combined_score else None,
+                        None, None, "",
+                        nav_text,
+                    )
+                else:
+                    novelty_val = entry.scores.get("Novelty", 0.0) if entry.scores else 0.0
+                    novelty_str = "✓ Yes" if novelty_val == 1.0 else "✗ No"
+                    return (
+                        session,
+                        entry.image,
+                        entry.smiles,
+                        None, None, None,
+                        round(entry.scores.get("IC50", 0.0), 2) if entry.scores else None,
+                        round(entry.scores.get("QED", 0.0), 2) if entry.scores else None,
+                        novelty_str,
+                        nav_text,
+                    )
             else:
                 return (
                     session,
                     None,
                     f"[INVALID] {entry.smiles}",
                     None, None, None,
+                    None, None, "",
                     nav_text,
                 )
         
-        def save_conversation(session: InteractiveSession):
+        def save_conversation(session: InteractiveSession | IC50MproQedNovelSession):
             """Save the conversation to a file."""
             if session is None:
                 return gr.update(visible=True, value="No session to save")
@@ -855,15 +1119,15 @@ def create_app() -> tuple[gr.Blocks, gr.themes.Base, str]:
             except Exception as e:
                 return gr.update(visible=True, value=f"Error saving: {str(e)}")
         
-        def reset_session():
+        def reset_session(task: str):
             """Reset the session."""
             return (
                 None,  # session_state
+                task,  # current_task_state
                 None,  # result_image
                 "",  # result_smiles
-                None,  # score_similarity
-                None,  # score_qed
-                None,  # score_combined
+                None, None, None,  # similarity scores
+                None, None, "",  # IC50 scores
                 "0 / 0",  # nav_display
                 0,  # iterations_display
                 "Run optimization to see results.",  # summary_text
@@ -888,11 +1152,15 @@ def create_app() -> tuple[gr.Blocks, gr.themes.Base, str]:
         # Define outputs for optimization functions
         optimization_outputs = [
             session_state,
+            current_task_state,
             result_image,
             result_smiles,
             score_similarity,
-            score_qed,
-            score_combined,
+            score_qed_sim,
+            score_combined_sim,
+            score_ic50,
+            score_qed_ic50,
+            score_novelty,
             nav_display,
             iterations_display,
             summary_text,
@@ -911,33 +1179,42 @@ def create_app() -> tuple[gr.Blocks, gr.themes.Base, str]:
             result_image,
             result_smiles,
             score_similarity,
-            score_qed,
-            score_combined,
+            score_qed_sim,
+            score_combined_sim,
+            score_ic50,
+            score_qed_ic50,
+            score_novelty,
             nav_display,
         ]
         
         # Wire up events
+        task_dropdown.change(
+            fn=on_task_change,
+            inputs=[task_dropdown],
+            outputs=[similarity_config, ic50_config, target_preview_group, scores_similarity, scores_ic50],
+        )
+        
         start_btn.click(
             fn=start_optimization,
-            inputs=[target_smiles, target_score, min_similarity, min_qed],
+            inputs=[task_dropdown, target_smiles, target_score, min_similarity, min_qed_sim, target_ic50, min_qed_ic50],
             outputs=optimization_outputs,
         )
         
         continue_btn.click(
             fn=continue_optimization,
-            inputs=[session_state, feedback_input],
+            inputs=[session_state, current_task_state, feedback_input],
             outputs=optimization_outputs,
         )
         
         prev_btn.click(
             fn=navigate_previous,
-            inputs=[session_state],
+            inputs=[session_state, current_task_state],
             outputs=navigation_outputs,
         )
         
         next_btn.click(
             fn=navigate_next,
-            inputs=[session_state],
+            inputs=[session_state, current_task_state],
             outputs=navigation_outputs,
         )
         
@@ -949,6 +1226,7 @@ def create_app() -> tuple[gr.Blocks, gr.themes.Base, str]:
         
         reset_btn.click(
             fn=reset_session,
+            inputs=[current_task_state],
             outputs=optimization_outputs,
         )
         
