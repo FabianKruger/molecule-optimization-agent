@@ -1,0 +1,224 @@
+{
+  "timestamp": "20251218_135135",
+  "experiment": "sim_qed_pubchem_mol5_full_rep1",
+  "config": {
+    "experiment_name": "sim_qed_pubchem_mol5_full_rep1",
+    "llm": {
+      "model": "gpt-5.1",
+      "temperature": 0.0,
+      "reasoning_effort": "medium"
+    },
+    "recursion_limit": 300,
+    "log_dir": "/Users/ahunklinger/Coding/molecule-optimization-agent/data/results/similarity_qed_pubchem/gpt-5.1_full_xai_medium",
+    "oracle": {
+      "name": "composite",
+      "params": {
+        "oracles": [
+          {
+            "name": "similarity",
+            "params": {
+              "target_smiles": "C/C(=N/N(C)C(N)=S)C(C)(C)C"
+            }
+          },
+          {
+            "name": "qed",
+            "params": {}
+          }
+        ],
+        "weights": [
+          0.5,
+          0.5
+        ],
+        "names": [
+          "Similarity",
+          "QED"
+        ]
+      }
+    },
+    "objective": {
+      "name": "similarity_qed",
+      "params": {
+        "target_score": 0.9,
+        "min_similarity": 0.7,
+        "min_qed": 0.7,
+        "max_iterations": 11,
+        "xai": "full"
+      }
+    }
+  },
+  "conversation": [
+    {
+      "role": "SystemMessage",
+      "content": "You are an expert medicinal chemist whose job is to propose and optimize new molecules.\n\nYou interact in a multi-step optimization loop. In this loop you:\n- Propose small organic molecules as SMILES strings.\n- Receive evaluations of your proposals.\n- Have access to the full conversation history, including all past proposals, rationales, and evaluations.\n\nYour goal in this conversation is to iteratively propose new molecules that move the objective toward the specified target, using the information in the conversation history and your general chemical knowledge.\n\nOUTPUT FORMAT:\n\nFor every proposal, you must respond with a single JSON object of the form\n\n{\n  \"reason\": \"<short explanation>\",\n  \"smiles\": \"<SMILES string>\"\n}\n\nRequirements:\n- \"smiles\" must be a single, valid SMILES string for a plausible small molecule.\n- \"reason\" should briefly explain why, given the history of molecules and their scores, this new proposal might improve or further explore the objective landscape.\n- Do not repeat any previous molecule exactly. The scores are deterministic and will not change if a molecule is re-evaluated.\n- Do not include any text outside the JSON object. No Markdown, no comments, no code fences."
+    },
+    {
+      "role": "HumanMessage",
+      "content": "We are optimizing molecules for TWO objectives simultaneously:\n\n1. Structural Similarity to a target molecule using MACCS fingerprints\n   - Target molecule SMILES: C/C(=N/N(C)C(N)=S)C(C)(C)C\n   - Minimum required: similarity \u2265 0.70\n   - IMPORTANT: You must NOT propose the exact target molecule.\n\n2. Drug-likeness using the QED score\n   - Minimum required: QED \u2265 0.70\n   - QED evaluates: molecular weight, LogP, H-bond donors/acceptors, polar surface area, rotatable bonds, aromatic rings, structural alerts.\n\nThe combined score is: 0.5 * similarity + 0.5 * QED\nTarget combined score: \u2265 0.90\n\nSuccess requires:\n- Combined score \u2265 0.90\n- Similarity \u2265 0.70\n- QED \u2265 0.70\n\nStep 1:\nPropose a single initial molecule as a SMILES string that balances both objectives.\n\nRespond with a single JSON object:\n{\n  \"reason\": \"<why this molecule should satisfy both objectives>\",\n  \"smiles\": \"<SMILES string - must be different from target>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"This molecule is a close analog of the target, differing only by replacing the thiocarbonyl sulfur with oxygen to form a urea instead of a thiourea. This should preserve high MACCS fingerprint similarity (same topology, same N\u2013N\u2013C(=X)\u2013N core, same tert\u2011butyl imine chain) while removing a likely structural alert (thiourea), which should improve the QED score. The steric and polarity balance remain similar, so it should reasonably satisfy both similarity and drug-likeness requirements.\",\n  \"smiles\": \"C/C(=N/N(C)C(N)=O)C(C)(C)C\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: C/C(=N/N(C)C(N)=O)C(C)(C)C\nIteration: 1 / 11\n\nCombined score: 0.5837 (target: \u2265 0.90) \u2717\nSimilarity: 0.6970 (min: 0.70) \u2717\nQED: 0.4705 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 4 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 47: [#16]~*~[#7]\n  Key 73: [#16]=*\n  Key 81: [#16]~*(~*)~*\n  Key 88: [#16]\n\nThe following 6 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 37: [#7]~[#6](~[#8])~[#7]\n  Key 95: [#7]~*~*~[#8]\n  Key 110: [#7]~[#6]~[#8]\n  Key 117: [#7]~*~[#8]\n  Key 154: [#6]=[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.806 (value=171.24, optimal=281-332 Da)\n  ALOGP: -0.065 (value=1.42, optimal=1.95-3.57)\n  HBA: -0.073 (value=1, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.000 (value=58.69, optimal=40-69 \u0172)\n  ROTB: -0.293 (value=1, optimal=2-4)\n  AROM: -0.360 (value=0, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [C;!R]=[N;!R]\n  [OR0,NR0][OR0,NR0]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"I reintroduced the thiocarbonyl sulfur to regain the sulfur-specific MACCS keys and thereby boost similarity above 0.70, while redesigning the core to eliminate the N\u2013N single bond (removing the [OR0,NR0][OR0,NR0] structural alert). The imine motif is retained to keep the core topology similar, but one N-methyl was replaced by an N-phenyl to increase molecular weight, add a single aromatic ring, and modestly raise lipophilicity, all of which should improve QED while preserving high structural similarity to the target.\",\n  \"smiles\": \"C/C(=N/C(=S)N(C)c1ccccc1)C(C)(C)C\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: C/C(=N/C(=S)N(C)c1ccccc1)C(C)(C)C\nIteration: 2 / 11\n\nCombined score: 0.5946 (target: \u2265 0.90) \u2717\nSimilarity: 0.6364 (min: 0.70) \u2717\nQED: 0.5528 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 6 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 52: [#7]~[#7]\n  Key 79: [#7]~*~*~[#7]\n  Key 84: [NH2]\n  Key 94: [!#6;!#1]~[#7]\n  Key 124: [!#6;!#1]~[!#6;!#1]\n  Key 151: [#7;!H0]\n\nThe following 6 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 85: [#6]~[#7](~[#6])~[#6]\n  Key 133: *@*!@[#7]\n  Key 135: [#7]!:*:*\n  Key 162: a\n  Key 163: *1~*~*~*~*~*~1\n  Key 165: [R]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.169 (value=248.40, optimal=281-332 Da)\n  ALOGP: -0.056 (value=3.91, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.320 (value=0, optimal=1)\n  PSA: -0.040 (value=15.60, optimal=40-69 \u0172)\n  ROTB: -0.293 (value=1, optimal=2-4)\n  AROM: -0.091 (value=1, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [C;!R]=[N;!R]\n  [#6]=S\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"I kept the core very close to the first urea analog (which already had high similarity to the target by preserving the tert-butyl imine and N\u2013N\u2013C(=O)\u2013N motif) and changed only the N-methyl substituent to a benzyl group. This should maintain most MACCS features relevant to the target (including the N\u2013N linkage and imine) while modestly increasing molecular weight into the preferred range, adding a single aromatic ring, and increasing rotatable bonds and lipophilicity. These changes target better QED (MW, AROM, ROTB, ALOGP) without drastically perturbing similarity, aiming to push both similarity above 0.70 and QED toward \u22650.70 despite the structural-alert penalty.\",\n  \"smiles\": \"C/C(=N/N(Cc1ccccc1)C(N)=O)C(C)(C)C\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: C/C(=N/N(Cc1ccccc1)C(N)=O)C(C)(C)C\nIteration: 3 / 11\n\nCombined score: 0.5857 (target: \u2265 0.90) \u2717\nSimilarity: 0.5238 (min: 0.70) \u2717\nQED: 0.6475 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 5 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 47: [#16]~*~[#7]\n  Key 73: [#16]=*\n  Key 81: [#16]~*(~*)~*\n  Key 88: [#16]\n  Key 93: [!#6;!#1]~[CH3]\n\nThe following 15 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 37: [#7]~[#6](~[#8])~[#7]\n  Key 90: [$([!#6;!#1;!H0]~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[CH2;R]1)]\n  Key 95: [#7]~*~*~[#8]\n  Key 100: *~[CH2]~[#7]\n  Key 108: [CH3]~*~*~*~[CH2]~*\n  Key 110: [#7]~[#6]~[#8]\n  Key 111: [#7]~*~[CH2]~*\n  Key 117: [#7]~*~[#8]\n  Key 153: [!#6;!#1]~[CH2]~*\n  Key 154: [#6]=[#8]\n  Key 155: *!@[CH2]!@*\n  Key 162: a\n  Key 163: *1~*~*~*~*~*~1\n  Key 164: [#8]\n  Key 165: [R]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.175 (value=247.34, optimal=281-332 Da)\n  ALOGP: -0.001 (value=2.99, optimal=1.95-3.57)\n  HBA: -0.073 (value=1, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.000 (value=58.69, optimal=40-69 \u0172)\n  ROTB: -0.005 (value=3, optimal=2-4)\n  AROM: -0.091 (value=1, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [C;!R]=[N;!R]\n  [OR0,NR0][OR0,NR0]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"To improve QED, I aimed to reduce the number of structural alerts from two to one while keeping the overall topology close to the target. Starting from the first analog (which had good similarity but poor QED), I (1) saturated the C=N bond to a secondary amine, removing the imine alert, and (2) retained the N\u2013N linkage (preserving key MACCS features [#7]~[#7]) and the urea carbonyl (instead of thiocarbonyl) to avoid the C=S alert. I also modestly increased molecular weight and lipophilicity by replacing the N\u2011methyl with an N\u2011trifluoromethyl group, which should help MW, ALOGP, and possibly QED overall, while introducing relatively few new substructure features compared to adding aromatic rings. This design keeps the tert\u2011butyl\u2013N\u2013N\u2013urea core similar to the target but with only one structural alert and somewhat improved drug-likeness.\",\n  \"smiles\": \"CC(NN(C(F)(F)F)C(N)=O)C(C)(C)C\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: CC(NN(C(F)(F)F)C(N)=O)C(C)(C)C\nIteration: 4 / 11\n\nCombined score: 0.5355 (target: \u2265 0.90) \u2717\nSimilarity: 0.5128 (min: 0.70) \u2717\nQED: 0.5581 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 7 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 47: [#16]~*~[#7]\n  Key 73: [#16]=*\n  Key 78: [#6]=[#7]\n  Key 81: [#16]~*(~*)~*\n  Key 88: [#16]\n  Key 93: [!#6;!#1]~[CH3]\n  Key 119: [#7]=*\n\nThe following 12 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 37: [#7]~[#6](~[#8])~[#7]\n  Key 42: F\n  Key 54: [!#6;!#1;!H0]~*~*~[!#6;!#1;!H0]\n  Key 69: [!#6;!#1]~[!#6;!#1;!H0]\n  Key 95: [#7]~*~*~[#8]\n  Key 107: [F,Cl,Br,I]~*(~*)~*\n  Key 110: [#7]~[#6]~[#8]\n  Key 117: [#7]~*~[#8]\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 134: [F,Cl,Br,I]\n  Key 154: [#6]=[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.309 (value=227.23, optimal=281-332 Da)\n  ALOGP: -0.031 (value=1.83, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.000 (value=58.36, optimal=40-69 \u0172)\n  ROTB: -0.090 (value=2, optimal=2-4)\n  AROM: -0.360 (value=0, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  NC[F,Cl,Br,I]\n  [OR0,NR0][OR0,NR0]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"I aimed to restore key sulfur-based MACCS features and retain the N\u2013N linkage while removing the imine and thiocarbonyl alerts that severely hurt QED. This design keeps the tert\u2011butyl center and an N\u2013N motif attached to a sulfonamide (S(=O)2\u2013NH2), so sulfur-related keys ([#16], [#16]=*, [#16]~*~[#7], [#16]~*(~*)~*) and N\u2013N features should more closely match the target than the previous urea/CF3 analogs, improving similarity. At the same time, replacing C=S with a sulfonyl group avoids the [#6]=S alert, leaving only the N\u2013N structural alert. The benzyl substituent on the internal nitrogen increases molecular weight toward the optimal range, introduces one aromatic ring, and raises logP and rotatable bonds, all of which should improve QED while trying to keep the overall topology reasonably close to the target.\",\n  \"smiles\": \"CC(C)(C)C(NN(Cc1ccccc1)S(=O)2N)\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "Invalid SMILES: CC(C)(C)C(NN(Cc1ccccc1)S(=O)2N)"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"I reverted to a urea (C=O) instead of thiourea (C=S) to remove the strong [#6]=S structural alert while keeping the imine C=N and overall topology similar to the best-scoring thiourea analog (tert\u2011butyl imine attached to an N\u2011methyl\u2011N\u2011phenyl urea). This should preserve many of the MACCS features responsible for the previous relatively high similarity while improving QED by (1) reducing the number/strength of structural alerts (only the non-ring imine remains), (2) maintaining a favorable MW and one aromatic ring, and (3) keeping lipophilicity and rotatable bonds close to QED-optimal values.\",\n  \"smiles\": \"C/C(=N/C(=O)N(C)c1ccccc1)C(C)(C)C\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: C/C(=N/C(=O)N(C)c1ccccc1)C(C)(C)C\nIteration: 6 / 11\n\nCombined score: 0.5630 (target: \u2265 0.90) \u2717\nSimilarity: 0.4474 (min: 0.70) \u2717\nQED: 0.6786 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 10 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 47: [#16]~*~[#7]\n  Key 52: [#7]~[#7]\n  Key 73: [#16]=*\n  Key 79: [#7]~*~*~[#7]\n  Key 81: [#16]~*(~*)~*\n  Key 84: [NH2]\n  Key 88: [#16]\n  Key 94: [!#6;!#1]~[#7]\n  Key 124: [!#6;!#1]~[!#6;!#1]\n  Key 151: [#7;!H0]\n\nThe following 11 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 37: [#7]~[#6](~[#8])~[#7]\n  Key 85: [#6]~[#7](~[#6])~[#6]\n  Key 110: [#7]~[#6]~[#8]\n  Key 117: [#7]~*~[#8]\n  Key 133: *@*!@[#7]\n  Key 135: [#7]!:*:*\n  Key 154: [#6]=[#8]\n  Key 162: a\n  Key 163: *1~*~*~*~*~*~1\n  Key 164: [#8]\n  Key 165: [R]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.272 (value=232.33, optimal=281-332 Da)\n  ALOGP: -0.038 (value=3.75, optimal=1.95-3.57)\n  HBA: -0.073 (value=1, optimal=2-3)\n  HBD: -0.320 (value=0, optimal=1)\n  PSA: -0.009 (value=32.67, optimal=40-69 \u0172)\n  ROTB: -0.293 (value=1, optimal=2-4)\n  AROM: -0.091 (value=1, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  [C;!R]=[N;!R]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"I reverted to the exact thiourea N\u2013N\u2013imine core of the target to regain all sulfur and N\u2013N MACCS features, but increased molecular weight, aromaticity, and rotatable bonds by replacing the N-methyl on the internal nitrogen with an N-benzyl group. This preserves the key heteroatom topology (C=N\u2013N\u2013C(=S)\u2013NH2) for high similarity while improving QED-relevant properties (MW, ALOGP, ROTB, one aromatic ring, one HBD) even though two structural alerts (thiocarbonyl and imine) remain.\",\n  \"smiles\": \"C/C(=N/N(Cc1ccccc1)C(N)=S)C(C)(C)C\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: C/C(=N/N(Cc1ccccc1)C(N)=S)C(C)(C)C\nIteration: 7 / 11\n\nCombined score: 0.6197 (target: \u2265 0.90) \u2717\nSimilarity: 0.7222 (min: 0.70) \u2713\nQED: 0.5173 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 93: [!#6;!#1]~[CH3]\n\nThe following 9 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 90: [$([!#6;!#1;!H0]~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[CH2;R]1)]\n  Key 100: *~[CH2]~[#7]\n  Key 108: [CH3]~*~*~*~[CH2]~*\n  Key 111: [#7]~*~[CH2]~*\n  Key 153: [!#6;!#1]~[CH2]~*\n  Key 155: *!@[CH2]!@*\n  Key 162: a\n  Key 163: *1~*~*~*~*~*~1\n  Key 165: [R]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.093 (value=263.41, optimal=281-332 Da)\n  ALOGP: -0.004 (value=3.15, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.002 (value=41.62, optimal=40-69 \u0172)\n  ROTB: -0.005 (value=3, optimal=2-4)\n  AROM: -0.091 (value=1, optimal=1-2)\n  ALERTS: -2.380 (value=3, optimal=0)\n\n3 structural alert(s) triggered. SMARTS patterns of alerts:\n  [C;!R]=[N;!R]\n  [#6]=S\n  [OR0,NR0][OR0,NR0]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Starting from the high-similarity thiourea/imide/N\u2013N core, I focused on drastically improving QED by removing both the thiocarbonyl and the non\u2011ring N\u2013N structural alerts while preserving the tert\u2011butyl imine motif and an adjacent N\u2013N connection for MACCS similarity. The design replaces the thiourea with a cyclic urea (an imidazolidinone-like ring), and embeds the N\u2013N bond into this ring so that it no longer matches the [OR0,NR0][OR0,NR0] alert, leaving only the non\u2011ring C=N imine alert. A benzyl substituent on the ring nitrogen raises MW into the preferred range, introduces one aromatic ring, and increases logP and rotatable bonds, all favorable for QED. The tert\u2011butyl C=N\u2013N fragment and two adjacent nitrogens are retained to keep key MACCS features similar to the target while substantially reducing the alert penalty and optimizing other QED terms.\",\n  \"smiles\": \"C/C(=N/N1CCN(Cc2ccccc2)C(=O)1)C(C)(C)C\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: C/C(=N/N1CCN(Cc2ccccc2)C(=O)1)C(C)(C)C\nIteration: 8 / 11\n\nCombined score: 0.5585 (target: \u2265 0.90) \u2717\nSimilarity: 0.3390 (min: 0.70) \u2717\nQED: 0.7779 (min: 0.70) \u2713\n\nExplanation:\n\nSimilarity:\nThe following 7 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 47: [#16]~*~[#7]\n  Key 73: [#16]=*\n  Key 81: [#16]~*(~*)~*\n  Key 84: [NH2]\n  Key 88: [#16]\n  Key 93: [!#6;!#1]~[CH3]\n  Key 151: [#7;!H0]\n\nThe following 32 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 37: [#7]~[#6](~[#8])~[#7]\n  Key 75: *!@[#7]@*\n  Key 80: [#7]~*~*~*~[#7]\n  Key 83: [!#6;!#1]1~*~*~*~*~1\n  Key 85: [#6]~[#7](~[#6])~[#6]\n  Key 86: [C;H2,H3][!#6;!#1][C;H2,H3]\n  Key 95: [#7]~*~*~[#8]\n  Key 96: *1~*~*~*~*~1\n  Key 100: *~[CH2]~[#7]\n  Key 108: [CH3]~*~*~*~[CH2]~*\n  Key 110: [#7]~[#6]~[#8]\n  Key 111: [#7]~*~[CH2]~*\n  Key 117: [#7]~*~[#8]\n  Key 118: [$(*~[CH2]~[CH2]~*),$(*1~[CH2]~[CH2]1)] (count > 1)\n  Key 120: [!#6;R] (count > 1)\n  Key 121: [#7;R]\n  Key 127: *@*!@[#8] (count > 1)\n  Key 128: [$(*~[CH2]~*~*~*~[CH2]~*),$([R]1@[CH2;R]@[R]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[R]@[CH2;R]1),$(*~[CH2]~*~[R]1@[R]@[CH2;R]1)]\n  Key 129: [$(*~[CH2]~*~*~[CH2]~*),$([R]1@[CH2]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[CH2;R]1)]\n  Key 133: *@*!@[#7]\n  Key 137: [!C;!c;R]\n  Key 138: [!#6;!#1]~[CH2]~* (count > 1)\n  Key 143: *@*!@[#8]\n  Key 147: [$(*~[CH2]~[CH2]~*),$([R]1@[CH2;R]@[CH2;R]1)]\n  Key 150: *!@*@*!@*\n  Key 153: [!#6;!#1]~[CH2]~*\n  Key 154: [#6]=[#8]\n  Key 155: *!@[CH2]!@*\n  Key 162: a\n  Key 163: *1~*~*~*~*~*~1\n  Key 164: [#8]\n  Key 165: [R]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.055 (value=273.38, optimal=281-332 Da)\n  ALOGP: -0.011 (value=3.35, optimal=1.95-3.57)\n  HBA: -0.073 (value=1, optimal=2-3)\n  HBD: -0.320 (value=0, optimal=1)\n  PSA: -0.006 (value=35.91, optimal=40-69 \u0172)\n  ROTB: -0.005 (value=3, optimal=2-4)\n  AROM: -0.091 (value=1, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  [C;!R]=[N;!R]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"To keep only one structural alert while recovering most of the sulfur-based MACCS features of the target, I designed an imine\u2013sulfonamide analog that preserves the tert\u2011butyl imine motif (C=N\u2013) and introduces a sulfonyl sulfur instead of a thiocarbonyl. The S(=O)2\u2013NH\u2013aryl group restores multiple S-related keys ([#16], [#16]=*, [#16]~*(~*)~* and S\u2013C\u2013N connectivity via the CH2 linker) without triggering the [#6]=S thiocarbonyl alert, and avoids any N\u2013N bond, so only the non\u2011ring C=N alert remains. The aryl sulfonamide increases molecular weight, adds one aromatic ring, and improves lipophilicity and rotatable bonds, targeting QED \u2265 0.7 while aiming for higher similarity than the earlier urea analog that lacked sulfur.\",\n  \"smiles\": \"CC(C)(C)/C(=N/CS(=O)2Nc1ccccc1)\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "Invalid SMILES: CC(C)(C)/C(=N/CS(=O)2Nc1ccccc1)"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"I started from the thiourea analog that already had relatively high similarity (by keeping the tert\u2011butyl imine and C(=S)\u2013N core) but poor QED due to low MW, low PSA/HBA, no HBD, and two alerts (imine and C=S). To improve both objectives, I (1) reintroduced a terminal NH2 on the thiourea carbon, restoring the [NH2] and additional nitrogen features present in the target and likely boosting MACCS similarity; (2) attached a benzyl\u2013methyl substituent to the thiourea nitrogen to raise molecular weight into the optimal range, introduce one aromatic ring, and increase rotatable bonds and lipophilicity; and (3) connected the imine nitrogen directly to the thiocarbonyl carbon (C=N\u2013C(=S)(NH2)\u2013N(benzyl,methyl)), thereby preserving sulfur-based MACCS keys while still avoiding any N\u2013N bond, so only two alerts remain (non\u2011ring C=N and C=S). The added NH2 and aryl group should increase HBD, HBA, PSA, MW, AROM, and ROTB into better QED ranges while the thiourea/tert\u2011butyl imine environment stays close to the target for high similarity.\",\n  \"smiles\": \"C/C(=N/C(=S)(N)N(Cc1ccccc1)C)C(C)(C)C\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "Invalid SMILES: C/C(=N/C(=S)(N)N(Cc1ccccc1)C)C(C)(C)C"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"I introduced a sulfonamide in place of the thiourea to recover sulfur-based MACCS keys (S attached to C and N, S=O bonds) while avoiding the thiocarbonyl [#6]=S alert and eliminating the N\u2013N bond, leaving only the non-ring imine alert. The tert\u2011butyl imine C/C(=N/\u2013)C(C)(C)C motif is kept to preserve the overall topology of the target, and the sulfonamide is N\u2011phenyl to place MW in the optimal range, add one aromatic ring, and increase lipophilicity and PSA/HBA. This design aims to raise similarity above the urea analog (by reintroducing S) and push QED above 0.7 by having favorable physicochemical properties with only a single structural alert.\",\n  \"smiles\": \"C/C(=N/CS(=O)(=O)Nc1ccccc1)C(C)(C)C\"\n}"
+    }
+  ],
+  "trace": [
+    {
+      "iteration": 1,
+      "smiles": "C/C(=N/N(C)C(N)=O)C(C)(C)C",
+      "reason": "This molecule is a close analog of the target, differing only by replacing the thiocarbonyl sulfur with oxygen to form a urea instead of a thiourea. This should preserve high MACCS fingerprint similarity (same topology, same N\u2013N\u2013C(=X)\u2013N core, same tert\u2011butyl imine chain) while removing a likely structural alert (thiourea), which should improve the QED score. The steric and polarity balance remain similar, so it should reasonably satisfy both similarity and drug-likeness requirements.",
+      "score": 0.5837133829208725,
+      "explanation": "Similarity:\nThe following 4 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 47: [#16]~*~[#7]\n  Key 73: [#16]=*\n  Key 81: [#16]~*(~*)~*\n  Key 88: [#16]\n\nThe following 6 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 37: [#7]~[#6](~[#8])~[#7]\n  Key 95: [#7]~*~*~[#8]\n  Key 110: [#7]~[#6]~[#8]\n  Key 117: [#7]~*~[#8]\n  Key 154: [#6]=[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.806 (value=171.24, optimal=281-332 Da)\n  ALOGP: -0.065 (value=1.42, optimal=1.95-3.57)\n  HBA: -0.073 (value=1, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.000 (value=58.69, optimal=40-69 \u0172)\n  ROTB: -0.293 (value=1, optimal=2-4)\n  AROM: -0.360 (value=0, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [C;!R]=[N;!R]\n  [OR0,NR0][OR0,NR0]",
+      "scores": {
+        "Similarity": 0.696969696969697,
+        "QED": 0.4704570688720479
+      }
+    },
+    {
+      "iteration": 2,
+      "smiles": "C/C(=N/C(=S)N(C)c1ccccc1)C(C)(C)C",
+      "reason": "I reintroduced the thiocarbonyl sulfur to regain the sulfur-specific MACCS keys and thereby boost similarity above 0.70, while redesigning the core to eliminate the N\u2013N single bond (removing the [OR0,NR0][OR0,NR0] structural alert). The imine motif is retained to keep the core topology similar, but one N-methyl was replaced by an N-phenyl to increase molecular weight, add a single aromatic ring, and modestly raise lipophilicity, all of which should improve QED while preserving high structural similarity to the target.",
+      "score": 0.5946004195963326,
+      "explanation": "Similarity:\nThe following 6 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 52: [#7]~[#7]\n  Key 79: [#7]~*~*~[#7]\n  Key 84: [NH2]\n  Key 94: [!#6;!#1]~[#7]\n  Key 124: [!#6;!#1]~[!#6;!#1]\n  Key 151: [#7;!H0]\n\nThe following 6 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 85: [#6]~[#7](~[#6])~[#6]\n  Key 133: *@*!@[#7]\n  Key 135: [#7]!:*:*\n  Key 162: a\n  Key 163: *1~*~*~*~*~*~1\n  Key 165: [R]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.169 (value=248.40, optimal=281-332 Da)\n  ALOGP: -0.056 (value=3.91, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.320 (value=0, optimal=1)\n  PSA: -0.040 (value=15.60, optimal=40-69 \u0172)\n  ROTB: -0.293 (value=1, optimal=2-4)\n  AROM: -0.091 (value=1, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [C;!R]=[N;!R]\n  [#6]=S",
+      "scores": {
+        "Similarity": 0.6363636363636364,
+        "QED": 0.5528372028290288
+      }
+    },
+    {
+      "iteration": 3,
+      "smiles": "C/C(=N/N(Cc1ccccc1)C(N)=O)C(C)(C)C",
+      "reason": "I kept the core very close to the first urea analog (which already had high similarity to the target by preserving the tert-butyl imine and N\u2013N\u2013C(=O)\u2013N motif) and changed only the N-methyl substituent to a benzyl group. This should maintain most MACCS features relevant to the target (including the N\u2013N linkage and imine) while modestly increasing molecular weight into the preferred range, adding a single aromatic ring, and increasing rotatable bonds and lipophilicity. These changes target better QED (MW, AROM, ROTB, ALOGP) without drastically perturbing similarity, aiming to push both similarity above 0.70 and QED toward \u22650.70 despite the structural-alert penalty.",
+      "score": 0.5856636904209662,
+      "explanation": "Similarity:\nThe following 5 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 47: [#16]~*~[#7]\n  Key 73: [#16]=*\n  Key 81: [#16]~*(~*)~*\n  Key 88: [#16]\n  Key 93: [!#6;!#1]~[CH3]\n\nThe following 15 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 37: [#7]~[#6](~[#8])~[#7]\n  Key 90: [$([!#6;!#1;!H0]~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[CH2;R]1)]\n  Key 95: [#7]~*~*~[#8]\n  Key 100: *~[CH2]~[#7]\n  Key 108: [CH3]~*~*~*~[CH2]~*\n  Key 110: [#7]~[#6]~[#8]\n  Key 111: [#7]~*~[CH2]~*\n  Key 117: [#7]~*~[#8]\n  Key 153: [!#6;!#1]~[CH2]~*\n  Key 154: [#6]=[#8]\n  Key 155: *!@[CH2]!@*\n  Key 162: a\n  Key 163: *1~*~*~*~*~*~1\n  Key 164: [#8]\n  Key 165: [R]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.175 (value=247.34, optimal=281-332 Da)\n  ALOGP: -0.001 (value=2.99, optimal=1.95-3.57)\n  HBA: -0.073 (value=1, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.000 (value=58.69, optimal=40-69 \u0172)\n  ROTB: -0.005 (value=3, optimal=2-4)\n  AROM: -0.091 (value=1, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [C;!R]=[N;!R]\n  [OR0,NR0][OR0,NR0]",
+      "scores": {
+        "Similarity": 0.5238095238095238,
+        "QED": 0.6475178570324085
+      }
+    },
+    {
+      "iteration": 4,
+      "smiles": "CC(NN(C(F)(F)F)C(N)=O)C(C)(C)C",
+      "reason": "To improve QED, I aimed to reduce the number of structural alerts from two to one while keeping the overall topology close to the target. Starting from the first analog (which had good similarity but poor QED), I (1) saturated the C=N bond to a secondary amine, removing the imine alert, and (2) retained the N\u2013N linkage (preserving key MACCS features [#7]~[#7]) and the urea carbonyl (instead of thiocarbonyl) to avoid the C=S alert. I also modestly increased molecular weight and lipophilicity by replacing the N\u2011methyl with an N\u2011trifluoromethyl group, which should help MW, ALOGP, and possibly QED overall, while introducing relatively few new substructure features compared to adding aromatic rings. This design keeps the tert\u2011butyl\u2013N\u2013N\u2013urea core similar to the target but with only one structural alert and somewhat improved drug-likeness.",
+      "score": 0.5354848348085967,
+      "explanation": "Similarity:\nThe following 7 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 47: [#16]~*~[#7]\n  Key 73: [#16]=*\n  Key 78: [#6]=[#7]\n  Key 81: [#16]~*(~*)~*\n  Key 88: [#16]\n  Key 93: [!#6;!#1]~[CH3]\n  Key 119: [#7]=*\n\nThe following 12 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 37: [#7]~[#6](~[#8])~[#7]\n  Key 42: F\n  Key 54: [!#6;!#1;!H0]~*~*~[!#6;!#1;!H0]\n  Key 69: [!#6;!#1]~[!#6;!#1;!H0]\n  Key 95: [#7]~*~*~[#8]\n  Key 107: [F,Cl,Br,I]~*(~*)~*\n  Key 110: [#7]~[#6]~[#8]\n  Key 117: [#7]~*~[#8]\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 134: [F,Cl,Br,I]\n  Key 154: [#6]=[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.309 (value=227.23, optimal=281-332 Da)\n  ALOGP: -0.031 (value=1.83, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.000 (value=58.36, optimal=40-69 \u0172)\n  ROTB: -0.090 (value=2, optimal=2-4)\n  AROM: -0.360 (value=0, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  NC[F,Cl,Br,I]\n  [OR0,NR0][OR0,NR0]",
+      "scores": {
+        "Similarity": 0.5128205128205128,
+        "QED": 0.5581491567966805
+      }
+    },
+    {
+      "iteration": 6,
+      "smiles": "C/C(=N/C(=O)N(C)c1ccccc1)C(C)(C)C",
+      "reason": "I reverted to a urea (C=O) instead of thiourea (C=S) to remove the strong [#6]=S structural alert while keeping the imine C=N and overall topology similar to the best-scoring thiourea analog (tert\u2011butyl imine attached to an N\u2011methyl\u2011N\u2011phenyl urea). This should preserve many of the MACCS features responsible for the previous relatively high similarity while improving QED by (1) reducing the number/strength of structural alerts (only the non-ring imine remains), (2) maintaining a favorable MW and one aromatic ring, and (3) keeping lipophilicity and rotatable bonds close to QED-optimal values.",
+      "score": 0.5629884024761636,
+      "explanation": "Similarity:\nThe following 10 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 47: [#16]~*~[#7]\n  Key 52: [#7]~[#7]\n  Key 73: [#16]=*\n  Key 79: [#7]~*~*~[#7]\n  Key 81: [#16]~*(~*)~*\n  Key 84: [NH2]\n  Key 88: [#16]\n  Key 94: [!#6;!#1]~[#7]\n  Key 124: [!#6;!#1]~[!#6;!#1]\n  Key 151: [#7;!H0]\n\nThe following 11 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 37: [#7]~[#6](~[#8])~[#7]\n  Key 85: [#6]~[#7](~[#6])~[#6]\n  Key 110: [#7]~[#6]~[#8]\n  Key 117: [#7]~*~[#8]\n  Key 133: *@*!@[#7]\n  Key 135: [#7]!:*:*\n  Key 154: [#6]=[#8]\n  Key 162: a\n  Key 163: *1~*~*~*~*~*~1\n  Key 164: [#8]\n  Key 165: [R]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.272 (value=232.33, optimal=281-332 Da)\n  ALOGP: -0.038 (value=3.75, optimal=1.95-3.57)\n  HBA: -0.073 (value=1, optimal=2-3)\n  HBD: -0.320 (value=0, optimal=1)\n  PSA: -0.009 (value=32.67, optimal=40-69 \u0172)\n  ROTB: -0.293 (value=1, optimal=2-4)\n  AROM: -0.091 (value=1, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  [C;!R]=[N;!R]",
+      "scores": {
+        "Similarity": 0.4473684210526316,
+        "QED": 0.6786083838996955
+      }
+    },
+    {
+      "iteration": 7,
+      "smiles": "C/C(=N/N(Cc1ccccc1)C(N)=S)C(C)(C)C",
+      "reason": "I reverted to the exact thiourea N\u2013N\u2013imine core of the target to regain all sulfur and N\u2013N MACCS features, but increased molecular weight, aromaticity, and rotatable bonds by replacing the N-methyl on the internal nitrogen with an N-benzyl group. This preserves the key heteroatom topology (C=N\u2013N\u2013C(=S)\u2013NH2) for high similarity while improving QED-relevant properties (MW, ALOGP, ROTB, one aromatic ring, one HBD) even though two structural alerts (thiocarbonyl and imine) remain.",
+      "score": 0.6197419803771789,
+      "explanation": "Similarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 93: [!#6;!#1]~[CH3]\n\nThe following 9 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 90: [$([!#6;!#1;!H0]~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[CH2;R]1)]\n  Key 100: *~[CH2]~[#7]\n  Key 108: [CH3]~*~*~*~[CH2]~*\n  Key 111: [#7]~*~[CH2]~*\n  Key 153: [!#6;!#1]~[CH2]~*\n  Key 155: *!@[CH2]!@*\n  Key 162: a\n  Key 163: *1~*~*~*~*~*~1\n  Key 165: [R]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.093 (value=263.41, optimal=281-332 Da)\n  ALOGP: -0.004 (value=3.15, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.002 (value=41.62, optimal=40-69 \u0172)\n  ROTB: -0.005 (value=3, optimal=2-4)\n  AROM: -0.091 (value=1, optimal=1-2)\n  ALERTS: -2.380 (value=3, optimal=0)\n\n3 structural alert(s) triggered. SMARTS patterns of alerts:\n  [C;!R]=[N;!R]\n  [#6]=S\n  [OR0,NR0][OR0,NR0]",
+      "scores": {
+        "Similarity": 0.7222222222222222,
+        "QED": 0.5172617385321356
+      }
+    },
+    {
+      "iteration": 8,
+      "smiles": "C/C(=N/N1CCN(Cc2ccccc2)C(=O)1)C(C)(C)C",
+      "reason": "Starting from the high-similarity thiourea/imide/N\u2013N core, I focused on drastically improving QED by removing both the thiocarbonyl and the non\u2011ring N\u2013N structural alerts while preserving the tert\u2011butyl imine motif and an adjacent N\u2013N connection for MACCS similarity. The design replaces the thiourea with a cyclic urea (an imidazolidinone-like ring), and embeds the N\u2013N bond into this ring so that it no longer matches the [OR0,NR0][OR0,NR0] alert, leaving only the non\u2011ring C=N imine alert. A benzyl substituent on the ring nitrogen raises MW into the preferred range, introduces one aromatic ring, and increases logP and rotatable bonds, all favorable for QED. The tert\u2011butyl C=N\u2013N fragment and two adjacent nitrogens are retained to keep key MACCS features similar to the target while substantially reducing the alert penalty and optimizing other QED terms.",
+      "score": 0.5584568683347644,
+      "explanation": "Similarity:\nThe following 7 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 47: [#16]~*~[#7]\n  Key 73: [#16]=*\n  Key 81: [#16]~*(~*)~*\n  Key 84: [NH2]\n  Key 88: [#16]\n  Key 93: [!#6;!#1]~[CH3]\n  Key 151: [#7;!H0]\n\nThe following 32 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 37: [#7]~[#6](~[#8])~[#7]\n  Key 75: *!@[#7]@*\n  Key 80: [#7]~*~*~*~[#7]\n  Key 83: [!#6;!#1]1~*~*~*~*~1\n  Key 85: [#6]~[#7](~[#6])~[#6]\n  Key 86: [C;H2,H3][!#6;!#1][C;H2,H3]\n  Key 95: [#7]~*~*~[#8]\n  Key 96: *1~*~*~*~*~1\n  Key 100: *~[CH2]~[#7]\n  Key 108: [CH3]~*~*~*~[CH2]~*\n  Key 110: [#7]~[#6]~[#8]\n  Key 111: [#7]~*~[CH2]~*\n  Key 117: [#7]~*~[#8]\n  Key 118: [$(*~[CH2]~[CH2]~*),$(*1~[CH2]~[CH2]1)] (count > 1)\n  Key 120: [!#6;R] (count > 1)\n  Key 121: [#7;R]\n  Key 127: *@*!@[#8] (count > 1)\n  Key 128: [$(*~[CH2]~*~*~*~[CH2]~*),$([R]1@[CH2;R]@[R]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[R]@[CH2;R]1),$(*~[CH2]~*~[R]1@[R]@[CH2;R]1)]\n  Key 129: [$(*~[CH2]~*~*~[CH2]~*),$([R]1@[CH2]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[CH2;R]1)]\n  Key 133: *@*!@[#7]\n  Key 137: [!C;!c;R]\n  Key 138: [!#6;!#1]~[CH2]~* (count > 1)\n  Key 143: *@*!@[#8]\n  Key 147: [$(*~[CH2]~[CH2]~*),$([R]1@[CH2;R]@[CH2;R]1)]\n  Key 150: *!@*@*!@*\n  Key 153: [!#6;!#1]~[CH2]~*\n  Key 154: [#6]=[#8]\n  Key 155: *!@[CH2]!@*\n  Key 162: a\n  Key 163: *1~*~*~*~*~*~1\n  Key 164: [#8]\n  Key 165: [R]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.055 (value=273.38, optimal=281-332 Da)\n  ALOGP: -0.011 (value=3.35, optimal=1.95-3.57)\n  HBA: -0.073 (value=1, optimal=2-3)\n  HBD: -0.320 (value=0, optimal=1)\n  PSA: -0.006 (value=35.91, optimal=40-69 \u0172)\n  ROTB: -0.005 (value=3, optimal=2-4)\n  AROM: -0.091 (value=1, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  [C;!R]=[N;!R]",
+      "scores": {
+        "Similarity": 0.3389830508474576,
+        "QED": 0.777930685822071
+      }
+    }
+  ],
+  "iterations": 11,
+  "summary": "Over the course of eight iterations, a series of close analogs of the thiourea target (C/C(=N/N(C)C(N)=S)C(C)(C)C) were explored to balance structural similarity (MACCS) and drug-likeness (QED). None of the designs reached the required combined score \u2265 0.90, nor simultaneously achieved similarity \u2265 0.70 and QED \u2265 0.70.\n\nThe early designs focused on minimal perturbations of the target scaffold. In iteration 1, the thiocarbonyl sulfur was replaced by oxygen (urea instead of thiourea), preserving the tert\u2011butyl imine and N\u2013N\u2013C(=X)\u2013N core. This delivered relatively high similarity (0.697) but low QED (0.470), indicating that simply removing the C=S structural alert was not sufficient to achieve good drug\u2011likeness.\n\nIteration 2 reintroduced the thiocarbonyl sulfur to regain sulfur\u2011dependent MACCS features and modified the N\u2011substitution to N\u2011methyl\u2013N\u2011phenyl. Similarity dropped to 0.636, but QED increased to 0.553, showing that adding an aromatic ring and increasing molecular weight/lipophilicity improved QED despite the thiourea alert.\n\nIteration 3 kept the urea core from iteration 1 and replaced N\u2011methyl with N\u2011benzyl. This significantly improved QED (0.648) via increased molecular weight, aromaticity, and rotatable bonds, but similarity fell to 0.524, revealing a clear trade\u2011off: modifications that favor QED tended to erode structural similarity to the original thiourea.\n\nIteration 4 pursued further QED improvement by saturating the C=N imine to a secondary amine and incorporating a trifluoromethyl group on nitrogen, aiming to reduce structural alerts and adjust lipophilicity. This reduced similarity (0.513) and only modestly increased QED (0.558), indicating that departing from the imine and thiourea features substantially weakened similarity without delivering a large QED gain.\n\nIteration 6 applied a similar strategy to iteration 2 but used a urea (C=O) instead of thiourea (C=S) within an imine\u2013urea framework bearing an N\u2011phenyl substituent. QED rose further (0.679), but similarity dropped to 0.447, again underscoring the difficulty of maintaining high similarity when systematically removing strong alerts (thiocarbonyl, N\u2013N) and introducing more drug\u2011like features.\n\nIn iteration 7, the design moved back toward the original core: a thiourea with the imine and N\u2013N connectivity intact, but with an N\u2011benzyl substituent to boost molecular weight and lipophilicity. This delivered the highest similarity observed (0.722) and a moderate QED (0.517). The result confirms that preserving the thiourea\u2013imine\u2013N\u2013N scaffold is crucial for MACCS similarity, yet this motif intrinsically limits QED because multiple structural alerts remain.\n\nIteration 8 made the most radical scaffold modification, transforming the thiourea into a cyclic urea and embedding the N\u2013N bond within a ring (imidazolidinone-like system) while retaining the tert\u2011butyl imine and a benzyl substituent. This design achieved the highest QED of the series (0.778), driven by reduced structural alerts and improved physicochemical balance, but similarity dropped sharply to 0.339, indicating that topological changes necessary for strong drug-likeness substantially disrupted the fingerprint similarity to the target.\n\nOverall, the optimization trace illustrates a persistent trade\u2011off: molecules that closely preserve the thiourea/imine/N\u2013N core achieve higher similarity but suffer in QED, mainly due to structural alerts, whereas scaffold modifications that substantially improve QED inevitably degrade structural similarity below the desired threshold."
+}

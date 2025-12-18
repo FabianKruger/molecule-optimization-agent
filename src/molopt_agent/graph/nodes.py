@@ -35,7 +35,7 @@ def rate_limit_sensible_llm_call(llm:ChatOpenAI, message, max_attempts=3):
             wait = min(conn_delay, 15.0) * random.uniform(0.7, 1.3)
             print(f"... Wait {wait} as the connection was ended")
             now = time.time()
-            with open("timing.log", "a", encoding="utf-8") as f:
+            with open("timing_gpt.log", "a", encoding="utf-8") as f:
                 f.write(f"Attempt {attempt}: Will wait for {wait} and retry. Connection ended at |{now}\n")
             time.sleep(wait)
             conn_delay = min(conn_delay * 2, 15.0)
@@ -43,11 +43,11 @@ def rate_limit_sensible_llm_call(llm:ChatOpenAI, message, max_attempts=3):
 
 def make_generation_node(objective: Objective, llm: ChatOpenAI, system_prompt: str):
     def generation_node(state: WorkflowState) -> WorkflowState:
-
+        '''
         now = time.time()
-        with open("timing.log", "a", encoding="utf-8") as f:
+        with open("timing_gpt.log", "a", encoding="utf-8") as f:
             f.write(f"{state["iteration_count"]}|{now}\n")
-
+        '''
         if state["iteration_count"] == 0:
             state["messages"] = [
                 SystemMessage(content=system_prompt),
@@ -67,8 +67,9 @@ def make_generation_node(objective: Objective, llm: ChatOpenAI, system_prompt: s
         state["raw_model_output"] = response.content.strip()
         state["iteration_count"] += 1
 
+        '''
         now = time.time()
-        with open("timing.log", "r", encoding="utf-8") as f:
+        with open("timing_gpt.log", "r", encoding="utf-8") as f:
             last_line = f.readlines()[-1]
 
         _, last_ts = last_line.strip().split("|")
@@ -76,10 +77,10 @@ def make_generation_node(objective: Objective, llm: ChatOpenAI, system_prompt: s
 
         elapsed = now - last_time
 
-        with open("timing.log", "a", encoding="utf-8") as f:
+        with open("timing_gpt.log", "a", encoding="utf-8") as f:
             f.write(f"LLM message took {elapsed:.3f}s\n")
             f.write(f"LLM message received at |{now}\n")
-        
+        '''
         return state
 
     return generation_node
@@ -122,8 +123,9 @@ def make_prediction_node(objective: Objective):
     def prediction_node(state: WorkflowState) -> WorkflowState:
         result = objective.evaluate(state)
 
+        '''
         now = time.time()
-        with open("timing.log", "r", encoding="utf-8") as f:
+        with open("timing_gpt.log", "r", encoding="utf-8") as f:
             last_line = f.readlines()[-1]
 
         _, last_ts = last_line.strip().split("|")
@@ -131,9 +133,9 @@ def make_prediction_node(objective: Objective):
 
         elapsed = now - last_time
 
-        with open("timing.log", "a", encoding="utf-8") as f:
+        with open("timing_gpt.log", "a", encoding="utf-8") as f:
             f.write(f"Prediction from oracle received|{now}|elapsed={elapsed:.3f}s\n")
-
+        '''
         state["oracle_result"] = result
 
         trace_entry = {
