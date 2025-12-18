@@ -50,19 +50,19 @@ ORACLE_NAMES=(
 DIRECTION="maximize"
 
 # Maximum number of iterations per experiment
-MAX_ITERATIONS=50
+MAX_ITERATIONS=51
 
 # Number of repetitions per oracle
 NUM_REPETITIONS=1
 
 # LLM model name
-LLM_MODEL="gpt-5.1"
+LLM_MODEL="claude-opus-4.5"
 
 # LLM temperature
 TEMPERATURE=0.0
 
 # Recursion limit for LangGraph
-RECURSION_LIMIT=100
+RECURSION_LIMIT=300
 
 # Results base directory (will be created if it doesn't exist)
 RESULTS_BASE_DIR="results/tdc_tasks"
