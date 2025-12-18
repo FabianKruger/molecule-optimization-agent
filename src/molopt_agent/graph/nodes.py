@@ -7,10 +7,13 @@ from ..state import WorkflowState
 from ..objectives.base import Objective
 import re
 import time
-from openai import RateLimitError
+import httpcore
+from openai import RateLimitError, APIConnectionError
+import random
 
 def rate_limit_sensible_llm_call(llm:ChatOpenAI, message, max_attempts=3):
     delay = 60  # sensible default for hard limits
+    conn_delay = 0.5
 
     for attempt in range(max_attempts):
         try:
@@ -24,9 +27,27 @@ def rate_limit_sensible_llm_call(llm:ChatOpenAI, message, max_attempts=3):
             time.sleep(delay)
             delay = min(delay * 2, 300)  # cap at 10s
 
+        except (APIConnectionError, httpcore.RemoteProtocolError) as e:
+            if attempt == max_attempts - 1:
+                raise
+
+            # exponential backoff + jitter, capped
+            wait = min(conn_delay, 15.0) * random.uniform(0.7, 1.3)
+            print(f"... Wait {wait} as the connection was ended")
+            now = time.time()
+            with open("timing.log", "a", encoding="utf-8") as f:
+                f.write(f"Attempt {attempt}: Will wait for {wait} and retry. Connection ended at |{now}\n")
+            time.sleep(wait)
+            conn_delay = min(conn_delay * 2, 15.0)
+
 
 def make_generation_node(objective: Objective, llm: ChatOpenAI, system_prompt: str):
     def generation_node(state: WorkflowState) -> WorkflowState:
+
+        now = time.time()
+        with open("timing.log", "a", encoding="utf-8") as f:
+            f.write(f"{state["iteration_count"]}|{now}\n")
+
         if state["iteration_count"] == 0:
             state["messages"] = [
                 SystemMessage(content=system_prompt),
@@ -45,6 +66,20 @@ def make_generation_node(objective: Objective, llm: ChatOpenAI, system_prompt: s
         state["messages"].append(response)
         state["raw_model_output"] = response.content.strip()
         state["iteration_count"] += 1
+
+        now = time.time()
+        with open("timing.log", "r", encoding="utf-8") as f:
+            last_line = f.readlines()[-1]
+
+        _, last_ts = last_line.strip().split("|")
+        last_time = float(last_ts)
+
+        elapsed = now - last_time
+
+        with open("timing.log", "a", encoding="utf-8") as f:
+            f.write(f"LLM message took {elapsed:.3f}s\n")
+            f.write(f"LLM message received at |{now}\n")
+        
         return state
 
     return generation_node
@@ -86,6 +121,19 @@ def validation_node(state: WorkflowState) -> WorkflowState:
 def make_prediction_node(objective: Objective):
     def prediction_node(state: WorkflowState) -> WorkflowState:
         result = objective.evaluate(state)
+
+        now = time.time()
+        with open("timing.log", "r", encoding="utf-8") as f:
+            last_line = f.readlines()[-1]
+
+        _, last_ts = last_line.strip().split("|")
+        last_time = float(last_ts)
+
+        elapsed = now - last_time
+
+        with open("timing.log", "a", encoding="utf-8") as f:
+            f.write(f"Prediction from oracle received|{now}|elapsed={elapsed:.3f}s\n")
+
         state["oracle_result"] = result
 
         trace_entry = {
