@@ -26,7 +26,7 @@ ORACLE_NAMES=(
     "albuterol_similarity"
     "mestranol_similarity"
     # Isomer tasks
-    "isomers_c11h24"
+    "isomers_c7h8n2o2"
     "isomers_c9h10n2o2pf2cl"
     # Median molecules
     "median1"

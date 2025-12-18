@@ -27,7 +27,7 @@ def main():
     
     try:
         # Import TDC only when running (not at module level)
-        import tdc
+        import tdc # type: ignore
         
         # Initialize oracle
         oracle = tdc.Oracle(

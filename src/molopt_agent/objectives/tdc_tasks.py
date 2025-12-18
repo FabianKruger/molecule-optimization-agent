@@ -23,56 +23,6 @@ Respond with a single JSON object:
 
 # Dictionary mapping TDC oracle names to their specific descriptions
 TDC_ORACLE_DESCRIPTIONS: dict[str, dict[str, str]] = {
-    "qed": {
-        "task_description": (
-            "Optimize RDKit QED (Quantitative Estimate of Drug-likeness), a normalized score in [0, 1] "
-            "where higher is better and 1 is optimal. QED evaluates 8 molecular properties:\n"
-            "1. Molecular Weight (optimal: 281-332 Da)\n"
-            "2. LogP/lipophilicity (optimal: 1.95-3.57)\n"
-            "3. Hydrogen Bond Acceptors (optimal: 2-3)\n"
-            "4. Hydrogen Bond Donors (optimal: 1)\n"
-            "5. Polar Surface Area (optimal: 40-69 Ų)\n"
-            "6. Rotatable Bonds (optimal: 2-4)\n"
-            "7. Aromatic Rings (optimal: 1-2)\n"
-            "8. Structural Alerts (optimal: 0 - no problematic substructures)"
-        ),
-        "metric_name": "QED score (0–1; higher is better, 1 is optimal)",
-        "step_instruction": (
-            "Propose a single initial molecule as a SMILES string that has a high QED score. "
-        ),
-    },
-    "drd2": {
-        "task_description": (
-            "Optimize predicted bioactivity against Dopamine Receptor D2 (DRD2). "
-            "Scores are in [0, 1] with higher being better."
-        ),
-        "metric_name": "predicted DRD2 activity score (0–1; higher is better)",
-        "step_instruction": (
-            "Propose a single initial molecule as a SMILES string that you think has good predicted bioactivity against DRD2."
-        ),
-    },
-    "gsk3b": {
-        "task_description": (
-            "Optimize predicted bioactivity against Glycogen Synthase Kinase 3 beta (GSK3β). "
-            "Scores are in [0, 1] with higher being better."
-        ),
-        "metric_name": "predicted GSK3β activity score (0–1; higher is better)",
-        "step_instruction": (
-            "Propose a single initial molecule as a SMILES string that you think has good predicted bioactivity against GSK3β."
-        ),
-    },
-    "jnk3": {
-        "task_description": (
-            "Optimize predicted bioactivity against c-Jun N-terminal kinase 3 (JNK3). "
-            "Scores are in [0, 1] with higher being better."
-        ),
-        "metric_name": "predicted JNK3 activity score (0–1; higher is better)",
-        "step_instruction": (
-            "Propose a single initial molecule as a SMILES string that you think has good predicted bioactivity against JNK3."
-        ),
-    },
-
-    # ===== PMO GuacaMol-derived (19) =====
     "celecoxib_rediscovery": {
         "task_description": (
             "Rediscovery task: Rediscover a hidden molecule by maximizing similarity to the target molecule (score in [0,1], higher is better)."
@@ -104,12 +54,8 @@ TDC_ORACLE_DESCRIPTIONS: dict[str, dict[str, str]] = {
     "albuterol_similarity": {
         "task_description": (
             "Similarity task: Maximize similarity to a hidden target molecule (score in [0,1], higher is better).\n\n"
-            "Scoring mechanism:\n"
-            "- The score is based on similarity to the hidden target\n"
-            "- There is a threshold at 0.75:\n"
-            "  • If your molecule's similarity ≥ 0.75: you get the maximum score of 1.0\n"
-            "  • If your molecule's similarity < 0.75: the score scales linearly from 0 to 1\n"
-            "    (specifically: score = similarity / 0.75)\n\n"
+            "Scoring: score = min(1.0, similarity / 0.75)\n"
+            "This means similarity ≥ 0.75 gives the maximum score of 1.0.\n\n"
         ),
         "metric_name": "thresholded similarity score (0–1; higher is better)",
         "step_instruction": (
@@ -118,13 +64,9 @@ TDC_ORACLE_DESCRIPTIONS: dict[str, dict[str, str]] = {
     },
     "mestranol_similarity": {
         "task_description": (
-                "Similarity task: Maximize similarity to a hidden target molecule (score in [0,1], higher is better).\n\n"
-            "Scoring mechanism:\n"
-            "- The score is based on similarity to the hidden target\n"
-            "- There is a threshold at 0.75:\n"
-            "  • If your molecule's similarity ≥ 0.75: you get the maximum score of 1.0\n"
-            "  • If your molecule's similarity < 0.75: the score scales linearly from 0 to 1\n"
-            "    (specifically: score = similarity / 0.75)\n\n"
+            "Similarity task: Maximize similarity to a hidden target molecule (score in [0,1], higher is better).\n\n"
+            "Scoring: score = min(1.0, similarity / 0.75)\n"
+            "This means similarity ≥ 0.75 gives the maximum score of 1.0.\n\n"
         ),
         "metric_name": "thresholded similarity score (0–1; higher is better)",
         "step_instruction": (
@@ -133,14 +75,14 @@ TDC_ORACLE_DESCRIPTIONS: dict[str, dict[str, str]] = {
     },
 
     # Isomers (explicit formula targets)
-    "isomers_c11h24": {
+    "isomers_c7h8n2o2": {
         "task_description": (
-            "Isomer-generation task: generate molecules matching the molecular formula C11H24. "
+            "Isomer-generation task: generate molecules matching the molecular formula C7H8N2O2. "
             "Perfect score corresponds to exactly matching the target element counts (and total atom count). "
         ),
-        "metric_name": "formula-match score for C11H24 (0–1; higher is better)",
+        "metric_name": "formula-match score for C7H8N2O2 (0–1; higher is better)",
         "step_instruction": (
-            "Propose a single initial molecule as a SMILES string that you think matches the target molecular formula C11H24 exactly."
+            "Propose a single initial molecule as a SMILES string that you think matches the target molecular formula C7H8N2O2 exactly."
         ),
     },
     "isomers_c9h10n2o2pf2cl": {
@@ -345,20 +287,21 @@ TDC_ORACLE_DESCRIPTIONS: dict[str, dict[str, str]] = {
     # SMARTS-constrained objective
     "valsartan_smarts": {
         "task_description": (
-            "Valsartan SMARTS task: score is the geometric mean of 4 terms (each in [0,1]):\n"
-            "  score = gmean([smarts_term, logp_term, tpsa_term, bertz_term])\n\n"
-            "Required substructure (SMARTS):\n"
+            "Valsartan SMARTS task: Design a molecule containing a required substructure while matching property targets.\n\n"
+            "Critical constraint: Required substructure (SMARTS pattern):\n"
             "  CN(C=O)Cc1ccc(c2ccccc2)cc1\n"
-            "smarts_term = 1.0 if the SMARTS matches the molecule, else 0.0.\n\n"
-            "Property targets are derived from this reference molecule (Sitagliptin) SMILES:\n"
-            "  NC(CC(=O)N1CCn2c(nnc2C(F)(F)F)C1)Cc1cc(F)c(F)cc1F\n\n"
-            "Terms:\n"
-            "  logp_term  = gauss(MolLogP(test);  mu=MolLogP(ref),  sigma=0.2)\n"
-            "  tpsa_term  = gauss(TPSA(test);    mu=TPSA(ref),    sigma=5)\n"
-            "  bertz_term = gauss(BertzCT(test);mu=BertzCT(ref), sigma=30)\n\n"
-            "BertzCT is a molecular complexity descriptor. \n\n"
-            "Modifier:\n"
-            "  gauss(x;mu,sigma) = exp(-0.5 * ((x-mu)/sigma)^2)"
+            "Your molecule MUST contain this exact substructure as a subgraph match.\n\n"
+            "SCORING: The score is the geometric mean of 4 terms:\n"
+            "  score = (smarts_term * logp_term * tpsa_term * bertz_term)^(1/4)\n\n"
+            "Because this is a geometric mean, if smarts_term = 0, the entire score = 0,\n"
+            "no matter how good the other properties are!\n\n"
+            "Term definitions:\n"
+            "  smarts_term = 1.0 if the molecule contains the SMARTS pattern, else 0.0\n"
+            "  logp_term   = exp(-0.5 * ((MolLogP(mol) - target_logp) / 0.2)^2)\n"
+            "  tpsa_term   = exp(-0.5 * ((TPSA(mol) - target_tpsa) / 5)^2)\n"
+            "  bertz_term  = exp(-0.5 * ((BertzCT(mol) - target_bertz) / 30)^2)\n\n"
+            "The target property values come from Sitagliptin (NC(CC(=O)N1CCn2c(nnc2C(F)(F)F)C1)Cc1cc(F)c(F)cc1F). \n\n"
+            "BertzCT measures molecular complexity (larger, more complex molecules have higher values)."
         ),
         "metric_name": "Valsartan SMARTS composite score (0–1; higher is better)",
         "step_instruction": (
@@ -415,6 +358,54 @@ TDC_ORACLE_DESCRIPTIONS: dict[str, dict[str, str]] = {
             "- achieving high PHCO pharmacophore similarity to the reference (ideally sim >= 0.75 so the clipped term is 1),\n"
             "- DO containing '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1', and\n"
             "- NOT containing '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12'."
+        ),
+    },
+        "qed": {
+        "task_description": (
+            "Optimize RDKit QED (Quantitative Estimate of Drug-likeness), a normalized score in [0, 1] "
+            "where higher is better and 1 is optimal. QED evaluates 8 molecular properties:\n"
+            "1. Molecular Weight (optimal: 281-332 Da)\n"
+            "2. LogP/lipophilicity (optimal: 1.95-3.57)\n"
+            "3. Hydrogen Bond Acceptors (optimal: 2-3)\n"
+            "4. Hydrogen Bond Donors (optimal: 1)\n"
+            "5. Polar Surface Area (optimal: 40-69 Ų)\n"
+            "6. Rotatable Bonds (optimal: 2-4)\n"
+            "7. Aromatic Rings (optimal: 1-2)\n"
+            "8. Structural Alerts (optimal: 0 - no problematic substructures)"
+        ),
+        "metric_name": "QED score (0–1; higher is better, 1 is optimal)",
+        "step_instruction": (
+            "Propose a single initial molecule as a SMILES string that has a high QED score. "
+        ),
+    },
+    "drd2": {
+        "task_description": (
+            "Optimize predicted bioactivity against Dopamine Receptor D2 (DRD2). "
+            "Scores are in [0, 1] with higher being better."
+        ),
+        "metric_name": "predicted DRD2 activity score (0–1; higher is better)",
+        "step_instruction": (
+            "Propose a single initial molecule as a SMILES string that you think has good predicted bioactivity against DRD2."
+        ),
+    },
+    "gsk3b": {
+        "task_description": (
+            "Optimize predicted bioactivity against Glycogen Synthase Kinase 3 beta (GSK3β). "
+            "Scores are in [0, 1] with higher being better."
+        ),
+        "metric_name": "predicted GSK3β activity score (0–1; higher is better)",
+        "step_instruction": (
+            "Propose a single initial molecule as a SMILES string that you think has good predicted bioactivity against GSK3β."
+        ),
+    },
+    "jnk3": {
+        "task_description": (
+            "Optimize predicted bioactivity against c-Jun N-terminal kinase 3 (JNK3), which belongs to the mitogen-activated protein kinase family. "
+            "Scores are in [0, 1] with higher being better."
+        ),
+        "metric_name": "predicted JNK3 activity score (0–1; higher is better)",
+        "step_instruction": (
+            "Propose a single initial molecule as a SMILES string that you think has good predicted bioactivity against JNK3."
         ),
     },
 }
