@@ -15,7 +15,7 @@ set -e  # Exit on error
 XAI_MODE="full"
 
 # LLM model name
-LLM_MODEL="claude-opus-4.5"
+LLM_MODEL="gpt-5.1"
 
 # Results base directory (will be created if it doesn't exist)
 RESULTS_BASE_DIR="data/results"
@@ -24,7 +24,7 @@ RESULTS_BASE_DIR="data/results"
 MIN_SIMILARITY=0.7
 MIN_QED=0.7
 TARGET_SCORE=0.9
-MAX_ITERATIONS=51
+MAX_ITERATIONS=11
 
 # General experiment settings
 TEMPERATURE=0.0
@@ -32,6 +32,9 @@ RECURSION_LIMIT=300
 
 # Number of repetitions per molecule
 NUM_REPETITIONS=1
+
+# Add reasoning effort (gpt models: minimal, low, medium, high) - put None for default and non-gpt models
+REASONING_EFFORT='high'
 
 # Skip these SMILES - important for broken up runs
 #SKIP_SMILES=(
@@ -84,6 +87,7 @@ recursion_limit: ${RECURSION_LIMIT}
 llm:
   model: ${LLM_MODEL}
   temperature: ${TEMPERATURE}
+  reasoning_effort: ${REASONING_EFFORT}
 
 oracle:
   name: composite
@@ -148,6 +152,7 @@ echo "  Min QED: $MIN_QED"
 echo "  Target score: $TARGET_SCORE"
 echo "  Max iterations: $MAX_ITERATIONS"
 echo "  Temperature: $TEMPERATURE"
+echo "  Reasoning effort: $REASONING_EFFORT"
 echo "  Repetitions per molecule: $NUM_REPETITIONS"
 echo "  Sampled molecules file: $SAMPLED_MOLECULES_FILE"
 echo ""
@@ -164,9 +169,15 @@ if [ ! -f "$SAMPLED_MOLECULES_FILE" ]; then
     exit 1
 fi
 
+# Validate reasoning effort
+if [[ ! "$REASONING_EFFORT" =~ ^(minimal|low|medium|high|None)$ ]]; then
+    echo "ERROR: REASONING_EFFORT must be 'minimal, 'low', 'medium' 'high', or 'None'"
+    exit 1
+fi
+
 # Create results directory with LLM name and XAI setting
 XAI_DIR_NAME=$(get_xai_dir_name "$XAI_MODE")
-RESULTS_DIR="$REPO_DIR/$RESULTS_BASE_DIR/similarity_qed_pubchem/${LLM_MODEL}_${XAI_DIR_NAME}"
+RESULTS_DIR="$REPO_DIR/$RESULTS_BASE_DIR/similarity_qed_pubchem/${LLM_MODEL}_${XAI_DIR_NAME}_${REASONING_EFFORT}"
 mkdir -p "$RESULTS_DIR"
 
 echo "Results will be saved to: $RESULTS_DIR"

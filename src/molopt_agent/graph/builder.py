@@ -40,8 +40,13 @@ def build_workflow(objective: Objective, cfg: ExperimentConfig):
     if base_url:
         llm_kwargs["base_url"] = base_url
 
-    llm_gen = ChatOpenAI(temperature=cfg.llm.temperature, **llm_kwargs)
     llm_sum = ChatOpenAI(temperature=0.0, **llm_kwargs)
+
+    if cfg.llm.reasoning_effort is not None:
+        llm_kwargs["reasoning_effort"] = cfg.llm.reasoning_effort
+
+    llm_gen = ChatOpenAI(temperature=cfg.llm.temperature, **llm_kwargs)
+    
 
     gen_node = make_generation_node(objective, llm_gen, system_prompt=SYSTEM_PROMPT)
     pred_node = make_prediction_node(objective)

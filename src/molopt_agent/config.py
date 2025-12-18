@@ -8,6 +8,7 @@ import yaml
 class LLMConfig:
     model: str
     temperature: float
+    reasoning_effort: str
 
 
 @dataclass
@@ -54,9 +55,16 @@ def load_experiment_config(path: str) -> ExperimentConfig:
     for key in ("model", "temperature"):
         if key not in llm_raw:
             raise ValueError(f"Missing required key in config.llm: '{key}'")
+    if "reasoning_effort" not in llm_raw or llm_raw["reasoning_effort"] == "None":
+        reasoning_effort = None
+    elif llm_raw["reasoning_effort"] in ["minimal", "low", "medium", "high"] and llm_raw["model"].startswith("gpt"):
+        reasoning_effort = str(llm_raw["reasoning_effort"])
+    else:
+        raise ValueError(f"Invalid key value or model combination in config.llm: 'reasoning_effort'")
     llm = LLMConfig(
         model=str(llm_raw["model"]),
         temperature=float(llm_raw["temperature"]),
+        reasoning_effort=reasoning_effort
     )
 
     # Oracle section
