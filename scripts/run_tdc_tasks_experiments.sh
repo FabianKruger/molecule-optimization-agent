@@ -65,7 +65,7 @@ TEMPERATURE=0.0
 RECURSION_LIMIT=300
 
 # Results base directory (will be created if it doesn't exist)
-RESULTS_BASE_DIR="results/tdc_tasks"
+RESULTS_BASE_DIR="data/results/tdc_tasks"
 
 # ==============================================================================
 # PATHS - Relative to molecule-optimization-agent directory
