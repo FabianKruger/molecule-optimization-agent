@@ -1,0 +1,246 @@
+{
+  "timestamp": "20251218_150851",
+  "experiment": "sim_qed_pubchem_mol12_full_rep1",
+  "config": {
+    "experiment_name": "sim_qed_pubchem_mol12_full_rep1",
+    "llm": {
+      "model": "gpt-5.1",
+      "temperature": 0.0,
+      "reasoning_effort": "medium"
+    },
+    "recursion_limit": 300,
+    "log_dir": "/Users/ahunklinger/Coding/molecule-optimization-agent/data/results/similarity_qed_pubchem/gpt-5.1_full_xai_medium",
+    "oracle": {
+      "name": "composite",
+      "params": {
+        "oracles": [
+          {
+            "name": "similarity",
+            "params": {
+              "target_smiles": "CCc1cc(Sc2ccc([N+](=O)[O-])cc2)ccc1C(=O)OC"
+            }
+          },
+          {
+            "name": "qed",
+            "params": {}
+          }
+        ],
+        "weights": [
+          0.5,
+          0.5
+        ],
+        "names": [
+          "Similarity",
+          "QED"
+        ]
+      }
+    },
+    "objective": {
+      "name": "similarity_qed",
+      "params": {
+        "target_score": 0.9,
+        "min_similarity": 0.7,
+        "min_qed": 0.7,
+        "max_iterations": 11,
+        "xai": "full"
+      }
+    }
+  },
+  "conversation": [
+    {
+      "role": "SystemMessage",
+      "content": "You are an expert medicinal chemist whose job is to propose and optimize new molecules.\n\nYou interact in a multi-step optimization loop. In this loop you:\n- Propose small organic molecules as SMILES strings.\n- Receive evaluations of your proposals.\n- Have access to the full conversation history, including all past proposals, rationales, and evaluations.\n\nYour goal in this conversation is to iteratively propose new molecules that move the objective toward the specified target, using the information in the conversation history and your general chemical knowledge.\n\nOUTPUT FORMAT:\n\nFor every proposal, you must respond with a single JSON object of the form\n\n{\n  \"reason\": \"<short explanation>\",\n  \"smiles\": \"<SMILES string>\"\n}\n\nRequirements:\n- \"smiles\" must be a single, valid SMILES string for a plausible small molecule.\n- \"reason\" should briefly explain why, given the history of molecules and their scores, this new proposal might improve or further explore the objective landscape.\n- Do not repeat any previous molecule exactly. The scores are deterministic and will not change if a molecule is re-evaluated.\n- Do not include any text outside the JSON object. No Markdown, no comments, no code fences."
+    },
+    {
+      "role": "HumanMessage",
+      "content": "We are optimizing molecules for TWO objectives simultaneously:\n\n1. Structural Similarity to a target molecule using MACCS fingerprints\n   - Target molecule SMILES: CCc1cc(Sc2ccc([N+](=O)[O-])cc2)ccc1C(=O)OC\n   - Minimum required: similarity \u2265 0.70\n   - IMPORTANT: You must NOT propose the exact target molecule.\n\n2. Drug-likeness using the QED score\n   - Minimum required: QED \u2265 0.70\n   - QED evaluates: molecular weight, LogP, H-bond donors/acceptors, polar surface area, rotatable bonds, aromatic rings, structural alerts.\n\nThe combined score is: 0.5 * similarity + 0.5 * QED\nTarget combined score: \u2265 0.90\n\nSuccess requires:\n- Combined score \u2265 0.90\n- Similarity \u2265 0.70\n- QED \u2265 0.70\n\nStep 1:\nPropose a single initial molecule as a SMILES string that balances both objectives.\n\nRespond with a single JSON object:\n{\n  \"reason\": \"<why this molecule should satisfy both objectives>\",\n  \"smiles\": \"<SMILES string - must be different from target>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"This molecule preserves the key aromatic, thioether, and nitro-aryl ester scaffold of the target to maintain high MACCS fingerprint similarity, while a subtle modification (methyl ester \u2192 ethyl ester) slightly tunes molecular weight and lipophilicity in a way that is typically favorable for QED, without introducing extra structural alerts. It should thus balance similarity and drug-likeness while being distinct from the exact target.\", \"smiles\": \"CCc1cc(Sc2ccc([N+](=O)[O-])cc2)ccc1C(=O)OCC\"}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: CCc1cc(Sc2ccc([N+](=O)[O-])cc2)ccc1C(=O)OCC\nIteration: 1 / 11\n\nCombined score: 0.6882 (target: \u2265 0.90) \u2717\nSimilarity: 0.9333 (min: 0.70) \u2713\nQED: 0.4431 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 93: [!#6;!#1]~[CH3]\n\nThe following 2 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 109: *~[CH2]~[#8]\n  Key 153: [!#6;!#1]~[CH2]~*\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.032 (value=331.39, optimal=281-332 Da)\n  ALOGP: -0.167 (value=4.49, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.320 (value=0, optimal=1)\n  PSA: -0.003 (value=69.44, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -2.380 (value=3, optimal=0)\n\n3 structural alert(s) triggered. SMARTS patterns of alerts:\n  [N+](=O)[O-]\n  [OR0,NR0][OR0,NR0]\n  [#6,#8,#16][#6](=O)O[#6]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"To boost QED while retaining high similarity, I removed the nitro group (which contributed two structural alerts and suboptimal physicochemical properties) and replaced it with a para-carboxamide, adding an H-bond donor and improving polarity/logP. I also reverted the ethyl ester to a methyl ester to reduce rotatable bonds and MW and to increase MACCS similarity to the target. This keeps the same biaryl thioether-aryl\u2013carbonyl-ester scaffold for high fingerprint overlap but should substantially improve QED by reducing structural alerts, optimizing HBD count, logP, and rotatable bonds.\", \"smiles\": \"CCc1cc(Sc2ccc(C(=O)NH2)cc2)ccc1C(=O)OC\"}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "Invalid SMILES: CCc1cc(Sc2ccc(C(=O)NH2)cc2)ccc1C(=O)OC"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I replaced the nitro group with an amide and converted the methyl ester to a carboxamide, eliminating all three structural alerts (nitro, acetal-like O\u2013C\u2013O, and ester) while keeping the same biaryl thioether core and para carbonyl substituents for high MACCS similarity. The two amides introduce H-bond donors, reduce logP, slightly lower MW into the optimal window, and reduce rotatable bonds, which should significantly increase QED while maintaining similarity \u2265 0.7.\", \"smiles\": \"CCc1cc(Sc2ccc(C(=O)N)cc2)ccc1C(=O)N\"}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: CCc1cc(Sc2ccc(C(=O)N)cc2)ccc1C(=O)N\nIteration: 3 / 11\n\nCombined score: 0.6506 (target: \u2265 0.90) \u2717\nSimilarity: 0.4118 (min: 0.70) \u2717\nQED: 0.8895 (min: 0.70) \u2713\n\nExplanation:\n\nSimilarity:\nThe following 22 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 24: [#7]-[#8]\n  Key 49: [!+0]\n  Key 56: [#8]~[#7](~[#8])~[#6]\n  Key 63: [#7]=[#8]\n  Key 70: [!#6;!#1]~[#7]~[!#6;!#1]\n  Key 71: [#7]~[#8]\n  Key 93: [!#6;!#1]~[CH3]\n  Key 94: [!#6;!#1]~[#7]\n  Key 102: [!#6;!#1]~[#8]\n  Key 119: [#7]=*\n  Key 122: *~[#7](~*)~*\n  Key 123: [#8]~[#6]~[#8]\n  Key 124: [!#6;!#1]~[!#6;!#1]\n  Key 126: *!@[#8]!@*\n  Key 130: [!#6;!#1]~[!#6;!#1] (count > 1)\n  Key 133: *@*!@[#7]\n  Key 135: [#7]!:*:*\n  Key 140: [#8] (count > 3)\n  Key 146: [#8] (count > 2)\n  Key 148: *~[!#6;!#1](~*)~*\n  Key 149: [C;H3,H4] (count > 1)\n  Key 157: [#6]-[#8]\n\nThe following 8 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 84: [NH2]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 92: [#8]~[#6](~[#7])~[#6]\n  Key 110: [#7]~[#6]~[#8]\n  Key 117: [#7]~*~[#8]\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 142: [#7] (count > 1)\n  Key 151: [#7;!H0]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.002 (value=300.38, optimal=281-332 Da)\n  ALOGP: -0.001 (value=2.60, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.012 (value=86.18, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"The previous amide\u2013amide analogue had excellent QED but low similarity because it removed both the nitro and ester motifs. Here I restore the methyl ester on the benzoyl ring (re-introducing key carbonyl\u2013oxygen features and only one structural alert) while keeping the para carboxamide as a nitro bioisostere to maintain an H-bond donor, moderate polarity, and reduced structural alerts relative to the nitro. This should significantly increase MACCS similarity toward the target while keeping QED high (optimized HBD, logP, and only a single ester alert).\", \"smiles\": \"CCc1cc(Sc2ccc(C(=O)N)cc2)ccc1C(=O)OC\"}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: CCc1cc(Sc2ccc(C(=O)N)cc2)ccc1C(=O)OC\nIteration: 4 / 11\n\nCombined score: 0.7111 (target: \u2265 0.90) \u2717\nSimilarity: 0.5625 (min: 0.70) \u2717\nQED: 0.8597 (min: 0.70) \u2713\n\nExplanation:\n\nSimilarity:\nThe following 16 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 24: [#7]-[#8]\n  Key 49: [!+0]\n  Key 56: [#8]~[#7](~[#8])~[#6]\n  Key 63: [#7]=[#8]\n  Key 70: [!#6;!#1]~[#7]~[!#6;!#1]\n  Key 71: [#7]~[#8]\n  Key 94: [!#6;!#1]~[#7]\n  Key 102: [!#6;!#1]~[#8]\n  Key 119: [#7]=*\n  Key 122: *~[#7](~*)~*\n  Key 124: [!#6;!#1]~[!#6;!#1]\n  Key 130: [!#6;!#1]~[!#6;!#1] (count > 1)\n  Key 133: *@*!@[#7]\n  Key 135: [#7]!:*:*\n  Key 140: [#8] (count > 3)\n  Key 148: *~[!#6;!#1](~*)~*\n\nThe following 5 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 84: [NH2]\n  Key 92: [#8]~[#6](~[#7])~[#6]\n  Key 110: [#7]~[#6]~[#8]\n  Key 117: [#7]~*~[#8]\n  Key 151: [#7;!H0]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.004 (value=315.39, optimal=281-332 Da)\n  ALOGP: -0.008 (value=3.29, optimal=1.95-3.57)\n  HBA: -0.006 (value=4, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.003 (value=69.39, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  [#6,#8,#16][#6](=O)O[#6]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"To increase MACCS similarity while maintaining high QED, I kept the target-like biaryl thioether and aryl methyl ester but replaced the para amide on the second ring with a sulfonamide. The sulfonamide restores additional nitrogen/oxygen connectivity and strong electron-withdrawing character, making the para substituent more nitro-like in terms of fingerprint features (improving similarity) without reintroducing the nitro structural alert. It also preserves an H-bond donor, keeps logP and MW in a reasonable range, and should retain a low structural-alert count, so QED should remain high.\", \"smiles\": \"CCc1cc(Sc2ccc(S(=O)(=O)N)cc2)ccc1C(=O)OC\"}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: CCc1cc(Sc2ccc(S(=O)(=O)N)cc2)ccc1C(=O)OC\nIteration: 5 / 11\n\nCombined score: 0.6945 (target: \u2265 0.90) \u2717\nSimilarity: 0.5517 (min: 0.70) \u2717\nQED: 0.8372 (min: 0.70) \u2713\n\nExplanation:\n\nSimilarity:\nThe following 11 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 24: [#7]-[#8]\n  Key 49: [!+0]\n  Key 56: [#8]~[#7](~[#8])~[#6]\n  Key 63: [#7]=[#8]\n  Key 70: [!#6;!#1]~[#7]~[!#6;!#1]\n  Key 71: [#7]~[#8]\n  Key 119: [#7]=*\n  Key 122: *~[#7](~*)~*\n  Key 133: *@*!@[#7]\n  Key 135: [#7]!:*:*\n  Key 158: [#6]-[#7]\n\nThe following 15 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 32: [#6]~[#16]~[#7]\n  Key 33: [#7]~[#16]\n  Key 51: [#6]~[#16]~[#8]\n  Key 55: [#8]~[#16]~[#8]\n  Key 58: [!#6;!#1]~[#16]~[!#6;!#1]\n  Key 60: [#16]=[#8]\n  Key 61: *~[#16](~*)~*\n  Key 67: [!#6;!#1]~[#16]\n  Key 69: [!#6;!#1]~[!#6;!#1;!H0]\n  Key 73: [#16]=*\n  Key 84: [NH2]\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 112: *~*(~*)(~*)~*\n  Key 117: [#7]~*~[#8]\n  Key 151: [#7;!H0]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.098 (value=351.45, optimal=281-332 Da)\n  ALOGP: -0.000 (value=2.83, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.012 (value=86.46, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  [#6,#8,#16][#6](=O)O[#6]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"To recover high MACCS similarity, I reintroduced the para nitro group on the second ring, restoring the key N\u2013O2 and electron-withdrawing features of the target\u2019s aryl nitro. To improve QED, I replaced the terminal methyl ester with a secondary N-methyl carboxamide, which removes the ester structural alert, eliminates the extra O\u2013hetero alert from the O\u2013CH3, introduces one H-bond donor, and slightly reduces logP while keeping MW in a good range. Overall this should substantially raise similarity compared to the nitro-free analogs while keeping QED much higher than the original nitro\u2013ester scaffold.\", \"smiles\": \"CCc1cc(Sc2ccc([N+](=O)[O-])cc2)ccc1C(=O)NC\"}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: CCc1cc(Sc2ccc([N+](=O)[O-])cc2)ccc1C(=O)NC\nIteration: 6 / 11\n\nCombined score: 0.7352 (target: \u2265 0.90) \u2717\nSimilarity: 0.7959 (min: 0.70) \u2713\nQED: 0.6746 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 4 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 123: [#8]~[#6]~[#8]\n  Key 126: *!@[#8]!@*\n  Key 140: [#8] (count > 3)\n  Key 157: [#6]-[#8]\n\nThe following 6 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 92: [#8]~[#6](~[#7])~[#6]\n  Key 110: [#7]~[#6]~[#8]\n  Key 117: [#7]~*~[#8]\n  Key 142: [#7] (count > 1)\n  Key 151: [#7;!H0]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.005 (value=316.38, optimal=281-332 Da)\n  ALOGP: -0.031 (value=3.67, optimal=1.95-3.57)\n  HBA: -0.006 (value=4, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.004 (value=72.24, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [N+](=O)[O-]\n  [OR0,NR0][OR0,NR0]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I retained the aryl\u2013aryl thioether and para-nitro group to preserve high MACCS similarity, but I simplified the side chain to reduce rotatable bonds and optimize physicochemical properties for QED. Specifically, I shortened the ethyl substituent to a methyl (reducing lipophilicity and two rotatable bonds) and converted the terminal N-methyl amide to a primary amide (removing another rotatable bond and a lipophilicity contribution), while keeping the aryl carbonyl\u2013amide motif. This should significantly improve the ROTB and ALOGP terms (and keep MW, HBD, HBA near optimal) so QED can rise above 0.7, while similarity stays \u22650.7 thanks to the preserved nitro-aryl and overall scaffold.\", \"smiles\": \"Cc1cc(Sc2ccc([N+](=O)[O-])cc2)ccc1C(=O)N\"}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Cc1cc(Sc2ccc([N+](=O)[O-])cc2)ccc1C(=O)N\nIteration: 7 / 11\n\nCombined score: 0.7028 (target: \u2265 0.90) \u2717\nSimilarity: 0.7143 (min: 0.70) \u2713\nQED: 0.6913 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 8 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 93: [!#6;!#1]~[CH3]\n  Key 114: [CH3]~[CH2]~*\n  Key 123: [#8]~[#6]~[#8]\n  Key 126: *!@[#8]!@*\n  Key 140: [#8] (count > 3)\n  Key 149: [C;H3,H4] (count > 1)\n  Key 155: *!@[CH2]!@*\n  Key 157: [#6]-[#8]\n\nThe following 6 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 84: [NH2]\n  Key 92: [#8]~[#6](~[#7])~[#6]\n  Key 110: [#7]~[#6]~[#8]\n  Key 117: [#7]~*~[#8]\n  Key 142: [#7] (count > 1)\n  Key 151: [#7;!H0]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.016 (value=288.33, optimal=281-332 Da)\n  ALOGP: -0.004 (value=3.15, optimal=1.95-3.57)\n  HBA: -0.006 (value=4, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.012 (value=86.23, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [N+](=O)[O-]\n  [OR0,NR0][OR0,NR0]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I keep the full target-like scaffold (ethyl side chain, aryl\u2013thioether\u2013aryl linkage, and aryl methyl ester) to preserve very high MACCS similarity, but I replace the para nitro group with a para nitroso (N=O). This maintains an aromatic N\u2013O motif and strong electron-withdrawing character for similar fingerprints but should avoid the specific nitro structural alert [N+](=O)[O-] and may reduce the overall structural-alert penalty (and possibly PSA/HBA contributions), allowing QED to rise while similarity remains \u22650.7.\", \"smiles\": \"CCc1cc(Sc2ccc(N=O)cc2)ccc1C(=O)OC\"}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: CCc1cc(Sc2ccc(N=O)cc2)ccc1C(=O)OC\nIteration: 8 / 11\n\nCombined score: 0.7063 (target: \u2265 0.90) \u2717\nSimilarity: 0.8140 (min: 0.70) \u2713\nQED: 0.5987 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 8 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 24: [#7]-[#8]\n  Key 49: [!+0]\n  Key 56: [#8]~[#7](~[#8])~[#6]\n  Key 70: [!#6;!#1]~[#7]~[!#6;!#1]\n  Key 122: *~[#7](~*)~*\n  Key 130: [!#6;!#1]~[!#6;!#1] (count > 1)\n  Key 140: [#8] (count > 3)\n  Key 148: *~[!#6;!#1](~*)~*\n\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.001 (value=301.37, optimal=281-332 Da)\n  ALOGP: -0.195 (value=4.58, optimal=1.95-3.57)\n  HBA: -0.006 (value=4, optimal=2-3)\n  HBD: -0.320 (value=0, optimal=1)\n  PSA: -0.000 (value=55.73, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [NX2+0]=[O+0]\n  [#6,#8,#16][#6](=O)O[#6]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I keep the biaryl thioether core and para nitroso group from the last compound to preserve strong MACCS overlap with the target\u2019s nitro-aryl region, but I replace the methyl ester with a primary amide. This removes the ester structural alert and the O\u2013C\u2013O motif while retaining an aryl\u2013carbonyl heteroatom substituent, so only the nitroso remains as a single alert. The amide also introduces an H-bond donor, slightly lowers logP and MW, and reduces rotatable-bond penalty compared with the ester analogue, which should raise QED above 0.7 while maintaining similarity \u22650.7.\", \"smiles\": \"CCc1cc(Sc2ccc(N=O)cc2)ccc1C(=O)N\"}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: CCc1cc(Sc2ccc(N=O)cc2)ccc1C(=O)N\nIteration: 9 / 11\n\nCombined score: 0.7136 (target: \u2265 0.90) \u2717\nSimilarity: 0.5800 (min: 0.70) \u2717\nQED: 0.8472 (min: 0.70) \u2713\n\nExplanation:\n\nSimilarity:\nThe following 14 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 24: [#7]-[#8]\n  Key 49: [!+0]\n  Key 56: [#8]~[#7](~[#8])~[#6]\n  Key 70: [!#6;!#1]~[#7]~[!#6;!#1]\n  Key 93: [!#6;!#1]~[CH3]\n  Key 122: *~[#7](~*)~*\n  Key 123: [#8]~[#6]~[#8]\n  Key 126: *!@[#8]!@*\n  Key 130: [!#6;!#1]~[!#6;!#1] (count > 1)\n  Key 140: [#8] (count > 3)\n  Key 146: [#8] (count > 2)\n  Key 148: *~[!#6;!#1](~*)~*\n  Key 149: [C;H3,H4] (count > 1)\n  Key 157: [#6]-[#8]\n\nThe following 7 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 84: [NH2]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 92: [#8]~[#6](~[#7])~[#6]\n  Key 110: [#7]~[#6]~[#8]\n  Key 117: [#7]~*~[#8]\n  Key 142: [#7] (count > 1)\n  Key 151: [#7;!H0]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.020 (value=286.36, optimal=281-332 Da)\n  ALOGP: -0.054 (value=3.90, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.004 (value=72.52, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  [NX2+0]=[O+0]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"Starting from the nitroso\u2013ester analogue (high similarity 0.81 but poor QED due mainly to lack of an H-bond donor and high logP), I add a single benzylic hydroxyl while preserving the core scaffold: the ethyl side chain is converted to a 1\u2011hydroxyethyl group (CH3\u2013CH(OH)\u2013Ar). This maintains the key CC-aryl pattern and the biaryl thioether plus aryl nitroso and aryl methyl ester motifs, so MACCS similarity should remain high. The new OH introduces one H-bond donor (fixing the strong HBD penalty) and increases polarity, which should lower ALOGP towards the optimal window without adding new structural alerts, thereby substantially increasing QED while keeping similarity \u2265 0.7.\", \"smiles\": \"CC(O)c1cc(Sc2ccc(N=O)cc2)ccc1C(=O)OC\"}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: CC(O)c1cc(Sc2ccc(N=O)cc2)ccc1C(=O)OC\nIteration: 10 / 11\n\nCombined score: 0.7098 (target: \u2265 0.90) \u2717\nSimilarity: 0.7556 (min: 0.70) \u2713\nQED: 0.6641 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 9 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 24: [#7]-[#8]\n  Key 49: [!+0]\n  Key 56: [#8]~[#7](~[#8])~[#6]\n  Key 70: [!#6;!#1]~[#7]~[!#6;!#1]\n  Key 114: [CH3]~[CH2]~*\n  Key 122: *~[#7](~*)~*\n  Key 130: [!#6;!#1]~[!#6;!#1] (count > 1)\n  Key 148: *~[!#6;!#1](~*)~*\n  Key 155: *!@[CH2]!@*\n\nThe following 2 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 139: [O;!H0]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.006 (value=317.37, optimal=281-332 Da)\n  ALOGP: -0.079 (value=4.08, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.006 (value=75.96, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [NX2+0]=[O+0]\n  [#6,#8,#16][#6](=O)O[#6]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"Given the strong trade-off observed between MACCS similarity (favored by the nitro + aryl-carbonyl pattern and the ethyl side chain) and QED (disfavored mainly by multiple structural alerts and suboptimal physicochemical terms), this design aims for a better compromise than any previous molecule. I retain the ethyl side chain and the para nitro group to keep high similarity to the target\u2019s fingerprint, but I replace the methyl ester with a primary amide (instead of an N-methyl amide) to reduce lipophilicity, slightly lower MW, and avoid adding extra non-optimal alkyl bulk. This should increase QED relative to the N-methyl analogue, while the preserved nitro-aryl\u2013thioether\u2013aryl\u2013carbonyl-ethyl motif should keep similarity above 0.8, giving a higher combined score than previous candidates.\", \"smiles\": \"CCc1cc(Sc2ccc([N+](=O)[O-])cc2)ccc1C(=O)N\"}"
+    }
+  ],
+  "trace": [
+    {
+      "iteration": 1,
+      "smiles": "CCc1cc(Sc2ccc([N+](=O)[O-])cc2)ccc1C(=O)OCC",
+      "reason": "This molecule preserves the key aromatic, thioether, and nitro-aryl ester scaffold of the target to maintain high MACCS fingerprint similarity, while a subtle modification (methyl ester \u2192 ethyl ester) slightly tunes molecular weight and lipophilicity in a way that is typically favorable for QED, without introducing extra structural alerts. It should thus balance similarity and drug-likeness while being distinct from the exact target.",
+      "score": 0.6882255502750981,
+      "explanation": "Similarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 93: [!#6;!#1]~[CH3]\n\nThe following 2 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 109: *~[CH2]~[#8]\n  Key 153: [!#6;!#1]~[CH2]~*\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.032 (value=331.39, optimal=281-332 Da)\n  ALOGP: -0.167 (value=4.49, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.320 (value=0, optimal=1)\n  PSA: -0.003 (value=69.44, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -2.380 (value=3, optimal=0)\n\n3 structural alert(s) triggered. SMARTS patterns of alerts:\n  [N+](=O)[O-]\n  [OR0,NR0][OR0,NR0]\n  [#6,#8,#16][#6](=O)O[#6]",
+      "scores": {
+        "Similarity": 0.9333333333333333,
+        "QED": 0.44311776721686297
+      }
+    },
+    {
+      "iteration": 3,
+      "smiles": "CCc1cc(Sc2ccc(C(=O)N)cc2)ccc1C(=O)N",
+      "reason": "I replaced the nitro group with an amide and converted the methyl ester to a carboxamide, eliminating all three structural alerts (nitro, acetal-like O\u2013C\u2013O, and ester) while keeping the same biaryl thioether core and para carbonyl substituents for high MACCS similarity. The two amides introduce H-bond donors, reduce logP, slightly lower MW into the optimal window, and reduce rotatable bonds, which should significantly increase QED while maintaining similarity \u2265 0.7.",
+      "score": 0.6506385678630262,
+      "explanation": "Similarity:\nThe following 22 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 24: [#7]-[#8]\n  Key 49: [!+0]\n  Key 56: [#8]~[#7](~[#8])~[#6]\n  Key 63: [#7]=[#8]\n  Key 70: [!#6;!#1]~[#7]~[!#6;!#1]\n  Key 71: [#7]~[#8]\n  Key 93: [!#6;!#1]~[CH3]\n  Key 94: [!#6;!#1]~[#7]\n  Key 102: [!#6;!#1]~[#8]\n  Key 119: [#7]=*\n  Key 122: *~[#7](~*)~*\n  Key 123: [#8]~[#6]~[#8]\n  Key 124: [!#6;!#1]~[!#6;!#1]\n  Key 126: *!@[#8]!@*\n  Key 130: [!#6;!#1]~[!#6;!#1] (count > 1)\n  Key 133: *@*!@[#7]\n  Key 135: [#7]!:*:*\n  Key 140: [#8] (count > 3)\n  Key 146: [#8] (count > 2)\n  Key 148: *~[!#6;!#1](~*)~*\n  Key 149: [C;H3,H4] (count > 1)\n  Key 157: [#6]-[#8]\n\nThe following 8 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 84: [NH2]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 92: [#8]~[#6](~[#7])~[#6]\n  Key 110: [#7]~[#6]~[#8]\n  Key 117: [#7]~*~[#8]\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 142: [#7] (count > 1)\n  Key 151: [#7;!H0]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.002 (value=300.38, optimal=281-332 Da)\n  ALOGP: -0.001 (value=2.60, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.012 (value=86.18, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)",
+      "scores": {
+        "Similarity": 0.4117647058823529,
+        "QED": 0.8895124298436996
+      }
+    },
+    {
+      "iteration": 4,
+      "smiles": "CCc1cc(Sc2ccc(C(=O)N)cc2)ccc1C(=O)OC",
+      "reason": "The previous amide\u2013amide analogue had excellent QED but low similarity because it removed both the nitro and ester motifs. Here I restore the methyl ester on the benzoyl ring (re-introducing key carbonyl\u2013oxygen features and only one structural alert) while keeping the para carboxamide as a nitro bioisostere to maintain an H-bond donor, moderate polarity, and reduced structural alerts relative to the nitro. This should significantly increase MACCS similarity toward the target while keeping QED high (optimized HBD, logP, and only a single ester alert).",
+      "score": 0.7110780690841745,
+      "explanation": "Similarity:\nThe following 16 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 24: [#7]-[#8]\n  Key 49: [!+0]\n  Key 56: [#8]~[#7](~[#8])~[#6]\n  Key 63: [#7]=[#8]\n  Key 70: [!#6;!#1]~[#7]~[!#6;!#1]\n  Key 71: [#7]~[#8]\n  Key 94: [!#6;!#1]~[#7]\n  Key 102: [!#6;!#1]~[#8]\n  Key 119: [#7]=*\n  Key 122: *~[#7](~*)~*\n  Key 124: [!#6;!#1]~[!#6;!#1]\n  Key 130: [!#6;!#1]~[!#6;!#1] (count > 1)\n  Key 133: *@*!@[#7]\n  Key 135: [#7]!:*:*\n  Key 140: [#8] (count > 3)\n  Key 148: *~[!#6;!#1](~*)~*\n\nThe following 5 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 84: [NH2]\n  Key 92: [#8]~[#6](~[#7])~[#6]\n  Key 110: [#7]~[#6]~[#8]\n  Key 117: [#7]~*~[#8]\n  Key 151: [#7;!H0]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.004 (value=315.39, optimal=281-332 Da)\n  ALOGP: -0.008 (value=3.29, optimal=1.95-3.57)\n  HBA: -0.006 (value=4, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.003 (value=69.39, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  [#6,#8,#16][#6](=O)O[#6]",
+      "scores": {
+        "Similarity": 0.5625,
+        "QED": 0.8596561381683491
+      }
+    },
+    {
+      "iteration": 5,
+      "smiles": "CCc1cc(Sc2ccc(S(=O)(=O)N)cc2)ccc1C(=O)OC",
+      "reason": "To increase MACCS similarity while maintaining high QED, I kept the target-like biaryl thioether and aryl methyl ester but replaced the para amide on the second ring with a sulfonamide. The sulfonamide restores additional nitrogen/oxygen connectivity and strong electron-withdrawing character, making the para substituent more nitro-like in terms of fingerprint features (improving similarity) without reintroducing the nitro structural alert. It also preserves an H-bond donor, keeps logP and MW in a reasonable range, and should retain a low structural-alert count, so QED should remain high.",
+      "score": 0.6944555994440941,
+      "explanation": "Similarity:\nThe following 11 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 24: [#7]-[#8]\n  Key 49: [!+0]\n  Key 56: [#8]~[#7](~[#8])~[#6]\n  Key 63: [#7]=[#8]\n  Key 70: [!#6;!#1]~[#7]~[!#6;!#1]\n  Key 71: [#7]~[#8]\n  Key 119: [#7]=*\n  Key 122: *~[#7](~*)~*\n  Key 133: *@*!@[#7]\n  Key 135: [#7]!:*:*\n  Key 158: [#6]-[#7]\n\nThe following 15 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 32: [#6]~[#16]~[#7]\n  Key 33: [#7]~[#16]\n  Key 51: [#6]~[#16]~[#8]\n  Key 55: [#8]~[#16]~[#8]\n  Key 58: [!#6;!#1]~[#16]~[!#6;!#1]\n  Key 60: [#16]=[#8]\n  Key 61: *~[#16](~*)~*\n  Key 67: [!#6;!#1]~[#16]\n  Key 69: [!#6;!#1]~[!#6;!#1;!H0]\n  Key 73: [#16]=*\n  Key 84: [NH2]\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 112: *~*(~*)(~*)~*\n  Key 117: [#7]~*~[#8]\n  Key 151: [#7;!H0]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.098 (value=351.45, optimal=281-332 Da)\n  ALOGP: -0.000 (value=2.83, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.012 (value=86.46, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  [#6,#8,#16][#6](=O)O[#6]",
+      "scores": {
+        "Similarity": 0.5517241379310345,
+        "QED": 0.8371870609571537
+      }
+    },
+    {
+      "iteration": 6,
+      "smiles": "CCc1cc(Sc2ccc([N+](=O)[O-])cc2)ccc1C(=O)NC",
+      "reason": "To recover high MACCS similarity, I reintroduced the para nitro group on the second ring, restoring the key N\u2013O2 and electron-withdrawing features of the target\u2019s aryl nitro. To improve QED, I replaced the terminal methyl ester with a secondary N-methyl carboxamide, which removes the ester structural alert, eliminates the extra O\u2013hetero alert from the O\u2013CH3, introduces one H-bond donor, and slightly reduces logP while keeping MW in a good range. Overall this should substantially raise similarity compared to the nitro-free analogs while keeping QED much higher than the original nitro\u2013ester scaffold.",
+      "score": 0.7352471666746199,
+      "explanation": "Similarity:\nThe following 4 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 123: [#8]~[#6]~[#8]\n  Key 126: *!@[#8]!@*\n  Key 140: [#8] (count > 3)\n  Key 157: [#6]-[#8]\n\nThe following 6 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 92: [#8]~[#6](~[#7])~[#6]\n  Key 110: [#7]~[#6]~[#8]\n  Key 117: [#7]~*~[#8]\n  Key 142: [#7] (count > 1)\n  Key 151: [#7;!H0]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.005 (value=316.38, optimal=281-332 Da)\n  ALOGP: -0.031 (value=3.67, optimal=1.95-3.57)\n  HBA: -0.006 (value=4, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.004 (value=72.24, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [N+](=O)[O-]\n  [OR0,NR0][OR0,NR0]",
+      "scores": {
+        "Similarity": 0.7959183673469388,
+        "QED": 0.6745759660023011
+      }
+    },
+    {
+      "iteration": 7,
+      "smiles": "Cc1cc(Sc2ccc([N+](=O)[O-])cc2)ccc1C(=O)N",
+      "reason": "I retained the aryl\u2013aryl thioether and para-nitro group to preserve high MACCS similarity, but I simplified the side chain to reduce rotatable bonds and optimize physicochemical properties for QED. Specifically, I shortened the ethyl substituent to a methyl (reducing lipophilicity and two rotatable bonds) and converted the terminal N-methyl amide to a primary amide (removing another rotatable bond and a lipophilicity contribution), while keeping the aryl carbonyl\u2013amide motif. This should significantly improve the ROTB and ALOGP terms (and keep MW, HBD, HBA near optimal) so QED can rise above 0.7, while similarity stays \u22650.7 thanks to the preserved nitro-aryl and overall scaffold.",
+      "score": 0.7027722421501926,
+      "explanation": "Similarity:\nThe following 8 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 93: [!#6;!#1]~[CH3]\n  Key 114: [CH3]~[CH2]~*\n  Key 123: [#8]~[#6]~[#8]\n  Key 126: *!@[#8]!@*\n  Key 140: [#8] (count > 3)\n  Key 149: [C;H3,H4] (count > 1)\n  Key 155: *!@[CH2]!@*\n  Key 157: [#6]-[#8]\n\nThe following 6 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 84: [NH2]\n  Key 92: [#8]~[#6](~[#7])~[#6]\n  Key 110: [#7]~[#6]~[#8]\n  Key 117: [#7]~*~[#8]\n  Key 142: [#7] (count > 1)\n  Key 151: [#7;!H0]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.016 (value=288.33, optimal=281-332 Da)\n  ALOGP: -0.004 (value=3.15, optimal=1.95-3.57)\n  HBA: -0.006 (value=4, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.012 (value=86.23, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [N+](=O)[O-]\n  [OR0,NR0][OR0,NR0]",
+      "scores": {
+        "Similarity": 0.7142857142857143,
+        "QED": 0.691258770014671
+      }
+    },
+    {
+      "iteration": 8,
+      "smiles": "CCc1cc(Sc2ccc(N=O)cc2)ccc1C(=O)OC",
+      "reason": "I keep the full target-like scaffold (ethyl side chain, aryl\u2013thioether\u2013aryl linkage, and aryl methyl ester) to preserve very high MACCS similarity, but I replace the para nitro group with a para nitroso (N=O). This maintains an aromatic N\u2013O motif and strong electron-withdrawing character for similar fingerprints but should avoid the specific nitro structural alert [N+](=O)[O-] and may reduce the overall structural-alert penalty (and possibly PSA/HBA contributions), allowing QED to rise while similarity remains \u22650.7.",
+      "score": 0.706307963967501,
+      "explanation": "Similarity:\nThe following 8 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 24: [#7]-[#8]\n  Key 49: [!+0]\n  Key 56: [#8]~[#7](~[#8])~[#6]\n  Key 70: [!#6;!#1]~[#7]~[!#6;!#1]\n  Key 122: *~[#7](~*)~*\n  Key 130: [!#6;!#1]~[!#6;!#1] (count > 1)\n  Key 140: [#8] (count > 3)\n  Key 148: *~[!#6;!#1](~*)~*\n\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.001 (value=301.37, optimal=281-332 Da)\n  ALOGP: -0.195 (value=4.58, optimal=1.95-3.57)\n  HBA: -0.006 (value=4, optimal=2-3)\n  HBD: -0.320 (value=0, optimal=1)\n  PSA: -0.000 (value=55.73, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [NX2+0]=[O+0]\n  [#6,#8,#16][#6](=O)O[#6]",
+      "scores": {
+        "Similarity": 0.813953488372093,
+        "QED": 0.5986624395629089
+      }
+    },
+    {
+      "iteration": 9,
+      "smiles": "CCc1cc(Sc2ccc(N=O)cc2)ccc1C(=O)N",
+      "reason": "I keep the biaryl thioether core and para nitroso group from the last compound to preserve strong MACCS overlap with the target\u2019s nitro-aryl region, but I replace the methyl ester with a primary amide. This removes the ester structural alert and the O\u2013C\u2013O motif while retaining an aryl\u2013carbonyl heteroatom substituent, so only the nitroso remains as a single alert. The amide also introduces an H-bond donor, slightly lowers logP and MW, and reduces rotatable-bond penalty compared with the ester analogue, which should raise QED above 0.7 while maintaining similarity \u22650.7.",
+      "score": 0.7135794653030931,
+      "explanation": "Similarity:\nThe following 14 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 24: [#7]-[#8]\n  Key 49: [!+0]\n  Key 56: [#8]~[#7](~[#8])~[#6]\n  Key 70: [!#6;!#1]~[#7]~[!#6;!#1]\n  Key 93: [!#6;!#1]~[CH3]\n  Key 122: *~[#7](~*)~*\n  Key 123: [#8]~[#6]~[#8]\n  Key 126: *!@[#8]!@*\n  Key 130: [!#6;!#1]~[!#6;!#1] (count > 1)\n  Key 140: [#8] (count > 3)\n  Key 146: [#8] (count > 2)\n  Key 148: *~[!#6;!#1](~*)~*\n  Key 149: [C;H3,H4] (count > 1)\n  Key 157: [#6]-[#8]\n\nThe following 7 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 84: [NH2]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 92: [#8]~[#6](~[#7])~[#6]\n  Key 110: [#7]~[#6]~[#8]\n  Key 117: [#7]~*~[#8]\n  Key 142: [#7] (count > 1)\n  Key 151: [#7;!H0]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.020 (value=286.36, optimal=281-332 Da)\n  ALOGP: -0.054 (value=3.90, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.004 (value=72.52, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  [NX2+0]=[O+0]",
+      "scores": {
+        "Similarity": 0.58,
+        "QED": 0.8471589306061863
+      }
+    },
+    {
+      "iteration": 10,
+      "smiles": "CC(O)c1cc(Sc2ccc(N=O)cc2)ccc1C(=O)OC",
+      "reason": "Starting from the nitroso\u2013ester analogue (high similarity 0.81 but poor QED due mainly to lack of an H-bond donor and high logP), I add a single benzylic hydroxyl while preserving the core scaffold: the ethyl side chain is converted to a 1\u2011hydroxyethyl group (CH3\u2013CH(OH)\u2013Ar). This maintains the key CC-aryl pattern and the biaryl thioether plus aryl nitroso and aryl methyl ester motifs, so MACCS similarity should remain high. The new OH introduces one H-bond donor (fixing the strong HBD penalty) and increases polarity, which should lower ALOGP towards the optimal window without adding new structural alerts, thereby substantially increasing QED while keeping similarity \u2265 0.7.",
+      "score": 0.709825534047275,
+      "explanation": "Similarity:\nThe following 9 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 24: [#7]-[#8]\n  Key 49: [!+0]\n  Key 56: [#8]~[#7](~[#8])~[#6]\n  Key 70: [!#6;!#1]~[#7]~[!#6;!#1]\n  Key 114: [CH3]~[CH2]~*\n  Key 122: *~[#7](~*)~*\n  Key 130: [!#6;!#1]~[!#6;!#1] (count > 1)\n  Key 148: *~[!#6;!#1](~*)~*\n  Key 155: *!@[CH2]!@*\n\nThe following 2 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 139: [O;!H0]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.006 (value=317.37, optimal=281-332 Da)\n  ALOGP: -0.079 (value=4.08, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.006 (value=75.96, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [NX2+0]=[O+0]\n  [#6,#8,#16][#6](=O)O[#6]",
+      "scores": {
+        "Similarity": 0.7555555555555555,
+        "QED": 0.6640955125389946
+      }
+    }
+  ],
+  "iterations": 11,
+  "summary": "During this molecular optimization campaign, two conflicting objectives were pursued in parallel: (1) maximizing MACCS fingerprint similarity to a nitro\u2013aryl thioether methyl ester target, and (2) improving drug-likeness as quantified by QED, with the ultimate goal of achieving a combined score \u2265 0.90 while satisfying Similarity \u2265 0.70 and QED \u2265 0.70. All designs remained distinct from the target.\n\nThe exploration began (iteration 1) with a close analogue bearing an ethyl ester instead of the target\u2019s methyl ester. This preserved the biaryl thioether, para-nitro, and aryl ester motifs, achieving very high similarity (0.93) but poor QED (0.44), yielding a combined score of 0.69 and highlighting the strong QED penalty associated with the nitro and ester functional groups.\n\nSubsequent designs focused on systematically replacing structural alerts and tuning polarity. In iteration 3, both the nitro group and methyl ester were replaced with amides, eliminating the main alerts and dramatically improving QED (0.89), but at the cost of similarity (0.41). The combined score (0.65) demonstrated that overly aggressive removal of target-like features undermined the similarity objective.\n\nIterations 4 and 5 attempted to restore similarity while retaining improved QED. First, the methyl ester was reinstated and only the nitro was replaced (amide, then sulfonamide as a nitro bioisostere), leading to intermediate similarity (0.56\u20130.55) and high QED (0.84\u20130.86) with combined scores around 0.69\u20130.71. These results showed that nitro replacement could enhance QED but inherently moved the MACCS fingerprint away from the nitro-containing target.\n\nThe next phase reintroduced nitro to regain fingerprint overlap and then optimized the remaining functionality to recover QED. In iteration 6, the para nitro group was restored and the ester converted to an N\u2011methyl amide. This significantly increased similarity (0.80) while raising QED to 0.67 relative to the original nitro\u2013ester scaffold, giving the best combined score so far (0.74), but still below the QED \u2265 0.70 requirement.\n\nIteration 7 refined this approach by simplifying the side chain: the ethyl substituent was shortened to a methyl and the N\u2011methyl amide converted to a primary amide. This reduced rotatable bonds and lipophilicity while preserving the nitro and biaryl thioether features. Similarity remained above threshold (0.71), and QED increased to 0.69, with a combined score of 0.70\u2014very close to the QED target but still slightly below.\n\nTo further reduce structural-alert burden, iterations 8\u201310 replaced the nitro group with nitroso (N=O), seeking a less penalized N\u2013O motif. The nitroso ester (iteration 8) maintained high similarity (0.81) but QED remained modest (0.60). Conversion of the methyl ester to a primary amide (iteration 9) removed the ester alert and introduced an H-bond donor, yielding a high QED (0.85) but reduced similarity (0.58), for a combined score of 0.71. Finally, iteration 10 introduced a benzylic hydroxyl onto the ethyl chain in the nitroso\u2013ester framework, adding a hydrogen-bond donor and increasing polarity. This maintained reasonably high similarity (0.76) and improved QED (0.66), giving a combined score of 0.71, but still not meeting the QED \u2265 0.70 threshold.\n\nOverall, the optimization illustrated a strong trade-off between target-like nitro\u2013ester features (which drive MACCS similarity) and drug-likeness (penalized by nitro and ester alerts, high lipophilicity, and rotatable bonds). Designs that maximized QED (amide-rich, nitro-free analogues) diverged too far from the target\u2019s fingerprint, while those that preserved the nitro\u2013aryl ester core achieved high similarity but fell short on QED. Within the explored space, none of the molecules reached the stringent combined score \u2265 0.90 with both constraints (Similarity \u2265 0.70, QED \u2265 0.70), but the best compromises were nitro-amide hybrids (iteration 7) and nitroso\u2013amide or nitroso\u2013hydroxy analogues (iterations 9\u201310) that approached balanced profiles without fully satisfying all criteria."
+}
