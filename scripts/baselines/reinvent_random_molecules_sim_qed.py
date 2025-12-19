@@ -2,7 +2,7 @@
 from __future__ import annotations
 import os
 from typing import Callable
-from molopt.reinvent import REINVENT
+from molopt.reinvent import REINVENT # type: ignore
 
 from pathlib import Path
 import sys
