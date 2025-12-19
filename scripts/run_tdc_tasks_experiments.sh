@@ -53,13 +53,13 @@ DIRECTION="maximize"
 MAX_ITERATIONS=51
 
 # Number of repetitions per oracle
-NUM_REPETITIONS=1
+NUM_REPETITIONS=2
 
 # LLM model name
 LLM_MODEL="claude-opus-4.5"
 
 # LLM temperature
-TEMPERATURE=0.0
+TEMPERATURE=0.1
 
 # Recursion limit for LangGraph
 RECURSION_LIMIT=300
