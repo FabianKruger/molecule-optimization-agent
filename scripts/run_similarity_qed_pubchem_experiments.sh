@@ -12,10 +12,10 @@ set -e  # Exit on error
 # ==============================================================================
 
 # XAI setting: "full", "partial", or "none"
-XAI_MODE="full"
+XAI_MODE="partial"
 
 # LLM model name
-LLM_MODEL="gpt-5.1"
+LLM_MODEL="claude-opus-4.5"
 
 # Results base directory (will be created if it doesn't exist)
 RESULTS_BASE_DIR="data/results"
@@ -24,7 +24,7 @@ RESULTS_BASE_DIR="data/results"
 MIN_SIMILARITY=0.7
 MIN_QED=0.7
 TARGET_SCORE=0.9
-MAX_ITERATIONS=11
+MAX_ITERATIONS=51
 
 # General experiment settings
 TEMPERATURE=0.0
@@ -34,7 +34,7 @@ RECURSION_LIMIT=300
 NUM_REPETITIONS=1
 
 # Add reasoning effort (gpt models: minimal, low, medium, high) - put None for default and non-gpt models
-REASONING_EFFORT='high'
+REASONING_EFFORT='None'
 
 # Skip these SMILES - important for broken up runs
 #SKIP_SMILES=(
