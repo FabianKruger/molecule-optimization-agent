@@ -25,7 +25,7 @@ temperature=0.1
 recursion_limit=300
 
 # Number of repetitions per experiment
-num_repetitions=3
+num_repetitions=5
 
 # ==============================================================================
 # PATHS - Relative to molecule-optimization-agent directory
@@ -146,7 +146,7 @@ echo "=============================================="
 echo "EXPERIMENT: similarity_qed - relevant_molecule"
 echo "=============================================="
 
-for xai_mode in "no_description"; do # "full" "none" "partial"
+for xai_mode in "partial"; do # "full" "none" "partial" "no_description"
     XAI_DIR_NAME=$(get_xai_dir_name "$xai_mode")
     xai_dir_name="${llm_model}_${XAI_DIR_NAME}_${target_score}"
     log_dir="$RESULTS_BASE_DIR/similarity_qed_quercetin/$xai_dir_name"
