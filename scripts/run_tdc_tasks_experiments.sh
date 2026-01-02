@@ -14,7 +14,7 @@ set -e  # Exit on error
 # List of TDC oracle names to run experiments for
 ORACLE_NAMES=(
     # Basic oracles
-    "qed"
+    #"qed"
     "drd2"
     "gsk3b"
     "jnk3"
@@ -53,7 +53,7 @@ DIRECTION="maximize"
 MAX_ITERATIONS=51
 
 # Number of repetitions per oracle
-NUM_REPETITIONS=2
+NUM_REPETITIONS=3
 
 # LLM model name
 LLM_MODEL="claude-opus-4.5"
@@ -64,8 +64,11 @@ TEMPERATURE=0.1
 # Recursion limit for LangGraph
 RECURSION_LIMIT=300
 
+# XAI modes "none" (no explanation of scores but clear task description) and "no_explanation"
+XAI_MODE="no_description"
+
 # Results base directory (will be created if it doesn't exist)
-RESULTS_BASE_DIR="data/results/tdc_tasks"
+RESULTS_BASE_DIR="data/results/tdc_tasks_$XAI_MODE"
 
 # ==============================================================================
 # PATHS - Relative to molecule-optimization-agent directory
@@ -115,6 +118,7 @@ objective:
   params:
     direction: ${DIRECTION}
     max_iterations: ${MAX_ITERATIONS}
+    xai: ${XAI_MODE}
 EOF
 }
 
@@ -145,6 +149,7 @@ echo "  Repetitions per oracle: $NUM_REPETITIONS"
 echo "  LLM model: $LLM_MODEL"
 echo "  Temperature: $TEMPERATURE"
 echo "  Results base directory: $RESULTS_BASE_DIR"
+echo "  XAI Mode: $XAI_MODE"
 echo ""
 
 # Validate oracle names list
