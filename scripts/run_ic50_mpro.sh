@@ -11,17 +11,17 @@ set -e  # Exit on error
 # ==============================================================================
 
 # IC50 objectives thresholds
-ic50_threshold=20.0        # target_ic50_nM
-qed_threshold_ic50=0.5     # min_qed for ic50_qed_novel
+IC50_THRESHOLD=20.0        # target_ic50_nM
+QED_THRESHOLD=0.5          # min_qed for ic50_qed_novel
 
 # General experiment settings
-max_iterations=3
-llm_model="claude-opus-4.5"
-temperature=0.1
-recursion_limit=300
+MAX_ITERATIONS=3
+LLM_MODEL="claude-opus-4.5"
+TEMPERATURE=0.1
+RECURSION_LIMIT=300
 
 # Number of repetitions per experiment
-num_repetitions=1
+NUM_REPETITIONS=1
 
 # ==============================================================================
 # PATHS - Relative to molecule-optimization-agent directory
@@ -57,11 +57,11 @@ create_ic50mpro_qed_novel_config() {
 experiment_name: ${experiment_name}
 
 log_dir: ${log_dir}
-recursion_limit: ${recursion_limit}
+recursion_limit: ${RECURSION_LIMIT}
 
 llm:
-  model: ${llm_model}
-  temperature: ${temperature}
+  model: ${LLM_MODEL}
+  temperature: ${TEMPERATURE}
 
 oracle:
   name: composite
@@ -80,9 +80,9 @@ oracle:
 objective:
   name: ic50mpro_qed_novel
   params:
-    target_ic50_nM: ${ic50_threshold}
-    min_qed: ${qed_threshold_ic50}
-    max_iterations: ${max_iterations}
+    target_ic50_nM: ${IC50_THRESHOLD}
+    min_qed: ${QED_THRESHOLD}
+    max_iterations: ${MAX_ITERATIONS}
     xai: ${xai_mode}
 EOF
 }
@@ -107,12 +107,12 @@ echo "XAI Experiments Runner"
 echo "=============================================="
 echo ""
 echo "Configuration:"
-echo "  IC50 threshold: $ic50_threshold"
-echo "  QED threshold: $qed_threshold_ic50"
-echo "  Max iterations: $max_iterations"
-echo "  LLM model: $llm_model"
-echo "  Temperature: $temperature"
-echo "  Repetitions: $num_repetitions"
+echo "  IC50 threshold: $IC50_THRESHOLD"
+echo "  QED threshold: $QED_THRESHOLD"
+echo "  Max iterations: $MAX_ITERATIONS"
+echo "  LLM model: $LLM_MODEL"
+echo "  Temperature: $TEMPERATURE"
+echo "  Repetitions: $NUM_REPETITIONS"
 echo ""
 
 # Create temporary config directory
@@ -127,7 +127,7 @@ echo "EXPERIMENT: ic50mpro_qed_novel"
 echo "=============================================="
 
 for xai_mode in "full" "partial" "none"; do
-    xai_dir_name="${xai_mode}_xai"
+    xai_dir_name="${LLM_MODEL}_${xai_mode}_xai"
     if [ "$xai_mode" == "none" ]; then
         xai_dir_name="no_xai"
     fi
@@ -138,12 +138,12 @@ for xai_mode in "full" "partial" "none"; do
     echo ""
     echo "XAI mode: $xai_mode ($xai_dir_name)"
     
-    for rep in $(seq 1 $num_repetitions); do
+    for rep in $(seq 1 $NUM_REPETITIONS); do
         config_path="$TEMP_CONFIG_DIR/ic50mpro_qed_novel_${xai_mode}_${rep}.yaml"
         experiment_name="ic50mpro_qed_novel_${xai_mode}_rep${rep}"
         
         create_ic50mpro_qed_novel_config "$config_path" "$experiment_name" "$log_dir" "$xai_mode"
-        run_experiment "$config_path" "Repetition $rep / $num_repetitions"
+        run_experiment "$config_path" "Repetition $rep / $NUM_REPETITIONS"
     done
 done
 
