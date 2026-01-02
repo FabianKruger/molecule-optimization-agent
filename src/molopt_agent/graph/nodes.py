@@ -158,15 +158,20 @@ def make_prediction_node(objective: Objective):
 
 
 
-def make_final_response_node(llm: ChatOpenAI):
+def make_final_response_node(llm: ChatOpenAI, xai_mode: str | None = None):
     def final_response_node(state: WorkflowState) -> WorkflowState:
         # Extract the objective description from the first human message
         objective_context = state["messages"][1].content if len(state["messages"]) > 1 else ""
         
         # Remove explanations from trace so summary only sees what the generation
         # model actually saw (respects xai filtering in objectives)
+        # For no_description mode, also remove individual scores to hide task info
+        keys_to_exclude = {"explanation"}
+        if xai_mode == "no_description":
+            keys_to_exclude.add("scores")
+        
         trace_for_summary = [
-            {k: v for k, v in entry.items() if k != "explanation"}
+            {k: v for k, v in entry.items() if k not in keys_to_exclude}
             for entry in state['trace']
         ]
         

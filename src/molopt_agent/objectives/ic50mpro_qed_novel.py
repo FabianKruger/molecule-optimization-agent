@@ -2,6 +2,7 @@ from typing import Literal
 
 from ..oracles.base import Oracle, OracleResult
 from ..state import WorkflowState
+from .generic_messages import get_generic_first_message, get_generic_feedback
 
 
 FIRST_MESSAGE_TEMPLATE = """
@@ -48,7 +49,7 @@ class IC50MproQedNovelObjective:
         target_ic50_nM: float = 10.0,
         min_qed: float = 0.5,
         max_iterations: int = 20,
-        xai: Literal["full", "partial", "none"] = "full",
+        xai: Literal["full", "partial", "none", "no_description"] = "full",
     ):
         self.oracle = oracle
         self._target_ic50_nM = float(target_ic50_nM)
@@ -57,6 +58,8 @@ class IC50MproQedNovelObjective:
         self._xai = xai
 
     def first_message(self) -> str:
+        if self._xai == "no_description":
+            return get_generic_first_message(higher_is_better=False)
         return FIRST_MESSAGE_TEMPLATE.format(
             target_ic50=self._target_ic50_nM,
             min_qed=self._min_qed,
@@ -86,8 +89,18 @@ class IC50MproQedNovelObjective:
 
     def build_feedback(self, state: WorkflowState, result: OracleResult) -> str:
         scores = result["scores"]
-
         ic50_score = scores[self.IC50_KEY]
+
+        # Use generic feedback for no_description mode
+        if self._xai == "no_description":
+            return get_generic_feedback(
+                smiles=state["current_smiles"],
+                score=ic50_score,
+                iteration=state["iteration_count"],
+                max_iterations=self._max_iterations,
+                higher_is_better=False,
+            )
+
         qed_score = scores[self.QED_KEY]
         novelty_score = scores[self.NOVELTY_KEY]
 

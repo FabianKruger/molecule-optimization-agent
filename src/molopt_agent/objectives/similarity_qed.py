@@ -2,6 +2,7 @@ from typing import Literal
 
 from ..oracles.base import Oracle, OracleResult
 from ..state import WorkflowState
+from .generic_messages import get_generic_first_message, get_generic_feedback
 
 
 FIRST_MESSAGE_TEMPLATE = """
@@ -51,7 +52,7 @@ class SimilarityQedObjective:
         min_similarity: float = 0.6,
         min_qed: float = 0.5,
         max_iterations: int = 20,
-        xai: Literal["full", "partial", "none"] = "full",
+        xai: Literal["full", "partial", "none", "no_description"] = "full",
     ):
         self.oracle = oracle
         self._target_score = float(target_score)
@@ -93,6 +94,8 @@ class SimilarityQedObjective:
         return extracted
 
     def first_message(self) -> str:
+        if self._xai == "no_description":
+            return get_generic_first_message(higher_is_better=True)
         return FIRST_MESSAGE_TEMPLATE.format(
             target_smiles=self._target_smiles,
             target_score=self._target_score,
@@ -126,6 +129,17 @@ class SimilarityQedObjective:
 
     def build_feedback(self, state: WorkflowState, result: OracleResult) -> str:
         combined_score = result["score"]
+
+        # Use generic feedback for no_description mode
+        if self._xai == "no_description":
+            return get_generic_feedback(
+                smiles=state["current_smiles"],
+                score=combined_score,
+                iteration=state["iteration_count"],
+                max_iterations=self._max_iterations,
+                higher_is_better=True,
+            )
+
         scores = result.get("scores", {})
 
         similarity_score = scores.get(self.SIMILARITY_KEY, 0.0)

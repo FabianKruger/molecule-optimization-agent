@@ -50,7 +50,10 @@ def build_workflow(objective: Objective, cfg: ExperimentConfig):
 
     gen_node = make_generation_node(objective, llm_gen, system_prompt=SYSTEM_PROMPT)
     pred_node = make_prediction_node(objective)
-    final_node = make_final_response_node(llm_sum)
+    
+    # Get xai mode from objective if available (for no_description mode)
+    xai_mode = getattr(objective, "_xai", None)
+    final_node = make_final_response_node(llm_sum, xai_mode=xai_mode)
 
     route_parse = make_route_after_parse(objective)
     route_val = make_route_after_validation(objective)

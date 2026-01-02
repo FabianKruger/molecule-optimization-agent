@@ -2,6 +2,7 @@ from typing import Literal
 
 from ..oracles.base import Oracle, OracleResult
 from ..state import WorkflowState
+from .generic_messages import get_generic_first_message
 
 
 # Common first message template structure
@@ -225,7 +226,7 @@ TDC_ORACLE_DESCRIPTIONS: dict[str, dict[str, str]] = {
             "Amlodipine MPO: score is the geometric mean of 2 terms (each in [0,1]):\n"
             "  score = gmean([similarity_term, rings_term])\n\n"
             "Reference molecule (Amlodipine) SMILES:\n"
-            "  Clc1ccccc1C2C(=C(/N/C(=C2/C(=O)OCC)COCCN)C)\C(=O)OC \n\n"
+            "  Clc1ccccc1C2C(=C(/N/C(=C2/C(=O)OCC)COCCN)C)\\C(=O)OC \n\n"
             "Terms:\n"
             "  similarity_term = Tanimoto(ECFP4(test), ECFP4(ref))  (no clipping/modifier)\n"
             "  rings_term = gauss(CalcNumRings(test); mu=3, sigma=0.5)\n\n"
@@ -436,6 +437,7 @@ class TdcObjective:
         direction: Literal["minimize", "maximize"] = "maximize",
         max_iterations: int = 20,
         first_message_template: str | None = None,
+        xai: Literal["none", "no_description"] = "none",
     ):
         """
         Initialize TDC objective.
@@ -447,11 +449,13 @@ class TdcObjective:
             first_message_template: Optional custom first message template.
                                    If None, uses template from TDC_ORACLE_DESCRIPTIONS
                                    or DEFAULT_ORACLE_DESCRIPTIONS
+            xai: XAI mode. "none" shows task description, "no_description" hides it.
         """
         self.oracle = oracle
         self._direction = direction
         self._max_iterations = int(max_iterations)
         self._first_message_template = first_message_template
+        self._xai = xai
 
         # Extract oracle name from oracle if possible
         oracle_name = None
@@ -471,6 +475,12 @@ class TdcObjective:
 
     def first_message(self) -> str:
         """Generate the first message for the optimization task."""
+        higher_is_better = self._direction == "maximize"
+        
+        # Use generic message for no_description mode
+        if self._xai == "no_description":
+            return get_generic_first_message(higher_is_better=higher_is_better)
+        
         direction_text = "maximize" if self._direction == "maximize" else "minimize"
         
         # If custom template was provided, use it directly
