@@ -20,6 +20,7 @@ class IC50MproOracle:
     def _load_xgb_model(self, model_name):
         """Load XGBoost model"""
         model = XGBRegressor()
+        model._estimator_type = "regressor"
         model.load_model(f"{model_name}.json")
         return model
 
