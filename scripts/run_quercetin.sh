@@ -25,7 +25,7 @@ temperature=0.1
 recursion_limit=300
 
 # Number of repetitions per experiment
-num_repetitions=2
+num_repetitions=3
 
 # ==============================================================================
 # PATHS - Relative to molecule-optimization-agent directory
@@ -126,21 +126,29 @@ create_temp_config_dir
 # Trap to cleanup on exit
 trap cleanup_temp_configs EXIT
 
-# ==============================================================================
-# EXPERIMENT 1: similarity_qed with relevant_molecule
-# ==============================================================================
 
-
-echo "=============================================="
-echo "EXPERIMENT 1: similarity_qed - relevant_molecule"
-echo "=============================================="
-
-for xai_mode in "full" "none"; do # "partial"
-    xai_dir_name="${llm_model}_${xai_mode}_xai_${target_score}"
+# Get XAI directory name
+# Args: $1=xai_mode
+get_xai_dir_name() {
+    local xai_mode="$1"
     if [ "$xai_mode" == "none" ]; then
-        xai_dir_name="${llm_model}_no_xai_${target_score}"
+        echo "no_xai"
+    elif [ "$xai_mode" == "partial" ]; then
+        echo "partial_xai"
+    elif [ "$xai_mode" == "no_description" ]; then
+        echo "no_description"
+    else
+        echo "full_xai"
     fi
-    
+}
+
+echo "=============================================="
+echo "EXPERIMENT: similarity_qed - relevant_molecule"
+echo "=============================================="
+
+for xai_mode in "no_description"; do # "full" "none" "partial"
+    XAI_DIR_NAME=$(get_xai_dir_name "$xai_mode")
+    xai_dir_name="${llm_model}_${XAI_DIR_NAME}_${target_score}"
     log_dir="$RESULTS_BASE_DIR/similarity_qed_quercetin/$xai_dir_name"
     mkdir -p "$log_dir"
     
@@ -161,4 +169,4 @@ echo "=============================================="
 echo "ALL EXPERIMENTS COMPLETED"
 echo "=============================================="
 echo ""
-echo "Results saved to: $RESULTS_BASE_DIR"
+echo "Results saved to: $log_dir"
