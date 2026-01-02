@@ -11,8 +11,8 @@ set -e  # Exit on error
 # HYPERPARAMETERS - Modify these values as needed
 # ==============================================================================
 
-# XAI setting: "full", "partial", or "none"
-XAI_MODE="partial"
+# XAI setting: "full", "partial", "none" or no_description
+XAI_MODE="no_description"
 
 # LLM model name
 LLM_MODEL="claude-opus-4.5"
@@ -131,6 +131,8 @@ get_xai_dir_name() {
         echo "no_xai"
     elif [ "$xai_mode" == "partial" ]; then
         echo "partial_xai"
+    elif [ "$xai_mode" == "no_description" ]; then
+        echo "no_description"
     else
         echo "full_xai"
     fi
@@ -158,8 +160,8 @@ echo "  Sampled molecules file: $SAMPLED_MOLECULES_FILE"
 echo ""
 
 # Validate XAI mode
-if [[ ! "$XAI_MODE" =~ ^(full|partial|none)$ ]]; then
-    echo "ERROR: XAI_MODE must be 'full', 'partial', or 'none'"
+if [[ ! "$XAI_MODE" =~ ^(full|partial|none|no_description)$ ]]; then
+    echo "ERROR: XAI_MODE must be 'full', 'partial', 'none' or 'no_description'"
     exit 1
 fi
 
