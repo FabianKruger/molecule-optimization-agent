@@ -4,9 +4,10 @@ from ..oracles.base import Oracle, OracleResult
 from ..state import WorkflowState
 from .generic_messages import get_generic_first_message, get_generic_feedback
 
+#the SARS-COV-2 Main Protease (MPro)
 
 FIRST_MESSAGE_TEMPLATE = """
-We are optimizing ligands for the SARS-COV-2 Main Protease (MPro).
+We are optimizing ligands for a protease.
 
 Objectives:
 1. Minimize the predicted half maximal inhibitory concentration IC50 (in nM).
