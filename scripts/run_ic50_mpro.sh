@@ -11,17 +11,17 @@ set -e  # Exit on error
 # ==============================================================================
 
 # IC50 objectives thresholds
-IC50_THRESHOLD=20.0        # target_ic50_nM
-QED_THRESHOLD=0.5          # min_qed for ic50_qed_novel
+IC50_THRESHOLD=10.0        # target_ic50_nM
+QED_THRESHOLD=0.6          # min_qed for ic50_qed_novel
 
 # General experiment settings
-MAX_ITERATIONS=3
+MAX_ITERATIONS=51
 LLM_MODEL="claude-opus-4.5"
 TEMPERATURE=0.1
 RECURSION_LIMIT=300
 
 # Number of repetitions per experiment
-NUM_REPETITIONS=1
+NUM_REPETITIONS=3
 
 # ==============================================================================
 # PATHS - Relative to molecule-optimization-agent directory
@@ -74,7 +74,7 @@ oracle:
         params: {}
       - name: novel
         params: {}
-    weights: [0.5, 0.5, 0.0]
+    weights: [1.0, 0.0, 0.0]
     names: ["IC50", "QED", "Novelty"]
 
 objective:
@@ -121,16 +121,27 @@ create_temp_config_dir
 # Trap to cleanup on exit
 trap cleanup_temp_configs EXIT
 
+# Get XAI directory name
+# Args: $1=xai_mode
+get_xai_dir_name() {
+    local xai_mode="$1"
+    if [ "$xai_mode" == "none" ]; then
+        echo "no_xai"
+    elif [ "$xai_mode" == "no_description" ]; then
+        echo "no_description"
+    else
+        echo "${xai_mode}_xai"
+    fi
+}
+
 echo ""
 echo "=============================================="
 echo "EXPERIMENT: ic50mpro_qed_novel"
 echo "=============================================="
 
-for xai_mode in "full" "partial" "none"; do
-    xai_dir_name="${LLM_MODEL}_${xai_mode}_xai"
-    if [ "$xai_mode" == "none" ]; then
-        xai_dir_name="no_xai"
-    fi
+for xai_mode in "partial" "none" "no_description"; do #"full"
+    XAI_DIR_NAME=$(get_xai_dir_name "$xai_mode")
+    xai_dir_name="${LLM_MODEL}_${XAI_DIR_NAME}"
     
     log_dir="$RESULTS_BASE_DIR/ic50mpro_qed/$xai_dir_name"
     mkdir -p "$log_dir"
