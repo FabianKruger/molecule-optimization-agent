@@ -21,7 +21,7 @@ TEMPERATURE=0.1
 RECURSION_LIMIT=300
 
 # Number of repetitions per experiment
-NUM_REPETITIONS=3
+NUM_REPETITIONS=2
 
 # ==============================================================================
 # PATHS - Relative to molecule-optimization-agent directory
@@ -139,7 +139,7 @@ echo "=============================================="
 echo "EXPERIMENT: ic50mpro_qed_novel"
 echo "=============================================="
 
-for xai_mode in "no_description"; do #"full" "partial" "none"
+for xai_mode in "full" "partial" "none" "no_description"; do
     XAI_DIR_NAME=$(get_xai_dir_name "$xai_mode")
     xai_dir_name="${LLM_MODEL}_${XAI_DIR_NAME}"
     
