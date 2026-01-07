@@ -11,7 +11,7 @@ set -e  # Exit on error
 # ==============================================================================
 
 # IC50 objectives thresholds
-IC50_THRESHOLD=10.0        # target_ic50_nM
+IC50_THRESHOLD=1.0        # target_ic50_nM
 QED_THRESHOLD=0.6          # min_qed for ic50_qed_novel
 
 # General experiment settings
@@ -21,7 +21,7 @@ TEMPERATURE=0.1
 RECURSION_LIMIT=300
 
 # Number of repetitions per experiment
-NUM_REPETITIONS=2
+NUM_REPETITIONS=3
 
 # ==============================================================================
 # PATHS - Relative to molecule-optimization-agent directory
