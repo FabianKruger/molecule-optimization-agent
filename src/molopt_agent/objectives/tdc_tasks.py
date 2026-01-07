@@ -21,57 +21,84 @@ Respond with a single JSON object:
   "smiles": "<SMILES string>"
 }}"""
 
+# Example rediscovery with hidden molecule
+'''
+ "example_rediscovery": {
+    "task_description": (
+        "Rediscovery task: Rediscover a hidden molecule by maximizing similarity to the target molecule (score in [0,1], higher is better)."
+    ),
+    "metric_name": "similarity score (0–1; higher is better)",
+    "step_instruction": (
+        "Propose a single initial molecule as a SMILES string that you think will achieve a high similarity score to the hidden reference molecule."
+    ),
+},
+'''
+
+# Example similarity with hidden molecule
+'''
+"example_similarity": {
+    "task_description": (
+        "Similarity task: Maximize similarity to a hidden target molecule (score in [0,1], higher is better).\n\n"
+        "Scoring: score = min(1.0, similarity / 0.75)\n"
+        "This means similarity ≥ 0.75 gives the maximum score of 1.0.\n\n"
+    ),
+    "metric_name": "thresholded similarity score (0–1; higher is better)",
+    "step_instruction": (
+        "Propose a single initial molecule as a SMILES string that you think will have high thresholded similarity to the hidden target molecule."
+    ),
+},
+'''
 
 # Dictionary mapping TDC oracle names to their specific descriptions
 TDC_ORACLE_DESCRIPTIONS: dict[str, dict[str, str]] = {
     "celecoxib_rediscovery": {
         "task_description": (
-            "Rediscovery task: Rediscover a hidden molecule by maximizing similarity to the target molecule (score in [0,1], higher is better)."
+            "Rediscovery task: The rediscovery score ([0,1], higher is better) measures the Tanimoto similarity with the SMILES of celecoxib."
         ),
         "metric_name": "similarity score (0–1; higher is better)",
         "step_instruction": (
-            "Propose a single initial molecule as a SMILES string that you think will achieve a high similarity score to the hidden reference molecule."
+            "Propose a single initial molecule as a SMILES string that you think will achieve a high similarity score to celecoxib."
         ),
     },
     "troglitazone_rediscovery": {
         "task_description": (
-            "Rediscovery task: Rediscover a hidden molecule by maximizing similarity to the target molecule (score in [0,1], higher is better)."
+            "Rediscovery task: The rediscovery score ([0,1], higher is better) measures the Tanimoto similarity with the SMILES of troglitazone."
         ),
         "metric_name": "similarity score (0–1; higher is better)",
         "step_instruction": (
-            "Propose a single initial molecule as a SMILES string that you think will achieve a high similarity score to the hidden reference molecule."
+            "Propose a single initial molecule as a SMILES string that you think will achieve a high similarity score to troglitazone."
         ),
     },
     "thiothixene_rediscovery": {
         "task_description": (
-            "Rediscovery task: Rediscover a hidden molecule by maximizing similarity to the target molecule (score in [0,1], higher is better)."
+            "Rediscovery task: The rediscovery score ([0,1], higher is better) measures the Tanimoto similarity with the SMILES of thiothixene."
         ),
         "metric_name": "similarity score (0–1; higher is better)",
         "step_instruction": (
-            "Propose a single initial molecule as a SMILES string that you think will achieve a high similarity score to the hidden reference molecule."
+            "Propose a single initial molecule as a SMILES string that you think will achieve a high similarity score to thiothixene."
         ),
     },
 
     "albuterol_similarity": {
         "task_description": (
-            "Similarity task: Maximize similarity to a hidden target molecule (score in [0,1], higher is better).\n\n"
+            "Similarity task: Maximize similarity to albuterol (score in [0,1], higher is better).\n\n"
             "Scoring: score = min(1.0, similarity / 0.75)\n"
             "This means similarity ≥ 0.75 gives the maximum score of 1.0.\n\n"
         ),
         "metric_name": "thresholded similarity score (0–1; higher is better)",
         "step_instruction": (
-            "Propose a single initial molecule as a SMILES string that you think will have high thresholded similarity to the hidden target molecule."
+            "Propose a single initial molecule as a SMILES string that you think will have high thresholded similarity to albuterol."
         ),
     },
     "mestranol_similarity": {
         "task_description": (
-            "Similarity task: Maximize similarity to a hidden target molecule (score in [0,1], higher is better).\n\n"
+            "Similarity task: Maximize similarity to mestranol (score in [0,1], higher is better).\n\n"
             "Scoring: score = min(1.0, similarity / 0.75)\n"
             "This means similarity ≥ 0.75 gives the maximum score of 1.0.\n\n"
         ),
         "metric_name": "thresholded similarity score (0–1; higher is better)",
         "step_instruction": (
-            "Propose a single initial molecule as a SMILES string that you think will have high thresholded similarity to the hidden target molecule."
+            "Propose a single initial molecule as a SMILES string that you think will have high thresholded similarity to mestranol."
         ),
     },
 

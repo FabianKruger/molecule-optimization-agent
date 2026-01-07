@@ -15,9 +15,9 @@ set -e  # Exit on error
 ORACLE_NAMES=(
     # Basic oracles
     #"qed"
-    "drd2"
-    "gsk3b"
-    "jnk3"
+    #"drd2"
+    #"gsk3b"
+    #"jnk3"
     # Rediscovery tasks
     "celecoxib_rediscovery"
     "troglitazone_rediscovery"
@@ -26,24 +26,24 @@ ORACLE_NAMES=(
     "albuterol_similarity"
     "mestranol_similarity"
     # Isomer tasks
-    "isomers_c7h8n2o2"
-    "isomers_c9h10n2o2pf2cl"
+    #"isomers_c7h8n2o2"
+    #"isomers_c9h10n2o2pf2cl"
     # Median molecules
-    "median1"
-    "median2"
+    #"median1"
+    #"median2"
     # MPO tasks
-    "osimertinib_mpo"
-    "fexofenadine_mpo"
-    "ranolazine_mpo"
-    "perindopril_mpo"
-    "amlodipine_mpo"
-    "sitagliptin_mpo"
-    "zaleplon_mpo"
+    #"osimertinib_mpo"
+    #"fexofenadine_mpo"
+    #"ranolazine_mpo"
+    #"perindopril_mpo"
+    #"amlodipine_mpo"
+    #"sitagliptin_mpo"
+    #"zaleplon_mpo"
     # SMARTS-constrained
-    "valsartan_smarts"
+    #"valsartan_smarts"
     # Hop tasks
-    "deco_hop"
-    "scaffold_hop"
+    #"deco_hop"
+    #"scaffold_hop"
 )
 
 # Direction for all oracles (all TDC tasks are maximize - higher is better)
@@ -65,7 +65,7 @@ TEMPERATURE=0.1
 RECURSION_LIMIT=300
 
 # XAI modes "none" (no explanation of scores but clear task description) and "no_explanation"
-XAI_MODE="no_description"
+XAI_MODE="none"
 
 # Results base directory (will be created if it doesn't exist)
 RESULTS_BASE_DIR="data/results/tdc_tasks_$XAI_MODE"
