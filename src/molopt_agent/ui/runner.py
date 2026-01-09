@@ -572,7 +572,7 @@ class IC50MproQedNovelSession:
                     "oracles": [
                         {
                             "name": "ic50mpro",
-                            "params": {"model_name": "src/xgboost_training/xgb_maccs_best"}
+                            "params": {"model_name": "data/xgboost/xgb_maccs_best"}
                         },
                         {
                             "name": "qed",

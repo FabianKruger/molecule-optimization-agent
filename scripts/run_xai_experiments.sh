@@ -119,7 +119,7 @@ oracle:
     oracles:
       - name: ic50mpro
         params:
-          model_name: "src/xgboost_training/xgb_maccs_best"
+          model_name: "data/xgboost/xgb_maccs_best"
       - name: novel
         params: {}
     weights: [1.0, 0.0]
@@ -158,7 +158,7 @@ oracle:
     oracles:
       - name: ic50mpro
         params:
-          model_name: "src/xgboost_training/xgb_maccs_best"
+          model_name: "data/xgboost/xgb_maccs_best"
       - name: qed
         params: {}
       - name: novel

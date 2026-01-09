@@ -184,7 +184,7 @@ def search_xgb_models(
         df_train,
         df_test,
         n_trials=40,
-        save_prefix="xgb_maccs_best"
+        save_prefix="data/xgboost/xgb_maccs_best"
     ):
     # Hyperparameter search space
     space = {
@@ -260,4 +260,4 @@ df = polaris_to_dataframe(dataset)
 df_train, df_test = preprocess_for_xgb(df, column_name_target_values="pIC50 (SARS-CoV-2 Mpro)", column_name_smiles="CXSMILES")
 
 # Random 4x4x4x4 hyperparameter search space and save best (lowest rmse) model
-search_xgb_models(df_train, df_test, save_prefix="xgb_maccs_best")
+search_xgb_models(df_train, df_test, save_prefix="data/xgboost/xgb_maccs_best")
