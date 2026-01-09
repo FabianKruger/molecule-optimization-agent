@@ -63,44 +63,67 @@ OPENAI_BASE_URL=https://custom-endpoint.example.com/v1  # Optional
 
 ## Usage
 
+### Command Line
+
 ```bash
 pixi run molopt --config config/experiments/<your_experiment>.yaml  
-# e.g.: pixi run molopt --config config/experiments/opioid_ki.yaml
+# e.g.: pixi run molopt --config config/experiments/similarity.yaml
 ```
+
+### Interactive UI
+
+Launch the Gradio web interface for interactive molecule optimization:
+
+```bash
+pixi run molopt-ui
+```
+
+The UI runs at `http://127.0.0.1:7860` and supports:
+- **Similarity + QED**: Optimize for structural similarity to a target molecule while maintaining drug-likeness
+- **IC50 MPro + QED + Novelty**: Optimize for SARS-CoV-2 MPro inhibition with drug-likeness and novelty constraints
+
+You can provide feedback after each optimization round to guide the agent toward desired molecular properties.
 
 ## Configuration
 
-Experiments are defined in YAML config files. Example (`config/experiments/opioid_ki.yaml`):
+Experiments are defined in YAML config files. Example (`config/experiments/similarity_qed.yaml`):
 
 ```yaml
-experiment_name: delta_ki_baseline
+experiment_name: similarity_qed_optimization
 
 log_dir: data/runs
-recursion_limit: 100
+recursion_limit: 150
 
 llm:
-  model: gpt-5.1
+  model: claude-sonnet-4-20250514
   temperature: 0.3
 
 oracle:
-  name: opioid_ki
+  name: composite
   params:
-    model_name: fabikru/molencoder-D3R-simple
+    oracles:
+      - name: similarity
+        params:
+          target_smiles: O=C1c3c(O/C(=C1/O)c2ccc(O)c(O)c2)cc(O)cc3O  # Quercetin
+      - name: qed
+        params: {}
+    weights: [0.5, 0.5]
+    names: ["Similarity", "QED"]
 
 objective:
-  name: opioid_ki
+  name: similarity_qed
   params:
-    target_ki_nM: 10.0
-    max_iterations: 20
+    target_score: 0.75
+    min_similarity: 0.7
+    min_qed: 0.7
+    max_iterations: 30
 ```
 
-### Custom LLM Endpoint
-
-For corporate API proxies, set the `OPENAI_BASE_URL` environment variable. If not set, the default OpenAI endpoint is used.
+This example optimizes for molecules similar to Quercetin while maintaining drug-likeness (QED).
 
 ## Output
 
-Results are saved to `log_dir` as JSON files with the following structure:
+Results are saved to `log_dir` as JSON files containing:
 
 | Key | Description |
 |-----|-------------|
@@ -111,86 +134,51 @@ Results are saved to `log_dir` as JSON files with the following structure:
 | `iterations` | Total iteration count |
 | `summary` | LLM-generated summary of the optimization |
 
-Console output shows the best molecule, iteration count, and summary.
-
 ## Project Structure
 
 ```
-src/molopt_agent/
-├── main.py              # Entry point
-├── config.py            # Config dataclasses and YAML loading
-├── state.py             # LangGraph workflow state definition
-├── system_prompt.py     # Fixed system prompt for the LLM
-├── save_experiment.py   # Results saving logic
-├── cli/                 # Argument parsing
-├── graph/               # LangGraph workflow
-│   ├── builder.py       # Graph construction
-│   ├── nodes.py         # Node functions (generation, parsing, validation, prediction)
-│   └── routing.py       # Conditional routing logic
-├── oracles/             # Scoring functions
-│   ├── base.py          # Oracle protocol
-│   ├── composite.py     # Composite oracle (combines multiple oracles)
-│   ├── ic50mpro.py      # SARS-CoV-2 MPro IC50 prediction oracle
-│   ├── novel.py         # PubChem novelty oracle
-│   ├── opioid_ki.py     # Opioid Ki prediction oracle
-│   ├── qed.py           # QED (drug-likeness) oracle
-│   ├── similarity.py    # Tanimoto similarity oracle
-│   └── utils.py         # Shared utilities (MACCS key definitions)
-└── objectives/          # Optimization objectives
-    ├── base.py              # Objective protocol
-    ├── ic50mpro.py          # IC50 minimization objective
-    ├── ic50mpro_novel.py    # IC50 + novelty objective
-    ├── ic50mpro_qed_novel.py # IC50 + QED + novelty objective
-    ├── novel.py             # PubChem novelty objective
-    ├── opioid_ki.py         # Opioid Ki minimization objective
-    ├── qed.py               # QED maximization objective
-    ├── similarity.py        # Tanimoto similarity objective
-    └── similarity_qed.py    # Similarity + QED objective
+molecule-optimization-agent/
+├── src/molopt_agent/       # Main package
+│   ├── main.py             # CLI entry point
+│   ├── config.py           # YAML config loading
+│   ├── state.py            # LangGraph state definition
+│   ├── graph/              # LangGraph workflow (nodes, routing, builder)
+│   ├── oracles/            # Scoring functions (QED, similarity, IC50, etc.)
+│   ├── objectives/         # Optimization objectives and feedback logic
+│   └── ui/                 # Gradio web interface
+├── config/experiments/     # Experiment YAML configs
+├── scripts/                # Helper scripts for running experiments
+├── analysis/               # Jupyter notebooks for result analysis
+└── data/                   # Results and datasets
 ```
 
-## Adding Custom Oracles
+## Extending the Agent
 
-1. Create a new file in `oracles/`, e.g. `oracles/my_oracle.py`:
+### Adding a Custom Oracle
+
+1. Create `oracles/my_oracle.py`:
 
 ```python
 from .base import OracleResult
 
 class MyOracle:
-    def __init__(self, param1: str, param2: float):
-        # Initialize your model/scorer
-        pass
+    def __init__(self, param1: str):
+        self.param1 = param1
 
     def __call__(self, smiles: str) -> OracleResult:
         score = ...  # Your scoring logic
-        return {
-            "score": score,
-            "explanation": f"Score: {score:.2f}",
-        }
+        return {"score": score, "explanation": ""}
 ```
 
-2. Register it in `oracles/__init__.py`:
+2. Register in `oracles/__init__.py`:
 
 ```python
-from .my_oracle import MyOracle
-
-ORACLE_REGISTRY: Dict[str, Type[Oracle]] = {
-    "opioid_ki": MolEncoderOpioidKiOracle,
-    "my_oracle": MyOracle,  # Add here
-}
+ORACLE_REGISTRY["my_oracle"] = MyOracle
 ```
 
-3. Use in config:
-```yaml
-oracle:
-  name: my_oracle
-  params:
-    param1: "value"
-    param2: 1.5
-```
+### Adding a Custom Objective
 
-## Adding Custom Objectives
-
-1. Create a new file in `objectives/`, e.g. `objectives/my_objective.py`:
+1. Create `objectives/my_objective.py`:
 
 ```python
 from ..state import WorkflowState
@@ -205,39 +193,48 @@ class MyObjective:
         self._max_iterations = max_iterations
 
     def first_message(self) -> str:
-        return f"Optimize molecules to achieve target {self.target}. Respond with JSON: {{\"reason\": ..., \"smiles\": ...}}"
+        return f"Optimize to target {self.target}. Respond with JSON: {{\"reason\": ..., \"smiles\": ...}}"
 
     def evaluate(self, state: WorkflowState) -> OracleResult:
         return self.oracle(state["current_smiles"])
 
     def build_feedback(self, state: WorkflowState, result: OracleResult) -> str:
-        return f"Score: {result['score']:.2f}. Target: {self.target}. Propose next molecule as JSON."
+        return f"Score: {result['score']:.2f}. Propose next molecule as JSON."
 
     def is_done(self, state: WorkflowState, result: OracleResult) -> bool:
-        return result["score"] < self.target or state["iteration_count"] >= self._max_iterations
+        return result["score"] >= self.target or state["iteration_count"] >= self._max_iterations
 
     def max_iterations(self) -> int:
         return self._max_iterations
 ```
 
-2. Register it in `objectives/__init__.py`:
+2. Register in `objectives/__init__.py`:
 
 ```python
-from .my_objective import MyObjective
-
-OBJECTIVE_REGISTRY: Dict[str, Type[Objective]] = {
-    "opioid_ki": OpioidKiObjective,
-    "my_objective": MyObjective,  # Add here
-}
+OBJECTIVE_REGISTRY["my_objective"] = MyObjective
 ```
 
-3. Use in config:
-```yaml
-objective:
-  name: my_objective
-  params:
-    target: 5.0
-    max_iterations: 30
-```
+## Available Oracles
 
+| Oracle | Description |
+|--------|-------------|
+| `qed` | Drug-likeness (QED score) |
+| `similarity` | Tanimoto similarity to a target molecule |
+| `ic50mpro` | SARS-CoV-2 MPro IC50 prediction |
+| `novel` | PubChem novelty check |
+| `opioid_ki` | Opioid receptor Ki prediction |
+| `tdc_tasks` | TDC benchmark tasks |
+| `composite` | Combines multiple oracles with weights |
 
+## Available Objectives
+
+| Objective | Description |
+|-----------|-------------|
+| `qed` | Maximize QED score |
+| `similarity` | Match target molecule structure |
+| `similarity_qed` | Multi-objective: similarity + drug-likeness |
+| `ic50mpro` | Minimize IC50 against MPro |
+| `ic50mpro_novel` | IC50 + novelty constraint |
+| `ic50mpro_qed_novel` | IC50 + QED + novelty |
+| `opioid_ki` | Minimize opioid receptor Ki |
+| `tdc_tasks` | TDC benchmark optimization |
