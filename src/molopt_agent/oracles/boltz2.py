@@ -27,9 +27,9 @@ class Boltz2Oracle:
     Returns binding probability as a score between 0 and 1.
     """
 
-    def __init__(self, protein_sequence: str, output_dir_base: Path):
+    def __init__(self, protein_sequence: str, output_dir_base: str | Path):
         self.protein_sequence = protein_sequence
-        self.output_dir_base = output_dir_base
+        self.output_dir_base = Path(output_dir_base)
 
     def _generate_boltz_input(self, smiles: str, path: Path) -> None:
         with open(path, "w") as f:
