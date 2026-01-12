@@ -1,6 +1,7 @@
 from typing import Dict, Type
 
 from .base import Objective
+from .boltz2 import Boltz2Objective
 from .ic50mpro import IC50MproObjective
 from .ic50mpro_novel import IC50MproNovelObjective
 from .ic50mpro_qed_novel import IC50MproQedNovelObjective
@@ -15,6 +16,7 @@ from ..oracles.base import Oracle
 
 
 OBJECTIVE_REGISTRY: Dict[str, Type[Objective]] = {
+    "boltz2": Boltz2Objective,
     "ic50mpro": IC50MproObjective,
     "ic50mpro_novel": IC50MproNovelObjective,
     "ic50mpro_qed_novel": IC50MproQedNovelObjective,

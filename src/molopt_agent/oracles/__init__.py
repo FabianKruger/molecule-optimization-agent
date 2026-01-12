@@ -1,6 +1,7 @@
 from typing import Dict, Type
 
 from .base import Oracle, OracleResult
+from .boltz2 import Boltz2Oracle
 from .composite import CompositeOracle
 from .ic50mpro import IC50MproOracle
 from .novel import NovelOracle
@@ -12,6 +13,7 @@ from ..config import OracleConfig
 
 
 ORACLE_REGISTRY: Dict[str, Type[Oracle]] = {
+    "boltz2": Boltz2Oracle,
     "ic50mpro": IC50MproOracle,
     "novel": NovelOracle,
     "opioid_ki": MolEncoderOpioidKiOracle,
