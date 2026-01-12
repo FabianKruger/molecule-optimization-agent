@@ -57,6 +57,7 @@ class Boltz2Oracle:
             str(output_dir),
             "--output_format",
             "pdb",
+            "--use_msa_server",
         ]
 
         try:
