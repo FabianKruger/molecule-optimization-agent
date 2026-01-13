@@ -78,7 +78,11 @@ class Boltz2Oracle:
             raise ValueError(f"Boltz-2 subprocess failed: {e}")
 
         affinity_path = (
-            output_dir / "predictions" / run_name / f"affinity_{run_name}.json"
+            output_dir
+            / f"boltz_results_{run_name}"
+            / "predictions"
+            / run_name
+            / f"affinity_{run_name}.json"
         )
 
         with open(affinity_path) as f:
