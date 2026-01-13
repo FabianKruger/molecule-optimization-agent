@@ -11,7 +11,7 @@ from .state import make_initial_state
 from .oracles import build_oracle_from_config
 from .objectives import build_objective_from_config
 from .graph.builder import build_workflow
-from .save_experiment import save_conversation_log
+from .save_experiment import save_conversation_log, plot_trajectory
 
 
 def setup_logging():
@@ -49,12 +49,24 @@ def run_experiment(cfg: ExperimentConfig):
     )
 
     logger.info(f"Optimization completed after {final_state['iteration_count']} iterations")
-    log_file = save_conversation_log(
+    log_file, timestamp = save_conversation_log(
         final_state,
         config=cfg,
         output_dir=cfg.log_dir,
         experiment_name=cfg.experiment_name,
     )
+
+    plot_file = plot_trajectory(
+        final_state,
+        objective_name=cfg.objective.name,
+        output_dir=cfg.log_dir,
+        experiment_name=cfg.experiment_name,
+        timestamp=timestamp,
+        model_name=cfg.llm.model,
+    )
+
+    if plot_file:
+        logger.info(f"Trajectory plot saved to: {plot_file}")
 
     return final_state, log_file
 
