@@ -1,15 +1,17 @@
 import json
+import logging
 from rdkit import Chem
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from ..state import WorkflowState
 from ..objectives.base import Objective
-import re
 import time
 import httpcore
 from openai import RateLimitError, APIConnectionError
 import random
+
+logger = logging.getLogger(__name__)
 
 def rate_limit_sensible_llm_call(llm:ChatOpenAI, message, max_attempts=3):
     delay = 60  # sensible default for hard limits
@@ -43,29 +45,29 @@ def rate_limit_sensible_llm_call(llm:ChatOpenAI, message, max_attempts=3):
 
 def make_generation_node(objective: Objective, llm: ChatOpenAI, system_prompt: str):
     def generation_node(state: WorkflowState) -> WorkflowState:
-        '''
-        now = time.time()
-        with open("timing_gpt.log", "a", encoding="utf-8") as f:
-            f.write(f"{state["iteration_count"]}|{now}\n")
-        '''
+        iteration = state["iteration_count"] + 1  # +1 because we increment at the end
+        logger.info(f"=== Starting Iteration {iteration} ===")
+
         if state["iteration_count"] == 0:
+            logger.info("Initializing conversation with system prompt and first message")
             state["messages"] = [
                 SystemMessage(content=system_prompt),
                 HumanMessage(content=objective.first_message()),
             ]
         else:
             if state["validation_error"]:
+                logger.warning(f"Iteration {iteration}: Validation error from previous iteration: {state['validation_error']}")
                 state["messages"].append(
                     HumanMessage(content=state["validation_error"])
                 )
                 state["validation_error"] = ""
 
-
-        #response = llm.invoke(state["messages"])
+        logger.info(f"Iteration {iteration}: Calling LLM to generate molecule...")
         response = rate_limit_sensible_llm_call(llm, state["messages"])
         state["messages"].append(response)
         state["raw_model_output"] = response.content.strip()
         state["iteration_count"] += 1
+        logger.info(f"Iteration {iteration}: LLM response received")
 
         '''
         now = time.time()
@@ -87,6 +89,7 @@ def make_generation_node(objective: Objective, llm: ChatOpenAI, system_prompt: s
 
 
 def parse_node(state: WorkflowState) -> WorkflowState:
+    iteration = state["iteration_count"]
     raw = state["raw_model_output"]
     try:
         parsed = json.loads(raw)
@@ -94,48 +97,54 @@ def parse_node(state: WorkflowState) -> WorkflowState:
         state["current_reason"] = parsed["reason"]
         state["is_valid"] = True
         state["validation_error"] = ""
-    except Exception:
+        logger.info(f"Iteration {iteration}: Parsed SMILES: {state['current_smiles']}")
+    except Exception as e:
         state["current_smiles"] = ""
         state["current_reason"] = ""
         state["is_valid"] = False
         state["validation_error"] = (
             "Invalid JSON. Provide proper JSON with fields 'smiles' and 'reason'."
         )
+        logger.error(f"Iteration {iteration}: Failed to parse JSON from LLM output: {e}")
     return state
 
 
 def validation_node(state: WorkflowState) -> WorkflowState:
+    iteration = state["iteration_count"]
+    smiles = state["current_smiles"]
     try:
-        mol = Chem.MolFromSmiles(state["current_smiles"])
+        mol = Chem.MolFromSmiles(smiles)
         if mol is None:
             state["is_valid"] = False
-            state["validation_error"] = f"Invalid SMILES: {state['current_smiles']}"
+            state["validation_error"] = f"Invalid SMILES: {smiles}"
+            logger.error(f"Iteration {iteration}: Invalid SMILES string: {smiles}")
         else:
             state["is_valid"] = True
             state["validation_error"] = ""
+            logger.info(f"Iteration {iteration}: SMILES validated successfully")
     except Exception as e:
         state["is_valid"] = False
         state["validation_error"] = f"Validation error: {str(e)}"
+        logger.error(f"Iteration {iteration}: SMILES validation error: {e}")
     return state
 
 
 def make_prediction_node(objective: Objective):
     def prediction_node(state: WorkflowState) -> WorkflowState:
+        iteration = state["iteration_count"]
+        smiles = state["current_smiles"]
+        logger.info(f"Iteration {iteration}: Calling oracle to evaluate SMILES: {smiles}")
+
         result = objective.evaluate(state)
 
-        '''
-        now = time.time()
-        with open("timing_gpt.log", "r", encoding="utf-8") as f:
-            last_line = f.readlines()[-1]
+        score = result["score"]
+        logger.info(f"Iteration {iteration}: Oracle returned score: {score:.4f}")
 
-        _, last_ts = last_line.strip().split("|")
-        last_time = float(last_ts)
+        # Log individual scores if this is a composite oracle
+        if "scores" in result:
+            score_details = ", ".join([f"{k}={v:.4f}" for k, v in result["scores"].items()])
+            logger.info(f"Iteration {iteration}: Individual scores: {score_details}")
 
-        elapsed = now - last_time
-
-        with open("timing_gpt.log", "a", encoding="utf-8") as f:
-            f.write(f"Prediction from oracle received|{now}|elapsed={elapsed:.3f}s\n")
-        '''
         state["oracle_result"] = result
 
         trace_entry = {
