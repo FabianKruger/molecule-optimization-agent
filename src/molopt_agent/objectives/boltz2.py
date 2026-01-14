@@ -1,9 +1,8 @@
 import json
 from typing import Optional
 
-from ..state import WorkflowState
 from ..oracles.base import Oracle, OracleResult
-
+from ..state import WorkflowState
 
 FIRST_MESSAGE_PROBABILITY = """
 We are optimizing ligands for protein-ligand binding.
@@ -63,7 +62,9 @@ class Boltz2Objective:
         self._additional_information = additional_information
 
         # Detect which mode we're in based on oracle's binding_score_name
-        binding_score_name = getattr(oracle, 'binding_score_name', 'affinity_probability_binary')
+        binding_score_name = getattr(
+            oracle, "binding_score_name", "affinity_probability_binary"
+        )
         self._is_probability_mode = binding_score_name == "affinity_probability_binary"
 
     # --- prompts ---
@@ -71,9 +72,15 @@ class Boltz2Objective:
     def first_message(self) -> str:
         additional_info_section = ""
         if self._additional_information:
-            additional_info_section = f"\nAdditional Information:\n{self._additional_information}\n"
+            additional_info_section = (
+                f"\nAdditional Information:\n{self._additional_information}\n"
+            )
 
-        template = FIRST_MESSAGE_PROBABILITY if self._is_probability_mode else FIRST_MESSAGE_AFFINITY
+        template = (
+            FIRST_MESSAGE_PROBABILITY
+            if self._is_probability_mode
+            else FIRST_MESSAGE_AFFINITY
+        )
         return template.format(
             protein_sequence=self.oracle.protein_sequence,
             target_binding_probability=self._target_binding_probability,
@@ -88,6 +95,8 @@ class Boltz2Objective:
 
     def build_feedback(self, state: WorkflowState, result: OracleResult) -> str:
         explanation = result.get("explanation", "")
+        extra_scores_json = result.get("extra_scores", "{}")
+        extra_scores = json.loads(extra_scores_json)
 
         explanation_section = ""
         if explanation:
@@ -102,10 +111,10 @@ Oracle explanation:
             return f"""
 Evaluation of your last proposal:
 
-SMILES: {state['current_smiles']}
+SMILES: {state["current_smiles"]}
 Predicted Binding Probability: {binding_probability:.3f} (higher is better, range 0-1)
 Goal: Binding probability >= {self._target_binding_probability:.3f}
-Iteration: {state['iteration_count']} / {self._max_iterations}
+Iteration: {state["iteration_count"]} / {self._max_iterations}
 {explanation_section}
 Use this evaluation together with the full history of molecules and evaluations above to decide on the next molecule.
 
@@ -120,8 +129,8 @@ Do not include any additional text, comments, Markdown, or code fences.
         else:
             # Affinity mode: optimize affinity with probability constraint
             affinity = result["score"]
-            # get binding probability from oracle explanation
-            binding_probability = result.get("affinity_probability_binary", None)
+            # parse probability from oracle explanation
+            binding_probability = extra_scores.get("affinity_probability_binary", None)
 
             probability_info = ""
             if binding_probability is not None:
@@ -130,9 +139,9 @@ Do not include any additional text, comments, Markdown, or code fences.
             return f"""
 Evaluation of your last proposal:
 
-SMILES: {state['current_smiles']}
+SMILES: {state["current_smiles"]}
 Predicted Binding Affinity: {affinity:.3f} (higher values indicate stronger predicted binding) {probability_info}
-Iteration: {state['iteration_count']} / {self._max_iterations}
+Iteration: {state["iteration_count"]} / {self._max_iterations}
 {explanation_section}
 Use this evaluation together with the full history of molecules and evaluations above to decide on the next molecule.
 Remember: Optimize for the highest binding affinity while keeping binding probability > {self._target_binding_probability}
@@ -154,7 +163,10 @@ Do not include any additional text, comments, Markdown, or code fences.
         if self._is_probability_mode:
             # Probability mode: check if target probability is reached
             binding_probability = result["score"]
-            if binding_probability is not None and binding_probability >= self._target_binding_probability:
+            if (
+                binding_probability is not None
+                and binding_probability >= self._target_binding_probability
+            ):
                 return True
         # In affinity mode, we only stop at max_iterations since we're continuously for higher values
 
