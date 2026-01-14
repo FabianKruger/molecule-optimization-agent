@@ -5,6 +5,7 @@ from datetime import datetime
 import matplotlib
 matplotlib.use('Agg')  # Use non-GUI backend for CLI
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 
 from .config import ExperimentConfig
 from .state import WorkflowState
@@ -83,12 +84,16 @@ def plot_trajectory(
     scores = [entry["score"] for entry in trace]
 
     # Create the plot
-    plt.figure(figsize=(10, 6))
-    plt.plot(iterations, scores, marker='o', linewidth=2, markersize=6)
-    plt.xlabel("Oracle calls", fontsize=12)
-    plt.ylabel(f"{objective_name} score", fontsize=12)
-    plt.title(f"MolOpt Agent Trajectory (Model: {model_name})", fontsize=14, fontweight='bold')
-    plt.grid(True, alpha=0.3)
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.plot(iterations, scores, marker='o', linewidth=2, markersize=6)
+    ax.set_xlabel("Oracle calls", fontsize=12)
+    ax.set_ylabel(f"{objective_name} score", fontsize=12)
+    ax.set_title(f"MolOpt Agent Trajectory (Model: {model_name})", fontsize=14, fontweight='bold')
+
+    # Force x-axis to show only integer values
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+    ax.grid(True, alpha=0.3)
     plt.tight_layout()
 
     # Save the plot
