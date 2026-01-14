@@ -120,9 +120,8 @@ Do not include any additional text, comments, Markdown, or code fences.
         else:
             # Affinity mode: optimize affinity with probability constraint
             affinity = result["score"]
-            # parse probability from oracle explanation
-            explanation_json = json.loads(explanation) if explanation else {}
-            binding_probability = explanation_json.get("affinity_probability_binary", None)
+            # get binding probability from oracle explanation
+            binding_probability = result.get("affinity_probability_binary", None)
 
             probability_info = ""
             if binding_probability is not None:
