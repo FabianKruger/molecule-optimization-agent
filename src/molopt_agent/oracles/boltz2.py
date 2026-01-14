@@ -110,12 +110,15 @@ class Boltz2Oracle:
         self,
         predict_dir: Path,
         run_name: str,
+        additional_scores: dict[str, float] | None = None,
     ) -> str:
+        additional_scores = additional_scores or {}
         threshold_angstrom = 5.0
         pdb_path = predict_dir / f"{run_name}_model_0.pdb"
         close_residues = self._get_close_residues(pdb_path, threshold_angstrom)
         confidence_path = predict_dir / f"confidence_{run_name}_model_0.json"
         confidence_scores = self._get_confidence_scores(confidence_path)
+        confidence_scores.update(additional_scores)
 
         explanation_parts = [
             f"Close Residues (within {threshold_angstrom} Å): "
@@ -181,18 +184,18 @@ class Boltz2Oracle:
             affinity_data = json.load(f)
 
         score = affinity_data[self.binding_score_name]
-        explanation = self._build_explanation(predict_dir, run_name)
-        print(explanation)
+        # If using affinity mode, also include probability for constraint checking
+        additional_scores = {}
+        if self.binding_score_name == "affinity_pred_value":
+            binding_prob = affinity_data["affinity_probability_binary"]
+            additional_scores = {"affinity_probability_binary": binding_prob}
+
+        explanation = self._build_explanation(predict_dir, run_name, additional_scores)
 
         result = {
             "score": score,
             "explanation": explanation,
         }
-
-        # If using affinity mode, also include probability for constraint checking
-        if self.binding_score_name == "affinity_pred_value":
-            binding_prob = affinity_data["affinity_probability_binary"]
-            result["affinity_probability_binary"] = binding_prob
 
         logger.info(f"Boltz-2 prediction result: {result}")
 
