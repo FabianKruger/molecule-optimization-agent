@@ -1,7 +1,7 @@
 from typing import Protocol, TypedDict
 
 
-class OracleResult(TypedDict, total=False, extra_items=str):
+class OracleResult(TypedDict, total=False):
     """
     Minimal oracle output:
       - score: scalar the optimizer uses (higher/lower as you define).

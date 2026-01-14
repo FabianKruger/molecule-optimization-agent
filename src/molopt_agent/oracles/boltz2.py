@@ -197,7 +197,7 @@ class Boltz2Oracle:
         result: OracleResult = {
             "score": score,
             "explanation": explanation,
-            "extra_scores": json.dumps(additional_scores),
+            "extra_scores": json.dumps(additional_scores),  # pyright: ignore[reportAssignmentType]
         }
 
         logger.info(f"Boltz-2 prediction result: {result}")
