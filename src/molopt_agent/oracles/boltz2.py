@@ -118,8 +118,7 @@ class Boltz2Oracle:
         # If using affinity mode, also include probability for constraint checking
         if self.binding_score_name == "affinity_pred_value":
             binding_prob = affinity_data["affinity_probability_binary"]
-            explanation_dict = {"affinity_probability_binary": binding_prob}
-            result["explanation"] = json.dumps(explanation_dict)
+            result["affinity_probability_binary"] = binding_prob
 
         logger.info(f"Boltz-2 prediction result: {result}")
 
