@@ -8,6 +8,8 @@ import biotite.structure as struc
 from biotite.structure.io.pdb import PDBFile
 from sklearn.metrics import pairwise_distances
 
+from molopt_agent.oracles.base import OracleResult
+
 from .base import OracleResult
 
 logger = logging.getLogger(__name__)
@@ -156,7 +158,7 @@ class Boltz2Oracle:
         logger.info(f"Starting Boltz-2 prediction for SMILES: {smiles}")
 
         try:
-            result = run(
+            _ = run(
                 cmds,
                 check=True,
                 capture_output=True,
@@ -183,7 +185,7 @@ class Boltz2Oracle:
         with open(affinity_path) as f:
             affinity_data = json.load(f)
 
-        score = affinity_data[self.binding_score_name]
+        score: float = affinity_data[self.binding_score_name]
         # If using affinity mode, also include probability for constraint checking
         additional_scores = {}
         if self.binding_score_name == "affinity_pred_value":
@@ -192,9 +194,10 @@ class Boltz2Oracle:
 
         explanation = self._build_explanation(predict_dir, run_name, additional_scores)
 
-        result = {
+        result: OracleResult = {
             "score": score,
             "explanation": explanation,
+            "extra_scores": json.dumps(additional_scores),
         }
 
         logger.info(f"Boltz-2 prediction result: {result}")
