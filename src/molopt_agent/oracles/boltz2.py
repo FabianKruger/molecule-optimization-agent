@@ -91,11 +91,14 @@ class Boltz2Oracle:
         self,
         path: Path,
     ) -> dict[str, float]:
-        with open(path) as f:
-            data = json.load(f)
+        try:
+            with open(path) as f:
+                data = json.load(f)
+        except FileNotFoundError:
+            data = {}
 
         return {
-            key: data.get(key, 0.0)
+            key: data.get(key, float("nan"))
             for key in [
                 "confidence_score",
                 "ptm",
@@ -182,8 +185,14 @@ class Boltz2Oracle:
         )
         affinity_path = predict_dir / f"affinity_{run_name}.json"
 
-        with open(affinity_path) as f:
-            affinity_data = json.load(f)
+        try:
+            with open(affinity_path) as f:
+                affinity_data = json.load(f)
+        except FileNotFoundError:
+            affinity_data = {
+                "affinity_pred_value": float("nan"),
+                "affinity_probability_binary": float("nan"),
+            }
 
         score: float = affinity_data[self.binding_score_name]
         # If using affinity mode, also include probability for constraint checking
