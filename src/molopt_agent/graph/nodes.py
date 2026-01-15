@@ -194,11 +194,16 @@ Trace (each entry includes iteration, SMILES, reason, score):
 {json.dumps(trace_for_summary, indent=2)}
 
 Write a concise scientific summary of the optimization process.
-Use ONLY the information provided. Do not invent any steps or molecules.
+Use ONLY the information provided. In particular, do not name the protein. Do not invent any steps or molecules.
 """.strip()
 
         #summary_response = llm.invoke([HumanMessage(content=summary_prompt)])
         summary_response = rate_limit_sensible_llm_call(llm, [HumanMessage(content=summary_prompt)])
+        response_metadata = getattr(summary_response, 'response_metadata', {})
+        finish_reason = response_metadata.get('finish_reason', 'unknown')
+        logger.info(f"Final summary generated (finish_reason: {finish_reason})")
+        logger.info(f"Content filter results: {response_metadata.get('content_filter_results')}")
+        logger.info(f"Token usage: {response_metadata.get('token_usage')}")
         state["final_response"] = summary_response.content
         return state
 
