@@ -54,12 +54,14 @@ class Boltz2Objective:
         oracle: Oracle,
         target_binding_probability: float,
         max_iterations: int,
-        additional_information: Optional[str] = None,
+        additional_information: str | None = None,
+        protein_sequence: str | None = None,
     ):
         self.oracle = oracle
         self._target_binding_probability = float(target_binding_probability)
         self._max_iterations = int(max_iterations)
         self._additional_information = additional_information
+        self.protein_sequence = protein_sequence or self.oracle.protein_sequence
 
         # Detect which mode we're in based on oracle's binding_score_name
         binding_score_name = getattr(
@@ -82,7 +84,7 @@ class Boltz2Objective:
             else FIRST_MESSAGE_AFFINITY
         )
         return template.format(
-            protein_sequence=self.oracle.protein_sequence,
+            protein_sequence=self.protein_sequence,
             target_binding_probability=self._target_binding_probability,
             additional_info_section=additional_info_section,
         )

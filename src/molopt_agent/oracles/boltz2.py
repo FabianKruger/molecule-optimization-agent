@@ -3,6 +3,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 from subprocess import CalledProcessError, TimeoutExpired, run
+from typing import Literal
 
 import biotite.structure as struc
 from biotite.structure.io.pdb import PDBFile
@@ -43,12 +44,14 @@ class Boltz2Oracle:
         binding_score_name: str = "affinity_probability_binary",
         timeout: int = 300,
         with_explanation: bool = True,
+        transform_probability: Literal["none", "invert", "constant"] = "none",
     ):
         self.protein_sequence = protein_sequence
         self.output_dir_base = Path(output_dir_base)
         self.binding_score_name = binding_score_name
         self.timeout = timeout
         self.with_explanation = with_explanation
+        self.transform_probability = transform_probability
 
         mode = (
             "probability"
@@ -172,15 +175,15 @@ class Boltz2Oracle:
             )
             logger.info("Boltz-2 prediction completed successfully")
         except TimeoutExpired as e:
-            raise ValueError(
+            logger.warning(
                 f"Boltz-2 subprocess timed out after {self.timeout}s ({self.timeout / 60:.1f} minutes).\n"
             )
         except CalledProcessError as e:
-            raise ValueError(
+            logger.warning(
                 f"Boltz-2 subprocess failed with code {e.returncode}.\nstderr: {e.stderr}"
             )
         except Exception as e:
-            raise ValueError(f"Boltz-2 subprocess failed: {e}")
+            logger.warning(f"Boltz-2 subprocess failed: {e}")
 
         predict_dir = (
             output_dir / f"boltz_results_{run_name}" / "predictions" / run_name
@@ -202,6 +205,12 @@ class Boltz2Oracle:
         if self.binding_score_name == "affinity_pred_value":
             binding_prob = affinity_data["affinity_probability_binary"]
             additional_scores = {"affinity_probability_binary": binding_prob}
+        else:
+            additional_scores["original_affinity_probability_binary"] = score
+            if self.transform_probability == "invert":
+                score = 1.0 - score
+            elif self.transform_probability == "constant":
+                score = 0.5
 
         explanation = (
             self._build_explanation(predict_dir, run_name, additional_scores)
