@@ -42,11 +42,13 @@ class Boltz2Oracle:
         output_dir_base: str | Path,
         binding_score_name: str = "affinity_probability_binary",
         timeout: int = 300,
+        with_explanation: bool = True,
     ):
         self.protein_sequence = protein_sequence
         self.output_dir_base = Path(output_dir_base)
         self.binding_score_name = binding_score_name
         self.timeout = timeout
+        self.with_explanation = with_explanation
 
         mode = (
             "probability"
@@ -201,7 +203,11 @@ class Boltz2Oracle:
             binding_prob = affinity_data["affinity_probability_binary"]
             additional_scores = {"affinity_probability_binary": binding_prob}
 
-        explanation = self._build_explanation(predict_dir, run_name, additional_scores)
+        explanation = (
+            self._build_explanation(predict_dir, run_name, additional_scores)
+            if self.with_explanation
+            else ""
+        )
 
         result: OracleResult = {
             "score": score,
