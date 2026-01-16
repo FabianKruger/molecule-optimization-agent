@@ -1,9 +1,11 @@
 import json
 from dataclasses import asdict
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
 import matplotlib
-matplotlib.use('Agg')  # Use non-GUI backend for CLI
+
+matplotlib.use("Agg")  # Use non-GUI backend for CLI
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 
@@ -81,14 +83,19 @@ def plot_trajectory(
 
     # Extract iterations and scores from trace
     iterations = [entry["iteration"] for entry in trace]
-    scores = [entry["score"] for entry in trace]
+    scores = [
+        entry["original_score"] if "original_score" in entry else entry["score"]
+        for entry in trace
+    ]
 
     # Create the plot
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.plot(iterations, scores, marker='o', linewidth=2, markersize=6)
+    ax.plot(iterations, scores, marker="o", linewidth=2, markersize=6)
     ax.set_xlabel("Oracle calls", fontsize=12)
     ax.set_ylabel(f"{objective_name} score", fontsize=12)
-    ax.set_title(f"MolOpt Agent Trajectory (Model: {model_name})", fontsize=14, fontweight='bold')
+    ax.set_title(
+        f"MolOpt Agent Trajectory (Model: {model_name})", fontsize=14, fontweight="bold"
+    )
 
     # Force x-axis to show only integer values
     ax.xaxis.set_major_locator(MaxNLocator(integer=True))
@@ -97,7 +104,7 @@ def plot_trajectory(
     plt.tight_layout()
 
     # Save the plot
-    plt.savefig(plot_file, dpi=300, bbox_inches='tight')
+    plt.savefig(plot_file, dpi=300, bbox_inches="tight")
     plt.close()
 
     return str(plot_file)

@@ -1,19 +1,21 @@
 import json
 import logging
-from rdkit import Chem
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, SystemMessage
-
-from ..state import WorkflowState
-from ..objectives.base import Objective
-import time
-import httpcore
-from openai import RateLimitError, APIConnectionError
 import random
+import time
+
+import httpcore
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_openai import ChatOpenAI
+from openai import APIConnectionError, RateLimitError
+from rdkit import Chem
+
+from ..objectives.base import Objective
+from ..state import WorkflowState
 
 logger = logging.getLogger(__name__)
 
-def rate_limit_sensible_llm_call(llm:ChatOpenAI, message, max_attempts=3):
+
+def rate_limit_sensible_llm_call(llm: ChatOpenAI, message, max_attempts=3):
     delay = 60  # sensible default for hard limits
     conn_delay = 0.5
 
@@ -38,7 +40,9 @@ def rate_limit_sensible_llm_call(llm:ChatOpenAI, message, max_attempts=3):
             print(f"... Wait {wait} as the connection was ended")
             now = time.time()
             with open("timing_gpt.log", "a", encoding="utf-8") as f:
-                f.write(f"Attempt {attempt}: Will wait for {wait} and retry. Connection ended at |{now}\n")
+                f.write(
+                    f"Attempt {attempt}: Will wait for {wait} and retry. Connection ended at |{now}\n"
+                )
             time.sleep(wait)
             conn_delay = min(conn_delay * 2, 15.0)
 
@@ -49,14 +53,18 @@ def make_generation_node(objective: Objective, llm: ChatOpenAI, system_prompt: s
         logger.info(f"=== Starting Iteration {iteration} ===")
 
         if state["iteration_count"] == 0:
-            logger.info("Initializing conversation with system prompt and first message")
+            logger.info(
+                "Initializing conversation with system prompt and first message"
+            )
             state["messages"] = [
                 SystemMessage(content=system_prompt),
                 HumanMessage(content=objective.first_message()),
             ]
         else:
             if state["validation_error"]:
-                logger.warning(f"Iteration {iteration}: Validation error from previous iteration: {state['validation_error']}")
+                logger.warning(
+                    f"Iteration {iteration}: Validation error from previous iteration: {state['validation_error']}"
+                )
                 state["messages"].append(
                     HumanMessage(content=state["validation_error"])
                 )
@@ -69,7 +77,7 @@ def make_generation_node(objective: Objective, llm: ChatOpenAI, system_prompt: s
         state["iteration_count"] += 1
         logger.info(f"Iteration {iteration}: LLM response received")
 
-        '''
+        """
         now = time.time()
         with open("timing_gpt.log", "r", encoding="utf-8") as f:
             last_line = f.readlines()[-1]
@@ -82,7 +90,7 @@ def make_generation_node(objective: Objective, llm: ChatOpenAI, system_prompt: s
         with open("timing_gpt.log", "a", encoding="utf-8") as f:
             f.write(f"LLM message took {elapsed:.3f}s\n")
             f.write(f"LLM message received at |{now}\n")
-        '''
+        """
         return state
 
     return generation_node
@@ -105,7 +113,9 @@ def parse_node(state: WorkflowState) -> WorkflowState:
         state["validation_error"] = (
             "Invalid JSON. Provide proper JSON with fields 'smiles' and 'reason'."
         )
-        logger.error(f"Iteration {iteration}: Failed to parse JSON from LLM output: {e}")
+        logger.error(
+            f"Iteration {iteration}: Failed to parse JSON from LLM output: {e}"
+        )
     return state
 
 
@@ -133,7 +143,9 @@ def make_prediction_node(objective: Objective):
     def prediction_node(state: WorkflowState) -> WorkflowState:
         iteration = state["iteration_count"]
         smiles = state["current_smiles"]
-        logger.info(f"Iteration {iteration}: Calling oracle to evaluate SMILES: {smiles}")
+        logger.info(
+            f"Iteration {iteration}: Calling oracle to evaluate SMILES: {smiles}"
+        )
 
         result = objective.evaluate(state)
 
@@ -142,7 +154,9 @@ def make_prediction_node(objective: Objective):
 
         # Log individual scores if this is a composite oracle
         if "scores" in result:
-            score_details = ", ".join([f"{k}={v:.4f}" for k, v in result["scores"].items()])
+            score_details = ", ".join(
+                [f"{k}={v:.4f}" for k, v in result["scores"].items()]
+            )
             logger.info(f"Iteration {iteration}: Individual scores: {score_details}")
 
         state["oracle_result"] = result
@@ -154,6 +168,15 @@ def make_prediction_node(objective: Objective):
             "score": result["score"],
             "explanation": result["explanation"],
         }
+
+        # If we mess with the score, save the original
+        if "extra_scores" in result:
+            extra_scores = json.loads(result["extra_scores"])
+            if "original_affinity_probability_binary" in extra_scores:
+                trace_entry["original_score"] = extra_scores[
+                    "original_affinity_probability_binary"
+                ]
+
         # Include individual scores from composite oracles
         if "scores" in result:
             trace_entry["scores"] = result["scores"]
@@ -163,27 +186,29 @@ def make_prediction_node(objective: Objective):
         feedback = objective.build_feedback(state, result)
         state["messages"].append(HumanMessage(content=feedback))
         return state
-    return prediction_node
 
+    return prediction_node
 
 
 def make_final_response_node(llm: ChatOpenAI, xai_mode: str | None = None):
     def final_response_node(state: WorkflowState) -> WorkflowState:
         # Extract the objective description from the first human message
-        objective_context = state["messages"][1].content if len(state["messages"]) > 1 else ""
-        
+        objective_context = (
+            state["messages"][1].content if len(state["messages"]) > 1 else ""
+        )
+
         # Remove explanations from trace so summary only sees what the generation
         # model actually saw (respects xai filtering in objectives)
         # For no_description mode, also remove individual scores to hide task info
         keys_to_exclude = {"explanation"}
         if xai_mode == "no_description":
             keys_to_exclude.add("scores")
-        
+
         trace_for_summary = [
             {k: v for k, v in entry.items() if k not in keys_to_exclude}
-            for entry in state['trace']
+            for entry in state["trace"]
         ]
-        
+
         summary_prompt = f"""
 You are given the objective and trace of a molecular optimization loop.
 
@@ -197,12 +222,16 @@ Write a concise scientific summary of the optimization process.
 Use ONLY the information provided. In particular, do not name the protein. Do not invent any steps or molecules.
 """.strip()
 
-        #summary_response = llm.invoke([HumanMessage(content=summary_prompt)])
-        summary_response = rate_limit_sensible_llm_call(llm, [HumanMessage(content=summary_prompt)])
-        response_metadata = getattr(summary_response, 'response_metadata', {})
-        finish_reason = response_metadata.get('finish_reason', 'unknown')
+        # summary_response = llm.invoke([HumanMessage(content=summary_prompt)])
+        summary_response = rate_limit_sensible_llm_call(
+            llm, [HumanMessage(content=summary_prompt)]
+        )
+        response_metadata = getattr(summary_response, "response_metadata", {})
+        finish_reason = response_metadata.get("finish_reason", "unknown")
         logger.info(f"Final summary generated (finish_reason: {finish_reason})")
-        logger.info(f"Content filter results: {response_metadata.get('content_filter_results')}")
+        logger.info(
+            f"Content filter results: {response_metadata.get('content_filter_results')}"
+        )
         logger.info(f"Token usage: {response_metadata.get('token_usage')}")
         state["final_response"] = summary_response.content
         return state
