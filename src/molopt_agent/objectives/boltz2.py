@@ -56,12 +56,18 @@ class Boltz2Objective:
         max_iterations: int,
         additional_information: str | None = None,
         protein_sequence: str | None = None,
+        hide_protein: bool = False,
     ):
         self.oracle = oracle
         self._target_binding_probability = float(target_binding_probability)
         self._max_iterations = int(max_iterations)
         self._additional_information = additional_information
-        self.protein_sequence = protein_sequence or self.oracle.protein_sequence
+        self.protein_sequence = (
+            (protein_sequence or self.oracle.protein_sequence)
+            if not hide_protein
+            else "Sequence unavailable"
+        )
+        self.hide_protein = hide_protein
 
         # Detect which mode we're in based on oracle's binding_score_name
         binding_score_name = getattr(
