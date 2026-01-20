@@ -200,7 +200,7 @@ def make_final_response_node(llm: ChatOpenAI, xai_mode: str | None = None):
         # Remove explanations from trace so summary only sees what the generation
         # model actually saw (respects xai filtering in objectives)
         # For no_description mode, also remove individual scores to hide task info
-        keys_to_exclude = {"explanation"}
+        keys_to_exclude = {"explanation", "original_score"}
         if xai_mode == "no_description":
             keys_to_exclude.add("scores")
 
