@@ -212,11 +212,15 @@ class Boltz2Oracle:
             elif self.transform_probability == "constant":
                 score = 0.5
 
-        explanation = (
-            self._build_explanation(predict_dir, run_name, additional_scores)
-            if self.with_explanation
-            else ""
-        )
+        try:
+            explanation = (
+                self._build_explanation(predict_dir, run_name, additional_scores)
+                if self.with_explanation
+                else ""
+            )
+        except Exception as e:
+            logger.warning(f"Failed to build explanation: {e}")
+            explanation = ""
 
         result: OracleResult = {
             "score": score,
