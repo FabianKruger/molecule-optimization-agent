@@ -156,6 +156,7 @@ class InteractiveSession:
             llm=LLMConfig(
                 model="gpt-5.1",  
                 temperature=0.1,
+                reasoning_effort=None,
             ),
             recursion_limit=150,
             log_dir="data/runs",

@@ -8,7 +8,7 @@
 set -e  # Exit on error
 
 # ==============================================================================
-# HYPERPARAMETERS - Modify these values as needed
+# HYPERPARAMETERS 
 # ==============================================================================
 
 # XAI setting: "full", "partial", "none" or no_description
@@ -36,20 +36,8 @@ NUM_REPETITIONS=1
 # Add reasoning effort (gpt models: minimal, low, medium, high) - put None for default and non-gpt models
 REASONING_EFFORT='None'
 
-# Skip these SMILES - important for broken up runs
-#SKIP_SMILES=(
-#    "Br[C@@H]1[C@H](Br)c2cccc3c2[C@](Br)(C3)[C@H]1Br"
-    #"C=C(CCC(O)Cl)NC(=C)C(=O)OCC"
-    #"CCc1ccccc1NC(=O)C=C(C)c1cc2c(-c3ccc(Br)cc3)coc2cc1OC"
-    #"O=CC1CCCCN1c1cc(C(F)(F)F)ncc1[N+](=O)[O-]"
-    #"C/C(=N/N(C)C(N)=S)C(C)(C)C"
-    #"Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C(F)(F)F)s3)cn2)c(F)c1"
-    #"COc1ccccc1CNc1nc(NCc2ccc(C(C)C)cc2)c2sccc2n1"
-    #"C/C1=C\CC[C@]23O[C@@H]2[C@@H](OC3=O)C2=C(C1)C(=O)C=CC2=O"
-    #"COC(=O)CCC#Cc1ccc(C(CC(=O)c2ccnc(C)c2)c2ccccc2C)cc1"
-#)
 # ==============================================================================
-# PATHS - Relative to molecule-optimization-agent directory
+# PATHS 
 # ==============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

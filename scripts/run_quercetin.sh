@@ -7,7 +7,7 @@
 set -e  # Exit on error
 
 # ==============================================================================
-# HYPERPARAMETERS - Modify these values as needed
+# HYPERPARAMETERS 
 # ==============================================================================
 
 # Molecule SMILES for similarity experiments

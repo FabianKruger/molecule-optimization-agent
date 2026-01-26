@@ -7,7 +7,7 @@
 set -e  # Exit on error
 
 # ==============================================================================
-# HYPERPARAMETERS - Modify these values as needed
+# HYPERPARAMETERS 
 # ==============================================================================
 
 # IC50 objectives thresholds

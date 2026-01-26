@@ -38,6 +38,8 @@ flowchart TD
 
 ## Installation
 
+This project uses [Pixi](https://pixi.prefix.dev/latest/installation/) for dependency management.
+
 ```bash
 # Clone and install with pixi
 cd molecule-optimization-agent
@@ -83,6 +85,44 @@ The UI runs at `http://127.0.0.1:7860` and supports:
 - **IC50 MPro + QED + Novelty**: Optimize for SARS-CoV-2 MPro inhibition with drug-likeness and novelty constraints
 
 You can provide feedback after each optimization round to guide the agent toward desired molecular properties.
+
+## Reproducing Paper Results
+
+All experiments from the paper can be reproduced using the shell scripts in the `scripts/` folder. Each script contains configurable hyperparameters at the top of the file.
+
+### Experiment Scripts
+
+| Script | Description |
+|--------|-------------|
+| `run_quercetin.sh` | XAI ablation experiments optimizing for Quercetin similarity + QED |
+| `run_similarity_qed_pubchem_experiments.sh` | Similarity + QED optimization for 20 random PubChem molecules |
+| `run_tdc_tasks_experiments.sh` | PMO benchmark tasks (rediscovery, similarity, isomers, MPO, etc.) |
+| `run_ic50_mpro.sh` | IC50 MPro inhibition experiments with QED and novelty constraints |
+
+### Running Experiments
+
+```bash
+# Make scripts executable
+chmod +x scripts/*.sh
+
+# Run an experiment (e.g., Quercetin XAI ablation)
+./scripts/run_quercetin.sh
+```
+
+### Baseline Comparisons
+
+Scripts for downloading and running baseline comparisons are in `scripts/baselines/`:
+
+| Script | Description |
+|--------|-------------|
+| `download_pmo_results.py` | Download PMO benchmark baseline results |
+| `reinvent_quercetin_sim_qed.py` | REINVENT baseline for Quercetin optimization |
+| `reinvent_random_molecules_sim_qed.py` | REINVENT baseline for random PubChem molecules |
+| `tdc_top_50_molecules.py` | TDC top-50 molecules baseline |
+
+### Analysis Notebooks
+
+Jupyter notebooks for analyzing results and generating paper figures are in `analysis/paper/`.
 
 ## Configuration
 
