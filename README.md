@@ -116,8 +116,6 @@ Scripts for downloading and running baseline comparisons are in `scripts/baselin
 | Script | Description |
 |--------|-------------|
 | `download_pmo_results.py` | Download PMO benchmark baseline results |
-| `reinvent_quercetin_sim_qed.py` | REINVENT baseline for Quercetin optimization |
-| `reinvent_random_molecules_sim_qed.py` | REINVENT baseline for random PubChem molecules |
 | `tdc_top_50_molecules.py` | TDC top-50 molecules baseline |
 
 ### Analysis Notebooks
@@ -254,27 +252,3 @@ class MyObjective:
 OBJECTIVE_REGISTRY["my_objective"] = MyObjective
 ```
 
-## Available Oracles
-
-| Oracle | Description |
-|--------|-------------|
-| `qed` | Drug-likeness (QED score) |
-| `similarity` | Tanimoto similarity to a target molecule |
-| `ic50mpro` | SARS-CoV-2 MPro IC50 prediction |
-| `novel` | PubChem novelty check |
-| `opioid_ki` | Opioid receptor Ki prediction |
-| `tdc_tasks` | TDC benchmark tasks |
-| `composite` | Combines multiple oracles with weights |
-
-## Available Objectives
-
-| Objective | Description |
-|-----------|-------------|
-| `qed` | Maximize QED score |
-| `similarity` | Match target molecule structure |
-| `similarity_qed` | Multi-objective: similarity + drug-likeness |
-| `ic50mpro` | Minimize IC50 against MPro |
-| `ic50mpro_novel` | IC50 + novelty constraint |
-| `ic50mpro_qed_novel` | IC50 + QED + novelty |
-| `opioid_ki` | Minimize opioid receptor Ki |
-| `tdc_tasks` | TDC benchmark optimization |
