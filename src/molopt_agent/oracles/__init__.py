@@ -1,26 +1,52 @@
 from typing import Dict, Type
 
 from .base import Oracle, OracleResult
-from .boltz2 import Boltz2Oracle
 from .composite import CompositeOracle
-from .ic50mpro import IC50MproOracle
-from .novel import NovelOracle
-from .opioid_ki import MolEncoderOpioidKiOracle
 from .qed import ExplainableQedOracle
 from .similarity import SimilarityOracle
-from .tdc_tasks import TdcOracle
+
+try:
+    from .boltz2 import Boltz2Oracle
+    _boltz2_available = True
+except Exception:
+    _boltz2_available = False
+
+try:
+    from .ic50mpro import IC50MproOracle
+    _ic50mpro_available = True
+except Exception:
+    _ic50mpro_available = False
+
+try:
+    from .novel import NovelOracle
+    _novel_available = True
+except Exception:
+    _novel_available = False
+
+try:
+    from .opioid_ki import MolEncoderOpioidKiOracle
+    _opioid_ki_available = True
+except Exception:
+    _opioid_ki_available = False
+
+try:
+    from .tdc_tasks import TdcOracle
+    _tdc_available = True
+except Exception:
+    _tdc_available = False
+
 from ..config import OracleConfig
 
 
 ORACLE_REGISTRY: Dict[str, Type[Oracle]] = {
-    "boltz2": Boltz2Oracle,
-    "ic50mpro": IC50MproOracle,
-    "novel": NovelOracle,
-    "opioid_ki": MolEncoderOpioidKiOracle,
     "qed": ExplainableQedOracle,
     "similarity": SimilarityOracle,
     "composite": CompositeOracle,
-    "tdc_tasks": TdcOracle,
+    **({"boltz2": Boltz2Oracle} if _boltz2_available else {}),
+    **({"ic50mpro": IC50MproOracle} if _ic50mpro_available else {}),
+    **({"novel": NovelOracle} if _novel_available else {}),
+    **({"opioid_ki": MolEncoderOpioidKiOracle} if _opioid_ki_available else {}),
+    **({"tdc_tasks": TdcOracle} if _tdc_available else {}),
 }
 
 
@@ -30,11 +56,11 @@ def build_oracle_from_config(cfg: OracleConfig) -> Oracle:
         oracles_cfg = cfg.params.get("oracles", [])
         if not oracles_cfg:
             raise ValueError("CompositeOracle requires 'oracles' list in params")
-        
+
         weights = cfg.params.get("weights")
         if not weights:
             raise ValueError("CompositeOracle requires 'weights' list in params")
-        
+
         sub_oracles = [
             build_oracle_from_config(OracleConfig(name=sub["name"], params=sub.get("params", {})))
             for sub in oracles_cfg
