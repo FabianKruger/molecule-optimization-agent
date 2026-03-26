@@ -1,0 +1,536 @@
+{
+  "timestamp": "20260326_113157",
+  "experiment": "zero_shot_independent_scaffold_hop",
+  "config": {
+    "llm": {
+      "model": "claude-opus-4.5",
+      "temperature": 1.0
+    },
+    "objective": {
+      "name": "tdc_tasks",
+      "params": {
+        "max_iterations": 50
+      }
+    },
+    "oracle": {
+      "name": "tdc_tasks",
+      "params": {
+        "oracle_name": "scaffold_hop"
+      }
+    },
+    "generation_mode": "independent"
+  },
+  "conversation": [
+    {
+      "role": "SystemMessage",
+      "content": "You are an expert medicinal chemist whose job is to propose and optimize new molecules.\n\nYou interact in a multi-step optimization loop. In this loop you:\n- Propose small organic molecules as SMILES strings.\n- Receive evaluations of your proposals.\n- Have access to the full conversation history, including all past proposals, rationales, and evaluations.\n\nYour goal in this conversation is to iteratively propose new molecules that move the objective toward the specified target, using the information in the conversation history and your general chemical knowledge.\n\nOUTPUT FORMAT:\n\nFor every proposal, you must respond with a single JSON object of the form\n\n{\n  \"reason\": \"<short explanation>\",\n  \"smiles\": \"<SMILES string>\"\n}\n\nRequirements:\n- \"smiles\" must be a single, valid SMILES string for a plausible small molecule.\n- \"reason\" should briefly explain why, given the history of molecules and their scores, this new proposal might improve or further explore the objective landscape.\n- Do not repeat any previous molecule exactly. The scores are deterministic and will not change if a molecule is re-evaluated.\n- Do not include any text outside the JSON object. No Markdown, no comments, no code fences."
+    },
+    {
+      "role": "HumanMessage",
+      "content": "Scaffold Hop task: score is the arithmetic mean of 3 terms:\n  score = mean([similarity_term, deco_term, scaffold_term])\n\nReference molecule used for similarity (pharmacophore) SMILES:\n  CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C\n\nSimilarity term:\n  - Based on PHCO (2D pharmacophore fingerprint).\n  - sim = Tanimoto(PHCO(test), PHCO(reference))\n  - similarity_term = clip(sim, t=0.75) where clip(x,t)=1 if x>=t else x/t\n\nSMARTS constraint terms (each is binary 0/1):\n  - deco_term = 1 if SMARTS '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' is PRESENT, else 0\n  - scaffold_term = 1 if SMARTS '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' is ABSENT, else 0\n\nObjective:\n- generate one molecule that maximize the Scaffold Hop score (0\u20131; higher is better).\n- give a short explanation why this molecule was chosen.\n\nTask:\nPropose a single initial molecule as a SMILES string that you think will have a high score by:\n- achieving high PHCO pharmacophore similarity to the reference (ideally sim >= 0.75 so the clipped term is 1),\n- DO containing '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1', and\n- NOT containing '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12'.\n\nRespond with a single JSON object:\n{\n  \"reason\": \"<short explanation>\",\n  \"smiles\": \"<SMILES string>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (quinazoline with benzothiazole, sulfonamide, and propoxy groups), 2) Contains the SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to an aromatic system with NH to benzothiazole), 3) Does NOT contain the specific quinazoline-oxygen scaffold pattern. I'll replace the quinazoline core with a different heterocycle (pyridine) while keeping the benzothiazole, propoxy chain, and sulfonamide to maintain pharmacophore similarity.\", \"smiles\": \"CCCOc1ccc(Nc2ccc3ncsc3c2)c(S(=O)(=O)C(C)(C)C)c1\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the required SMARTS pattern with propoxy chain connected to benzothiazole via aniline, 3) Avoids the forbidden quinazoline scaffold. The reference has a quinazoline core which I must replace. I'll use a pyrimidine or different heterocyclic system while keeping the key pharmacophoric features: the propoxy group, sulfonyl group, and the benzothiazole-aniline portion. I'll construct a molecule with the required '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' pattern using a simplified bicyclic core that doesn't match the forbidden scaffold.\", \"smiles\": \"CCCOc1ccc(Nc2ccc3ncsc3c2)c(S(=O)(=O)C(C)(C)C)c1\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (which contains a quinazoline core with propoxy group, sulfonamide, and benzothiazole-amine), 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to an aromatic system linked to aminobenzothiazole), 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (which is a quinazoline with specific substitution pattern). I'll replace the quinazoline core with a different bicyclic system (pyrido[3,4-d]pyrimidine or similar) while keeping the propoxy chain, sulfonamide, and benzothiazole amine pharmacophores intact.\", \"smiles\": \"CCCOc1cc2nccnc2cc1S(=O)(=O)C(C)(C)CNc1ccc2ncsc2c1\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C), 2) Contains the SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' which requires a propoxy chain connected to an aromatic system that links to an amine connected to benzothiazole, 3) Does NOT contain the quinazoline-ether scaffold pattern. I'll keep the benzothiazole-aniline portion and the propoxy chain but replace the quinazoline core with a different scaffold (like a pyridine or simple benzene) to avoid the forbidden pattern while maintaining pharmacophore features.\", \"smiles\": \"CCCOc1ccc(Nc2ccc3ncsc3c2)c(S(=O)(=O)C(C)(C)C)c1\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) has high pharmacophore similarity to the reference, 2) contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to an aromatic system with an NH to benzothiazole), and 3) does NOT contain the forbidden scaffold pattern. The reference has a quinazoline core which matches the forbidden pattern. I'll replace the quinazoline with a different bicyclic system (like naphthalene or quinoline variant) while keeping the benzothiazole and propoxy chain. This scaffold hop maintains the pharmacophore features while avoiding the forbidden substructure.\", \"smiles\": \"CCCOc1ccc2cc(Nc3ccc4ncsc4c3)ccc2c1S(=O)(=O)C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (contains similar H-bond donors/acceptors, aromatic rings, hydrophobic groups), 2) Contains the required SMARTS pattern with a propoxy chain connected to an aromatic system that links to a benzothiazole via an amine, 3) Avoids the forbidden quinazoline scaffold with specific substitution. I'll replace the quinazoline core with a different bicyclic system (pyridopyrimidine or similar) while keeping the propoxy-aromatic-NH-benzothiazole motif and the sulfonyl group for pharmacophore matching.\", \"smiles\": \"CCCOc1ccc2nccnc2c1Nc1ccc2ncsc2c1\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (quinazoline with benzothiazole, sulfonamide, and propoxy groups), 2) Contains the SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to an aromatic system with NH-benzothiazole), 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (which is a quinazoline with specific substitution). I'll replace the quinazoline core with a different bicyclic system (like quinoline or pyridopyrimidine) while keeping the propoxy-aryl-NH-benzothiazole pharmacophore and sulfonamide group.\", \"smiles\": \"CCCOc1ccc2nccnc2c1Nc1ccc2ncsc2c1\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to aromatic system with NH to benzothiazole), 3) Does NOT contain the forbidden quinazoline scaffold. The reference has a quinazoline core which I need to replace. I'll use a different bicyclic aromatic system (like naphthalene or quinoline without the forbidden pattern) while keeping the propoxy chain and benzothiazole aniline. I'll replace the quinazoline with a naphthalene system to maintain similar pharmacophore features while avoiding the forbidden scaffold.\", \"smiles\": \"CCCOc1ccc2cc(Nc3ccc4ncsc4c3)ccc2c1S(=O)(=O)C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the required SMARTS pattern with propoxy chain connected to a benzothiazole-aniline moiety, 3) Does NOT contain the forbidden quinazoline-like scaffold. The reference has a quinazoline core which I need to replace while keeping the pharmacophore features. I'll use a different bicyclic system (pyridine-based) to maintain similar shape and electronic properties, keep the propoxy group and sulfonamide, and ensure the benzothiazole-aniline portion with the propoxy linkage is present. The key is to have CCCOc attached to an aromatic system that connects to the Nc1ccc2ncsc2c1 (benzothiazole-aniline) while avoiding the specific forbidden quinazoline pattern.\", \"smiles\": \"CCCOc1ccc(Nc2ccc3ncsc3c2)nc1S(=O)(=O)C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the required SMARTS '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to an aromatic system with an NH linked to benzothiazole), 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (quinazoline with specific substitution pattern). The reference has a quinazoline core which I need to avoid. I'll replace the quinazoline with a different bicyclic system while keeping the benzothiazole amine, propoxy group, and sulfone. Using a quinoline or naphthalene core instead should work.\", \"smiles\": \"CCCOc1cc2ccc(Nc3ccc4ncsc4c3)nc2cc1S(=O)(=O)C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (quinazoline with benzothiazole, sulfonamide, propoxy chain), 2) Contains the required SMARTS pattern with propoxy chain connected to benzothiazole via aniline, 3) Avoids the forbidden scaffold (specific quinazoline-oxygen pattern). I'll replace the quinazoline core with a different bicyclic system (like pyrido[3,4-d]pyrimidine or similar) while keeping the key pharmacophoric features: the propoxy chain, sulfonamide, and benzothiazole-aniline moiety. This maintains similarity while avoiding the exact forbidden scaffold.\", \"smiles\": \"CCCOc1cc2nccnc2cc1S(=O)(=O)C(C)(C)C.Nc1ccc2ncsc2c1\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the required SMARTS '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to an aromatic system with NH linked to benzothiazole), 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (which is the quinazoline core with specific substitution pattern). The reference has a quinazoline core which I need to replace. I'll use a different bicyclic aromatic system (like pyrido[3,4-d]pyrimidine or quinoline) while keeping the propoxy chain, the sulfonamide group for pharmacophore similarity, and the benzothiazole-aniline moiety. I'll try a quinoline scaffold instead of quinazoline to avoid the forbidden pattern while maintaining key pharmacophoric features.\", \"smiles\": \"CCCOc1cc2cc(Nc3ccc4ncsc4c3)cnc2cc1S(=O)(=O)C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (quinazoline with benzothiazole aniline, propoxy chain, and sulfonamide), 2) Contains the required SMARTS pattern with a propoxy chain connected to an aromatic system linked to aminobenzothiazole, 3) Avoids the specific quinazoline-oxygen scaffold pattern. I'll replace the quinazoline core with a different heterocycle (pyridine-based) while keeping the key pharmacophoric features: the propoxy chain, the benzothiazole aniline, and maintaining similar hydrogen bonding patterns. The sulfonamide group will be retained for similarity.\", \"smiles\": \"CCCOc1cc(Nc2ccc3ncsc3c2)ncc1S(=O)(=O)C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the required SMARTS pattern with a propoxy chain connected to a benzothiazole via an amine linker, 3) Does NOT contain the forbidden quinazoline-like scaffold. The reference has a quinazoline core which I need to replace (scaffold hop). I'll use a different bicyclic system while keeping the key pharmacophoric features: the propoxy group, sulfonamide, and benzothiazole-amine. I'll replace the quinazoline with a quinoline or similar scaffold that maintains the pharmacophore but avoids the forbidden SMARTS pattern.\", \"smiles\": \"CCCOc1cc2cc(Nc3ccc4ncsc4c3)cnc2cc1S(=O)(=O)C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (quinazoline with propoxy, sulfonamide, and benzothiazole aniline), 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to aromatic ring with benzothiazole amine), 3) Does NOT contain the forbidden scaffold pattern. The reference has a quinazoline core which matches the forbidden pattern. I'll replace the quinazoline with a different bicyclic system (e.g., quinoline or pyrido[3,4-d]pyrimidine variant) while keeping the propoxy group, sulfonamide, and benzothiazole aniline pharmacophores. Using a pyridopyrimidine scaffold that avoids the specific forbidden pattern.\", \"smiles\": \"CCCOc1cc2nccnc2cc1S(=O)(=O)C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (quinazoline with benzothiazole amine, sulfonyl group, and propoxy chain), 2) Contains the SMARTS pattern with propoxy chain connected to a ring system that links to an amino-benzothiazole, 3) Avoids the specific quinazoline-oxygen scaffold pattern. I'll replace the quinazoline core with a different bicyclic system (pyridopyrimidine or similar) while keeping the key pharmacophoric elements: the propoxy chain, sulfonyl group, and benzothiazole amine. Using a pyrido[3,2-d]pyrimidine scaffold should maintain similarity while avoiding the forbidden SMARTS.\", \"smiles\": \"CCCOc1cc2nccnc2cc1S(=O)(=O)C(C)(C)C.Nc1ccc2ncsc2c1\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (which contains a quinazoline core with an ether chain, sulfonyl group, and benzothiazole-aniline), 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to an aromatic system linked to an amino-benzothiazole), and 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (which is essentially the quinazoline core of the reference). I'll replace the quinazoline with a different bicyclic system while keeping the key pharmacophores: the propoxy chain, sulfonyl group, and benzothiazole-aniline moiety. Using a pyrido[3,4-d]pyrimidine or simpler pyridine core should work.\", \"smiles\": \"CCCOc1cc(Nc2ccc3ncsc3c2)ncc1S(=O)(=O)C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (quinazoline with benzothiazole), 2) Contains the SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to aromatic system with NH-benzothiazole), 3) Does NOT contain the forbidden scaffold pattern (quinazoline with specific substitution). I'll scaffold hop from quinazoline to a different bicyclic core (like quinoline or pyridopyrimidine) while keeping the key pharmacophore elements: the propoxy group, sulfonamide, and benzothiazole amine. Using a pyrido[3,4-d]pyrimidine or similar scaffold should avoid the forbidden pattern while maintaining pharmacophore similarity.\", \"smiles\": \"CCCOc1cc2nccnc2cc1S(=O)(=O)C(C)(C)C.Nc1ccc2ncsc2c1\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (contains similar features like aromatic rings, H-bond donors/acceptors, sulfonamide), 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' which requires a propoxy chain connected to an aromatic system that links to an amine attached to benzothiazole, 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a quinazoline with specific substitution). I'll replace the quinazoline core with a different bicyclic system while keeping the benzothiazole amine and propoxy chain. Using a quinoline core instead of quinazoline should avoid the forbidden scaffold while maintaining pharmacophore similarity.\", \"smiles\": \"CCCOc1cc2ncc(Nc3ccc4ncsc4c3)cc2cc1S(=O)(=O)C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (quinazoline with benzothiazole), 2) Contains the required SMARTS pattern with propoxy chain connected to benzothiazole aniline, 3) Avoids the forbidden scaffold pattern. The reference has a quinazoline core which I need to modify. I'll replace the quinazoline with a different heterocyclic system (pyrimidine fused differently) while keeping the propoxy chain, sulfonyl group for similar pharmacophore, and the benzothiazole aniline moiety. I'll use a pyridine-based core instead to avoid the forbidden SMARTS.\", \"smiles\": \"CCCOc1cc(Nc2ccc3ncsc3c2)ncc1S(=O)(=O)C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' which includes a propoxy chain connected to an aromatic system that links to a benzothiazole via an amine, 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' which is a quinazoline with specific substitution. The reference has a quinazoline core which I need to replace (scaffold hop) while keeping the benzothiazole amine and propoxy chain. I'll use a quinoline core instead of quinazoline to avoid the forbidden pattern while maintaining similar pharmacophore features.\", \"smiles\": \"CCCOc1cc2cc(Nc3ccc4ncsc4c3)cnc2cc1S(=O)(=O)C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (which contains a quinazoline core with benzothiazole substituent), 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to aromatic system with benzothiazole-amine), 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (which is essentially the quinazoline with specific substitution pattern). I'll replace the quinazoline core with a different bicyclic system (like quinoline or pyrido-pyrimidine with different substitution) while keeping the propoxy chain and benzothiazole amine to maintain pharmacophore similarity and meet the SMARTS requirements.\", \"smiles\": \"CCCOc1ccc2nccnc2c1Nc1ccc2ncsc2c1\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (quinazoline with benzothiazole, sulfonamide, and propoxy groups), 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' which is a propoxy chain connected to an aromatic system linked to aminobenzothiazole, 3) Does NOT contain the forbidden scaffold pattern (which appears to be the quinazoline core with specific substitution). I'll replace the quinazoline core with a different bicyclic system (pyridopyrimidine or pyrrolopyrimidine) while keeping the propoxy chain, sulfonamide, and benzothiazole amine to maintain pharmacophore similarity.\", \"smiles\": \"CCCOc1cc2nccnc2cc1S(=O)(=O)C(C)(C)CNc1ccc2ncsc2c1\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (contains similar H-bond donors/acceptors, aromatic rings, etc.), 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' which is a propoxy chain connected to an aromatic system linked to an aminobenzothiazole, 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' which is a quinazoline with specific substitution. I'll use a pyridine or different bicyclic core instead of quinazoline while keeping the benzothiazole amine and propoxy chain. The sulfonamide group should be retained for pharmacophore similarity.\", \"smiles\": \"CCCOc1ccc(S(=O)(=O)C(C)(C)C)c2cc(Nc3ccc4ncsc4c3)ncc12\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to aromatic system with benzothiazole-NH), 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (quinazoline with specific pattern). The reference has a quinazoline core which I need to avoid. I'll replace the quinazoline with a different bicyclic system (like quinoline or isoquinoline) while keeping the propoxy chain, the sulfonamide, and the benzothiazole aniline. This should maintain pharmacophore similarity while satisfying the SMARTS constraints.\", \"smiles\": \"CCCOc1cc2ccc(Nc3ccc4ncsc4c3)nc2cc1S(=O)(=O)C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) has high pharmacophore similarity to the reference, 2) contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to a ring system with an amine linked to benzothiazole), and 3) does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (which is the quinazoline core with specific substitution). I'll replace the quinazoline core with a different bicyclic system (like quinoline) while keeping the propoxy chain, the sulfonyl group, and the benzothiazole amine to maintain pharmacophore features.\", \"smiles\": \"CCCOc1ccc2cccnc2c1Nc3ccc4ncsc4c3\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (a propoxy chain connected to an aromatic system with a benzothiazole-amine), and 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a quinazoline with specific substitution). The reference has a quinazoline core which I must avoid. I'll use a different bicyclic core (like quinoline or isoquinoline) while keeping the propoxy chain, the sulfonyl group for pharmacophore similarity, and the benzothiazole amine moiety required by the deco constraint.\", \"smiles\": \"CCCOc1cc2cccnc2cc1S(=O)(=O)C(C)(C)C.Nc1ccc2ncsc2c1\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (which contains a quinazoline core with a benzothiazole-amine substituent, propoxy chain, and sulfonyl group), 2) Contains the required SMARTS '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to an aromatic system linked to benzothiazole via NH), 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (which is essentially the quinazoline core with specific substitution pattern). I'll replace the quinazoline with a different bicyclic system (quinoline) while keeping the key pharmacophoric features: the propoxy chain, the sulfonyl group, and the benzothiazole-amine moiety.\", \"smiles\": \"CCCOc1cc2cc(Nc3ccc4ncsc4c3)cnc2cc1S(=O)(=O)C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the required SMARTS pattern with propoxy chain connected to a benzothiazole-aniline moiety, 3) Avoids the forbidden quinazoline scaffold. The reference has a quinazoline core which I need to replace. I'll use a pyridine-based scaffold instead while keeping the key pharmacophoric features: the propoxy group, sulfonamide, and the benzothiazole-aniline. The required SMARTS demands a CCCO-aryl-N-benzothiazole pattern. I'll construct a molecule with these elements on a different core scaffold.\", \"smiles\": \"CCCOc1ccc(Nc2ccc3ncsc3c2)c(S(=O)(=O)C(C)(C)C)c1\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (quinazoline with benzothiazole, sulfonamide, and propoxy groups), 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' which requires a propoxy chain connected to an aromatic ring system that links to an amine connected to benzothiazole, 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' which is a quinazoline with specific substitution. I'll replace the quinazoline core with a pyrido-pyrimidine or similar scaffold while keeping the benzothiazole, propoxy chain, and sulfonamide pharmacophores intact.\", \"smiles\": \"CCCOc1cc2nccnc2cc1S(=O)(=O)C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to aromatic system with benzothiazole aniline), 3) Does NOT contain the specific quinazoline scaffold with oxygen. The reference has a quinazoline core which I need to replace. I'll keep the benzothiazole aniline (Nc1ccc2ncsc2c1), the propoxy chain (CCCO-), and the sulfonyl group for pharmacophore similarity, but replace the quinazoline with a different heterocyclic core like pyridine or benzene to avoid the forbidden scaffold.\", \"smiles\": \"CCCOc1ccc(Nc2ccc3ncsc3c2)c(S(=O)(=O)C(C)(C)C)c1\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (which contains a quinazoline core with propoxy, sulfonyl, and aminobenzothiazole groups), 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy linked to an aromatic system connected to aminobenzothiazole), 3) Does NOT contain the forbidden scaffold pattern (which appears to be a specific quinazoline with oxygen substitution). I'll modify the core from quinazoline to a different bicyclic system while keeping the key pharmacophore elements: the propoxy chain, the sulfonyl group, and the benzothiazole amine. Using a quinoline or pyrido-pyrimidine alternative should work.\", \"smiles\": \"CCCOc1cc2nccnc2cc1S(=O)(=O)C(C)(C)CNc1ccc2ncsc2c1\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (which contains a quinazoline core with propoxy chain, sulfonamide, and benzothiazole amine), 2) Contains the required SMARTS pattern with a propoxy chain connected to an aromatic system linked to an amine on benzothiazole, 3) Avoids the forbidden scaffold pattern (quinazoline with specific substitution). I'll replace the quinazoline core with a different bicyclic system (pyrido[3,4-d]pyrimidine or similar) while keeping the key pharmacophoric features: propoxy group, sulfonamide, and benzothiazole amine. This should maintain similarity while satisfying the SMARTS constraints.\", \"smiles\": \"CCCOc1cc2nccnc2cc1S(=O)(=O)C(C)(C)C.Nc1ccc2ncsc2c1\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Contains the required SMARTS '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' which is a propoxy chain connected to an aromatic system with a benzothiazole-amine moiety, 2) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' which is the quinazoline core with specific substitution pattern, 3) Maintains pharmacophore similarity to the reference. The reference has a quinazoline core which I need to replace. I'll use a quinoline scaffold instead, keeping the propoxy chain, sulfonyl group, and benzothiazole amine to maintain pharmacophore similarity while satisfying the SMARTS constraints.\", \"smiles\": \"CCCOc1cc2cc(Nc3ccc4ncsc4c3)cnc2cc1S(=O)(=O)C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (which contains a quinazoline core with alkoxy, sulfonyl, and aminobenzothiazole groups), 2) Contains the required SMARTS '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to an aromatic system linked to aminobenzothiazole), 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (which appears to be a quinazoline with specific substitution pattern). I'll replace the quinazoline core with a different bicyclic system (quinoline) while keeping the propoxy group, sulfonyl group, and benzothiazole amine to maintain pharmacophore similarity.\", \"smiles\": \"CCCOc1cc2cccnc2cc1S(=O)(=O)C(C)(C)C.Nc1ccc2ncsc2c1\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (contains similar H-bond donors/acceptors, aromatic rings, etc.), 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' which represents a propoxy chain connected to an aromatic system linked to an aminobenzothiazole, 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' which is a quinazoline with specific substitution. I'll replace the quinazoline core with a different bicyclic system (like quinoline or pyrido-pyrimidine) while keeping the propoxy-phenyl and benzothiazole amine portions intact.\", \"smiles\": \"CCCOc1ccc2ncc(Nc3ccc4ncsc4c3)cc2c1\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to aromatic system with benzothiazole aniline), 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (which is a quinazoline with specific substitution). The reference has a quinazoline core which contains the forbidden pattern. I'll replace the quinazoline with a different bicyclic system (like quinoline or pyrido-pyrimidine) while keeping the key pharmacophore features: the propoxy group, sulfonamide, and the benzothiazole-aniline moiety.\", \"smiles\": \"CCCOc1ccc2nccnc2c1Nc1ccc2ncsc2c1\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (a propoxy chain connected to an aromatic system linked to an amino-benzothiazole), 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a quinazoline with specific substitution). The reference has a quinazoline core which I need to replace. I'll use a different bicyclic system (quinoline) while keeping the key pharmacophoric features: the propoxy group, sulfonamide, and the benzothiazole-aniline portion. This scaffold hop should maintain similarity while avoiding the forbidden pattern.\", \"smiles\": \"CCCOc1cc2cc(Nc3ccc4ncsc4c3)ncc2cc1S(=O)(=O)C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (which has a quinazoline core with propoxy, sulfonamide, and aminobenzothiazole groups), 2) Contains the required SMARTS pattern with propoxy chain connected to a ring system ending with aminobenzothiazole, 3) Does NOT contain the specific quinazoline-oxygen scaffold pattern. I'll replace the quinazoline with a different bicyclic system (like quinoline) while keeping the key pharmacophoric features: the propoxy chain, the sulfonamide, and the aminobenzothiazole. This should maintain similarity while avoiding the forbidden scaffold.\", \"smiles\": \"CCCOc1cc2cccnc2cc1S(=O)(=O)C(C)(C)C.Nc1ccc2ncsc2c1\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to create a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to a ring system with NH to benzothiazole), 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (which is the quinazoline core of the reference). I'll replace the quinazoline core with a different heterocyclic system while keeping the benzothiazole and propoxy pharmacophores. Using a pyrimidine or pyridine core instead of quinazoline should satisfy the constraints while maintaining pharmacophore similarity.\", \"smiles\": \"CCCOc1ccc(Nc2ccc3ncsc3c2)nc1S(=O)(=O)C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (which contains a quinazoline core with propoxy chain, sulfonamide, and benzothiazole-amine), 2) Contains the required SMARTS pattern with propoxy chain connected to a benzothiazole-amine via an aromatic system, 3) Avoids the forbidden scaffold pattern (quinazoline with specific substitution). I'll replace the quinazoline core with a different bicyclic system (quinoline) while keeping the key pharmacophoric features: the propoxy chain, sulfonamide group, and benzothiazole-amine connected through the aromatic system.\", \"smiles\": \"CCCOc1cc2cccnc2c(Nc3ccc4ncsc4c3)c1S(=O)(=O)C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Contains the required SMARTS '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to a ring system with NH linked to benzothiazole), 2) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (which is a quinazoline with specific substitution pattern), 3) Has high pharmacophore similarity to the reference. The reference has a quinazoline core which I need to replace. I'll use a quinoline core instead, keeping the propoxy group, sulfonamide, and the benzothiazole aniline. This removes the forbidden scaffold while maintaining pharmacophoric features.\", \"smiles\": \"CCCOc1cc2ccc(Nc3ccc4ncsc4c3)nc2cc1S(=O)(=O)C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (which contains a quinazoline core with propoxy group, sulfonamide, and benzothiazole-aniline), 2) Contains the required SMARTS pattern with a propoxy chain connected to an aromatic system linked to aminobenzothiazole, 3) Does NOT contain the specific quinazoline-ether scaffold pattern. I'll replace the quinazoline core with a different bicyclic system (pyridopyrimidine or similar) while keeping the key pharmacophoric features: the propoxy group, sulfonamide, and the aminobenzothiazole moiety connected via the required linker pattern.\", \"smiles\": \"CCCOc1cc2nccnc2cc1S(=O)(=O)C(C)(C)C.Nc1ccc2ncsc2c1\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (a propoxy chain connected to an aromatic system with an NH linked to benzothiazole), 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a specific quinazoline pattern with oxygen). The reference has a quinazoline core with benzothiazole. I'll replace the quinazoline with a different bicyclic system (like quinoline or naphthalene) while keeping the propoxy chain, sulfonamide, and benzothiazole amine to maintain pharmacophore similarity.\", \"smiles\": \"CCCOc1cc2cccnc2cc1S(=O)(=O)C(C)(C)C.Nc1ccc2ncsc2c1\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (which contains a quinazoline core with propoxy, sulfonamide, and benzothiazole-aniline groups), 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to an aromatic system linked to aminobenzothiazole), and 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (which is essentially a 4-aminoquinazoline with specific substitution). I'll design a molecule with a different core scaffold (not quinazoline) but maintaining the key pharmacophoric features: the propoxy chain, sulfonamide, and benzothiazole-aniline moiety. Using a pyridine-based core instead of quinazoline should avoid the forbidden scaffold while preserving similarity.\", \"smiles\": \"CCCOc1cc(Nc2ccc3ncsc3c2)nc(N)c1S(=O)(=O)C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to aromatic system with benzothiazole amine), 2) Does NOT have the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (which is a quinazoline with specific substitution), 3) Maintains pharmacophore similarity to reference. I'll replace the quinazoline core with a different bicyclic system (quinoline) while keeping the propoxy chain, sulfonamide, and benzothiazole amine fragments that are key pharmacophores.\", \"smiles\": \"CCCOc1cc2cc(Nc3ccc4ncsc4c3)cnc2cc1S(=O)(=O)C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"The reference molecule contains a quinazoline core with a benzothiazole aniline substituent. To scaffold hop while meeting all constraints: (1) I need to include the required SMARTS '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' which is a propoxy chain connected to an aromatic ring with an NH linked to benzothiazole. (2) I must avoid the specific quinazoline-oxygen pattern in the forbidden SMARTS. I'll replace the quinazoline with a pyrido[3,4-d]pyrimidine or similar scaffold that maintains pharmacophore features (H-bond donors/acceptors, aromatic rings) but doesn't match the forbidden pattern. The proposed molecule keeps the propoxy group, sulfone, and benzothiazole aniline for pharmacophore similarity while using a different core.\", \"smiles\": \"CCCOc1cc2ncc(Nc3ccc4ncsc4c3)nc2cc1S(=O)(=O)C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' which requires a propoxy chain connected to an aromatic system that links to an amine connected to benzothiazole, 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' which is a quinazoline with specific substitution. The reference has a quinazoline core which I need to replace. I'll use a quinoline or similar scaffold instead, keeping the propoxy group, sulfonamide, and benzothiazole aniline pharmacophores intact.\", \"smiles\": \"CCCOc1cc2cc(Nc3ccc4ncsc4c3)cnc2cc1S(=O)(=O)C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (which contains a quinazoline core with benzothiazole amine, propoxy chain, and sulfonyl group), 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to aromatic system with benzothiazole amine), 3) Does NOT contain the forbidden scaffold pattern (quinazoline with specific substitution). I'll replace the quinazoline core with a different bicyclic system (pyrido-pyrimidine or similar) while keeping the benzothiazole amine, propoxy chain, and sulfonyl group for pharmacophore similarity.\", \"smiles\": \"CCCOc1cc2nccnc2cc1S(=O)(=O)C(C)(C)C(=O)Nc1ccc2ncsc2c1\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain linked to aromatic system connected to benzothiazole via NH), 3) Does NOT contain the specific quinazoline scaffold pattern. The reference has a quinazoline core with benzothiazole substituent. I'll replace the quinazoline with a different bicyclic system (like quinoline or isoquinoline) while keeping the propoxy chain, sulfonamide, and benzothiazole amine. This should maintain pharmacophore similarity while satisfying the SMARTS constraints.\", \"smiles\": \"CCCOc1ccc2cc(Nc3ccc4ncsc4c3)ncc2c1S(=O)(=O)C(C)(C)C\"}"
+    }
+  ],
+  "trace": [
+    {
+      "iteration": 1,
+      "smiles": "CCCOc1ccc(Nc2ccc3ncsc3c2)c(S(=O)(=O)C(C)(C)C)c1",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (quinazoline with benzothiazole, sulfonamide, and propoxy groups), 2) Contains the SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to an aromatic system with NH to benzothiazole), 3) Does NOT contain the specific quinazoline-oxygen scaffold pattern. I'll replace the quinazoline core with a different heterocycle (pyridine) while keeping the benzothiazole, propoxy chain, and sulfonamide to maintain pharmacophore similarity.",
+      "score": 0.4581839904420549
+    },
+    {
+      "iteration": 2,
+      "smiles": "CCCOc1ccc(Nc2ccc3ncsc3c2)c(S(=O)(=O)C(C)(C)C)c1",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the required SMARTS pattern with propoxy chain connected to benzothiazole via aniline, 3) Avoids the forbidden quinazoline scaffold. The reference has a quinazoline core which I must replace. I'll use a pyrimidine or different heterocyclic system while keeping the key pharmacophoric features: the propoxy group, sulfonyl group, and the benzothiazole-aniline portion. I'll construct a molecule with the required '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' pattern using a simplified bicyclic core that doesn't match the forbidden scaffold.",
+      "score": 0.4581839904420549
+    },
+    {
+      "iteration": 3,
+      "smiles": "CCCOc1cc2nccnc2cc1S(=O)(=O)C(C)(C)CNc1ccc2ncsc2c1",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (which contains a quinazoline core with propoxy group, sulfonamide, and benzothiazole-amine), 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to an aromatic system linked to aminobenzothiazole), 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (which is a quinazoline with specific substitution pattern). I'll replace the quinazoline core with a different bicyclic system (pyrido[3,4-d]pyrimidine or similar) while keeping the propoxy chain, sulfonamide, and benzothiazole amine pharmacophores intact.",
+      "score": 0.4643990929705215
+    },
+    {
+      "iteration": 4,
+      "smiles": "CCCOc1ccc(Nc2ccc3ncsc3c2)c(S(=O)(=O)C(C)(C)C)c1",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C), 2) Contains the SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' which requires a propoxy chain connected to an aromatic system that links to an amine connected to benzothiazole, 3) Does NOT contain the quinazoline-ether scaffold pattern. I'll keep the benzothiazole-aniline portion and the propoxy chain but replace the quinazoline core with a different scaffold (like a pyridine or simple benzene) to avoid the forbidden pattern while maintaining pharmacophore features.",
+      "score": 0.4581839904420549
+    },
+    {
+      "iteration": 5,
+      "smiles": "CCCOc1ccc2cc(Nc3ccc4ncsc4c3)ccc2c1S(=O)(=O)C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) has high pharmacophore similarity to the reference, 2) contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to an aromatic system with an NH to benzothiazole), and 3) does NOT contain the forbidden scaffold pattern. The reference has a quinazoline core which matches the forbidden pattern. I'll replace the quinazoline with a different bicyclic system (like naphthalene or quinoline variant) while keeping the benzothiazole and propoxy chain. This scaffold hop maintains the pharmacophore features while avoiding the forbidden substructure.",
+      "score": 0.46388534127997727
+    },
+    {
+      "iteration": 6,
+      "smiles": "CCCOc1ccc2nccnc2c1Nc1ccc2ncsc2c1",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (contains similar H-bond donors/acceptors, aromatic rings, hydrophobic groups), 2) Contains the required SMARTS pattern with a propoxy chain connected to an aromatic system that links to a benzothiazole via an amine, 3) Avoids the forbidden quinazoline scaffold with specific substitution. I'll replace the quinazoline core with a different bicyclic system (pyridopyrimidine or similar) while keeping the propoxy-aromatic-NH-benzothiazole motif and the sulfonyl group for pharmacophore matching.",
+      "score": 0.45657805044308114
+    },
+    {
+      "iteration": 7,
+      "smiles": "CCCOc1ccc2nccnc2c1Nc1ccc2ncsc2c1",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (quinazoline with benzothiazole, sulfonamide, and propoxy groups), 2) Contains the SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to an aromatic system with NH-benzothiazole), 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (which is a quinazoline with specific substitution). I'll replace the quinazoline core with a different bicyclic system (like quinoline or pyridopyrimidine) while keeping the propoxy-aryl-NH-benzothiazole pharmacophore and sulfonamide group.",
+      "score": 0.45657805044308114
+    },
+    {
+      "iteration": 8,
+      "smiles": "CCCOc1ccc2cc(Nc3ccc4ncsc4c3)ccc2c1S(=O)(=O)C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to aromatic system with NH to benzothiazole), 3) Does NOT contain the forbidden quinazoline scaffold. The reference has a quinazoline core which I need to replace. I'll use a different bicyclic aromatic system (like naphthalene or quinoline without the forbidden pattern) while keeping the propoxy chain and benzothiazole aniline. I'll replace the quinazoline with a naphthalene system to maintain similar pharmacophore features while avoiding the forbidden scaffold.",
+      "score": 0.46388534127997727
+    },
+    {
+      "iteration": 9,
+      "smiles": "CCCOc1ccc(Nc2ccc3ncsc3c2)nc1S(=O)(=O)C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the required SMARTS pattern with propoxy chain connected to a benzothiazole-aniline moiety, 3) Does NOT contain the forbidden quinazoline-like scaffold. The reference has a quinazoline core which I need to replace while keeping the pharmacophore features. I'll use a different bicyclic system (pyridine-based) to maintain similar shape and electronic properties, keep the propoxy group and sulfonamide, and ensure the benzothiazole-aniline portion with the propoxy linkage is present. The key is to have CCCOc attached to an aromatic system that connects to the Nc1ccc2ncsc2c1 (benzothiazole-aniline) while avoiding the specific forbidden quinazoline pattern.",
+      "score": 0.4652258243280687
+    },
+    {
+      "iteration": 10,
+      "smiles": "CCCOc1cc2ccc(Nc3ccc4ncsc4c3)nc2cc1S(=O)(=O)C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the required SMARTS '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to an aromatic system with an NH linked to benzothiazole), 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (quinazoline with specific substitution pattern). The reference has a quinazoline core which I need to avoid. I'll replace the quinazoline with a different bicyclic system while keeping the benzothiazole amine, propoxy group, and sulfone. Using a quinoline or naphthalene core instead should work.",
+      "score": 0.4924360980699009
+    },
+    {
+      "iteration": 11,
+      "smiles": "CCCOc1cc2nccnc2cc1S(=O)(=O)C(C)(C)C.Nc1ccc2ncsc2c1",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (quinazoline with benzothiazole, sulfonamide, propoxy chain), 2) Contains the required SMARTS pattern with propoxy chain connected to benzothiazole via aniline, 3) Avoids the forbidden scaffold (specific quinazoline-oxygen pattern). I'll replace the quinazoline core with a different bicyclic system (like pyrido[3,4-d]pyrimidine or similar) while keeping the key pharmacophoric features: the propoxy chain, sulfonamide, and benzothiazole-aniline moiety. This maintains similarity while avoiding the exact forbidden scaffold.",
+      "score": 0.3937677053824363
+    },
+    {
+      "iteration": 12,
+      "smiles": "CCCOc1cc2cc(Nc3ccc4ncsc4c3)cnc2cc1S(=O)(=O)C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the required SMARTS '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to an aromatic system with NH linked to benzothiazole), 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (which is the quinazoline core with specific substitution pattern). The reference has a quinazoline core which I need to replace. I'll use a different bicyclic aromatic system (like pyrido[3,4-d]pyrimidine or quinoline) while keeping the propoxy chain, the sulfonamide group for pharmacophore similarity, and the benzothiazole-aniline moiety. I'll try a quinoline scaffold instead of quinazoline to avoid the forbidden pattern while maintaining key pharmacophoric features.",
+      "score": 0.8251818409831954
+    },
+    {
+      "iteration": 13,
+      "smiles": "CCCOc1cc(Nc2ccc3ncsc3c2)ncc1S(=O)(=O)C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (quinazoline with benzothiazole aniline, propoxy chain, and sulfonamide), 2) Contains the required SMARTS pattern with a propoxy chain connected to an aromatic system linked to aminobenzothiazole, 3) Avoids the specific quinazoline-oxygen scaffold pattern. I'll replace the quinazoline core with a different heterocycle (pyridine-based) while keeping the key pharmacophoric features: the propoxy chain, the benzothiazole aniline, and maintaining similar hydrogen bonding patterns. The sulfonamide group will be retained for similarity.",
+      "score": 0.5443383356070941
+    },
+    {
+      "iteration": 14,
+      "smiles": "CCCOc1cc2cc(Nc3ccc4ncsc4c3)cnc2cc1S(=O)(=O)C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the required SMARTS pattern with a propoxy chain connected to a benzothiazole via an amine linker, 3) Does NOT contain the forbidden quinazoline-like scaffold. The reference has a quinazoline core which I need to replace (scaffold hop). I'll use a different bicyclic system while keeping the key pharmacophoric features: the propoxy group, sulfonamide, and benzothiazole-amine. I'll replace the quinazoline with a quinoline or similar scaffold that maintains the pharmacophore but avoids the forbidden SMARTS pattern.",
+      "score": 0.8251818409831954
+    },
+    {
+      "iteration": 15,
+      "smiles": "CCCOc1cc2nccnc2cc1S(=O)(=O)C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (quinazoline with propoxy, sulfonamide, and benzothiazole aniline), 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to aromatic ring with benzothiazole amine), 3) Does NOT contain the forbidden scaffold pattern. The reference has a quinazoline core which matches the forbidden pattern. I'll replace the quinazoline with a different bicyclic system (e.g., quinoline or pyrido[3,4-d]pyrimidine variant) while keeping the propoxy group, sulfonamide, and benzothiazole aniline pharmacophores. Using a pyridopyrimidine scaffold that avoids the specific forbidden pattern.",
+      "score": 0.38180673591438463
+    },
+    {
+      "iteration": 16,
+      "smiles": "CCCOc1cc2nccnc2cc1S(=O)(=O)C(C)(C)C.Nc1ccc2ncsc2c1",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (quinazoline with benzothiazole amine, sulfonyl group, and propoxy chain), 2) Contains the SMARTS pattern with propoxy chain connected to a ring system that links to an amino-benzothiazole, 3) Avoids the specific quinazoline-oxygen scaffold pattern. I'll replace the quinazoline core with a different bicyclic system (pyridopyrimidine or similar) while keeping the key pharmacophoric elements: the propoxy chain, sulfonyl group, and benzothiazole amine. Using a pyrido[3,2-d]pyrimidine scaffold should maintain similarity while avoiding the forbidden SMARTS.",
+      "score": 0.3937677053824363
+    },
+    {
+      "iteration": 17,
+      "smiles": "CCCOc1cc(Nc2ccc3ncsc3c2)ncc1S(=O)(=O)C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (which contains a quinazoline core with an ether chain, sulfonyl group, and benzothiazole-aniline), 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to an aromatic system linked to an amino-benzothiazole), and 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (which is essentially the quinazoline core of the reference). I'll replace the quinazoline with a different bicyclic system while keeping the key pharmacophores: the propoxy chain, sulfonyl group, and benzothiazole-aniline moiety. Using a pyrido[3,4-d]pyrimidine or simpler pyridine core should work.",
+      "score": 0.5443383356070941
+    },
+    {
+      "iteration": 18,
+      "smiles": "CCCOc1cc2nccnc2cc1S(=O)(=O)C(C)(C)C.Nc1ccc2ncsc2c1",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (quinazoline with benzothiazole), 2) Contains the SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to aromatic system with NH-benzothiazole), 3) Does NOT contain the forbidden scaffold pattern (quinazoline with specific substitution). I'll scaffold hop from quinazoline to a different bicyclic core (like quinoline or pyridopyrimidine) while keeping the key pharmacophore elements: the propoxy group, sulfonamide, and benzothiazole amine. Using a pyrido[3,4-d]pyrimidine or similar scaffold should avoid the forbidden pattern while maintaining pharmacophore similarity.",
+      "score": 0.3937677053824363
+    },
+    {
+      "iteration": 19,
+      "smiles": "CCCOc1cc2ncc(Nc3ccc4ncsc4c3)cc2cc1S(=O)(=O)C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (contains similar features like aromatic rings, H-bond donors/acceptors, sulfonamide), 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' which requires a propoxy chain connected to an aromatic system that links to an amine attached to benzothiazole, 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a quinazoline with specific substitution). I'll replace the quinazoline core with a different bicyclic system while keeping the benzothiazole amine and propoxy chain. Using a quinoline core instead of quinazoline should avoid the forbidden scaffold while maintaining pharmacophore similarity.",
+      "score": 0.5003831417624521
+    },
+    {
+      "iteration": 20,
+      "smiles": "CCCOc1cc(Nc2ccc3ncsc3c2)ncc1S(=O)(=O)C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (quinazoline with benzothiazole), 2) Contains the required SMARTS pattern with propoxy chain connected to benzothiazole aniline, 3) Avoids the forbidden scaffold pattern. The reference has a quinazoline core which I need to modify. I'll replace the quinazoline with a different heterocyclic system (pyrimidine fused differently) while keeping the propoxy chain, sulfonyl group for similar pharmacophore, and the benzothiazole aniline moiety. I'll use a pyridine-based core instead to avoid the forbidden SMARTS.",
+      "score": 0.5443383356070941
+    },
+    {
+      "iteration": 21,
+      "smiles": "CCCOc1cc2cc(Nc3ccc4ncsc4c3)cnc2cc1S(=O)(=O)C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' which includes a propoxy chain connected to an aromatic system that links to a benzothiazole via an amine, 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' which is a quinazoline with specific substitution. The reference has a quinazoline core which I need to replace (scaffold hop) while keeping the benzothiazole amine and propoxy chain. I'll use a quinoline core instead of quinazoline to avoid the forbidden pattern while maintaining similar pharmacophore features.",
+      "score": 0.8251818409831954
+    },
+    {
+      "iteration": 22,
+      "smiles": "CCCOc1ccc2nccnc2c1Nc1ccc2ncsc2c1",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (which contains a quinazoline core with benzothiazole substituent), 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to aromatic system with benzothiazole-amine), 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (which is essentially the quinazoline with specific substitution pattern). I'll replace the quinazoline core with a different bicyclic system (like quinoline or pyrido-pyrimidine with different substitution) while keeping the propoxy chain and benzothiazole amine to maintain pharmacophore similarity and meet the SMARTS requirements.",
+      "score": 0.45657805044308114
+    },
+    {
+      "iteration": 23,
+      "smiles": "CCCOc1cc2nccnc2cc1S(=O)(=O)C(C)(C)CNc1ccc2ncsc2c1",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (quinazoline with benzothiazole, sulfonamide, and propoxy groups), 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' which is a propoxy chain connected to an aromatic system linked to aminobenzothiazole, 3) Does NOT contain the forbidden scaffold pattern (which appears to be the quinazoline core with specific substitution). I'll replace the quinazoline core with a different bicyclic system (pyridopyrimidine or pyrrolopyrimidine) while keeping the propoxy chain, sulfonamide, and benzothiazole amine to maintain pharmacophore similarity.",
+      "score": 0.4643990929705215
+    },
+    {
+      "iteration": 24,
+      "smiles": "CCCOc1ccc(S(=O)(=O)C(C)(C)C)c2cc(Nc3ccc4ncsc4c3)ncc12",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (contains similar H-bond donors/acceptors, aromatic rings, etc.), 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' which is a propoxy chain connected to an aromatic system linked to an aminobenzothiazole, 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' which is a quinazoline with specific substitution. I'll use a pyridine or different bicyclic core instead of quinazoline while keeping the benzothiazole amine and propoxy chain. The sulfonamide group should be retained for pharmacophore similarity.",
+      "score": 0.9149629629629629
+    },
+    {
+      "iteration": 25,
+      "smiles": "CCCOc1cc2ccc(Nc3ccc4ncsc4c3)nc2cc1S(=O)(=O)C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to aromatic system with benzothiazole-NH), 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (quinazoline with specific pattern). The reference has a quinazoline core which I need to avoid. I'll replace the quinazoline with a different bicyclic system (like quinoline or isoquinoline) while keeping the propoxy chain, the sulfonamide, and the benzothiazole aniline. This should maintain pharmacophore similarity while satisfying the SMARTS constraints.",
+      "score": 0.4924360980699009
+    },
+    {
+      "iteration": 26,
+      "smiles": "CCCOc1ccc2cccnc2c1Nc3ccc4ncsc4c3",
+      "reason": "I need to design a molecule that: 1) has high pharmacophore similarity to the reference, 2) contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to a ring system with an amine linked to benzothiazole), and 3) does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (which is the quinazoline core with specific substitution). I'll replace the quinazoline core with a different bicyclic system (like quinoline) while keeping the propoxy chain, the sulfonyl group, and the benzothiazole amine to maintain pharmacophore features.",
+      "score": 0.4268077601410935
+    },
+    {
+      "iteration": 27,
+      "smiles": "CCCOc1cc2cccnc2cc1S(=O)(=O)C(C)(C)C.Nc1ccc2ncsc2c1",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (a propoxy chain connected to an aromatic system with a benzothiazole-amine), and 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a quinazoline with specific substitution). The reference has a quinazoline core which I must avoid. I'll use a different bicyclic core (like quinoline or isoquinoline) while keeping the propoxy chain, the sulfonyl group for pharmacophore similarity, and the benzothiazole amine moiety required by the deco constraint.",
+      "score": 0.37991266375545846
+    },
+    {
+      "iteration": 28,
+      "smiles": "CCCOc1cc2cc(Nc3ccc4ncsc4c3)cnc2cc1S(=O)(=O)C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (which contains a quinazoline core with a benzothiazole-amine substituent, propoxy chain, and sulfonyl group), 2) Contains the required SMARTS '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to an aromatic system linked to benzothiazole via NH), 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (which is essentially the quinazoline core with specific substitution pattern). I'll replace the quinazoline with a different bicyclic system (quinoline) while keeping the key pharmacophoric features: the propoxy chain, the sulfonyl group, and the benzothiazole-amine moiety.",
+      "score": 0.8251818409831954
+    },
+    {
+      "iteration": 29,
+      "smiles": "CCCOc1ccc(Nc2ccc3ncsc3c2)c(S(=O)(=O)C(C)(C)C)c1",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the required SMARTS pattern with propoxy chain connected to a benzothiazole-aniline moiety, 3) Avoids the forbidden quinazoline scaffold. The reference has a quinazoline core which I need to replace. I'll use a pyridine-based scaffold instead while keeping the key pharmacophoric features: the propoxy group, sulfonamide, and the benzothiazole-aniline. The required SMARTS demands a CCCO-aryl-N-benzothiazole pattern. I'll construct a molecule with these elements on a different core scaffold.",
+      "score": 0.4581839904420549
+    },
+    {
+      "iteration": 30,
+      "smiles": "CCCOc1cc2nccnc2cc1S(=O)(=O)C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (quinazoline with benzothiazole, sulfonamide, and propoxy groups), 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' which requires a propoxy chain connected to an aromatic ring system that links to an amine connected to benzothiazole, 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' which is a quinazoline with specific substitution. I'll replace the quinazoline core with a pyrido-pyrimidine or similar scaffold while keeping the benzothiazole, propoxy chain, and sulfonamide pharmacophores intact.",
+      "score": 0.38180673591438463
+    },
+    {
+      "iteration": 31,
+      "smiles": "CCCOc1ccc(Nc2ccc3ncsc3c2)c(S(=O)(=O)C(C)(C)C)c1",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to aromatic system with benzothiazole aniline), 3) Does NOT contain the specific quinazoline scaffold with oxygen. The reference has a quinazoline core which I need to replace. I'll keep the benzothiazole aniline (Nc1ccc2ncsc2c1), the propoxy chain (CCCO-), and the sulfonyl group for pharmacophore similarity, but replace the quinazoline with a different heterocyclic core like pyridine or benzene to avoid the forbidden scaffold.",
+      "score": 0.4581839904420549
+    },
+    {
+      "iteration": 32,
+      "smiles": "CCCOc1cc2nccnc2cc1S(=O)(=O)C(C)(C)CNc1ccc2ncsc2c1",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (which contains a quinazoline core with propoxy, sulfonyl, and aminobenzothiazole groups), 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy linked to an aromatic system connected to aminobenzothiazole), 3) Does NOT contain the forbidden scaffold pattern (which appears to be a specific quinazoline with oxygen substitution). I'll modify the core from quinazoline to a different bicyclic system while keeping the key pharmacophore elements: the propoxy chain, the sulfonyl group, and the benzothiazole amine. Using a quinoline or pyrido-pyrimidine alternative should work.",
+      "score": 0.4643990929705215
+    },
+    {
+      "iteration": 33,
+      "smiles": "CCCOc1cc2nccnc2cc1S(=O)(=O)C(C)(C)C.Nc1ccc2ncsc2c1",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (which contains a quinazoline core with propoxy chain, sulfonamide, and benzothiazole amine), 2) Contains the required SMARTS pattern with a propoxy chain connected to an aromatic system linked to an amine on benzothiazole, 3) Avoids the forbidden scaffold pattern (quinazoline with specific substitution). I'll replace the quinazoline core with a different bicyclic system (pyrido[3,4-d]pyrimidine or similar) while keeping the key pharmacophoric features: propoxy group, sulfonamide, and benzothiazole amine. This should maintain similarity while satisfying the SMARTS constraints.",
+      "score": 0.3937677053824363
+    },
+    {
+      "iteration": 34,
+      "smiles": "CCCOc1cc2cc(Nc3ccc4ncsc4c3)cnc2cc1S(=O)(=O)C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Contains the required SMARTS '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' which is a propoxy chain connected to an aromatic system with a benzothiazole-amine moiety, 2) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' which is the quinazoline core with specific substitution pattern, 3) Maintains pharmacophore similarity to the reference. The reference has a quinazoline core which I need to replace. I'll use a quinoline scaffold instead, keeping the propoxy chain, sulfonyl group, and benzothiazole amine to maintain pharmacophore similarity while satisfying the SMARTS constraints.",
+      "score": 0.8251818409831954
+    },
+    {
+      "iteration": 35,
+      "smiles": "CCCOc1cc2cccnc2cc1S(=O)(=O)C(C)(C)C.Nc1ccc2ncsc2c1",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (which contains a quinazoline core with alkoxy, sulfonyl, and aminobenzothiazole groups), 2) Contains the required SMARTS '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to an aromatic system linked to aminobenzothiazole), 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (which appears to be a quinazoline with specific substitution pattern). I'll replace the quinazoline core with a different bicyclic system (quinoline) while keeping the propoxy group, sulfonyl group, and benzothiazole amine to maintain pharmacophore similarity.",
+      "score": 0.37991266375545846
+    },
+    {
+      "iteration": 36,
+      "smiles": "CCCOc1ccc2ncc(Nc3ccc4ncsc4c3)cc2c1",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (contains similar H-bond donors/acceptors, aromatic rings, etc.), 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' which represents a propoxy chain connected to an aromatic system linked to an aminobenzothiazole, 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' which is a quinazoline with specific substitution. I'll replace the quinazoline core with a different bicyclic system (like quinoline or pyrido-pyrimidine) while keeping the propoxy-phenyl and benzothiazole amine portions intact.",
+      "score": 0.7964912280701754
+    },
+    {
+      "iteration": 37,
+      "smiles": "CCCOc1ccc2nccnc2c1Nc1ccc2ncsc2c1",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to aromatic system with benzothiazole aniline), 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (which is a quinazoline with specific substitution). The reference has a quinazoline core which contains the forbidden pattern. I'll replace the quinazoline with a different bicyclic system (like quinoline or pyrido-pyrimidine) while keeping the key pharmacophore features: the propoxy group, sulfonamide, and the benzothiazole-aniline moiety.",
+      "score": 0.45657805044308114
+    },
+    {
+      "iteration": 38,
+      "smiles": "CCCOc1cc2cc(Nc3ccc4ncsc4c3)ncc2cc1S(=O)(=O)C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (a propoxy chain connected to an aromatic system linked to an amino-benzothiazole), 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a quinazoline with specific substitution). The reference has a quinazoline core which I need to replace. I'll use a different bicyclic system (quinoline) while keeping the key pharmacophoric features: the propoxy group, sulfonamide, and the benzothiazole-aniline portion. This scaffold hop should maintain similarity while avoiding the forbidden pattern.",
+      "score": 0.9020265548567435
+    },
+    {
+      "iteration": 39,
+      "smiles": "CCCOc1cc2cccnc2cc1S(=O)(=O)C(C)(C)C.Nc1ccc2ncsc2c1",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (which has a quinazoline core with propoxy, sulfonamide, and aminobenzothiazole groups), 2) Contains the required SMARTS pattern with propoxy chain connected to a ring system ending with aminobenzothiazole, 3) Does NOT contain the specific quinazoline-oxygen scaffold pattern. I'll replace the quinazoline with a different bicyclic system (like quinoline) while keeping the key pharmacophoric features: the propoxy chain, the sulfonamide, and the aminobenzothiazole. This should maintain similarity while avoiding the forbidden scaffold.",
+      "score": 0.37991266375545846
+    },
+    {
+      "iteration": 40,
+      "smiles": "CCCOc1ccc(Nc2ccc3ncsc3c2)nc1S(=O)(=O)C(C)(C)C",
+      "reason": "I need to create a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to a ring system with NH to benzothiazole), 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (which is the quinazoline core of the reference). I'll replace the quinazoline core with a different heterocyclic system while keeping the benzothiazole and propoxy pharmacophores. Using a pyrimidine or pyridine core instead of quinazoline should satisfy the constraints while maintaining pharmacophore similarity.",
+      "score": 0.4652258243280687
+    },
+    {
+      "iteration": 41,
+      "smiles": "CCCOc1cc2cccnc2c(Nc3ccc4ncsc4c3)c1S(=O)(=O)C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (which contains a quinazoline core with propoxy chain, sulfonamide, and benzothiazole-amine), 2) Contains the required SMARTS pattern with propoxy chain connected to a benzothiazole-amine via an aromatic system, 3) Avoids the forbidden scaffold pattern (quinazoline with specific substitution). I'll replace the quinazoline core with a different bicyclic system (quinoline) while keeping the key pharmacophoric features: the propoxy chain, sulfonamide group, and benzothiazole-amine connected through the aromatic system.",
+      "score": 0.797533660500818
+    },
+    {
+      "iteration": 42,
+      "smiles": "CCCOc1cc2ccc(Nc3ccc4ncsc4c3)nc2cc1S(=O)(=O)C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Contains the required SMARTS '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to a ring system with NH linked to benzothiazole), 2) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (which is a quinazoline with specific substitution pattern), 3) Has high pharmacophore similarity to the reference. The reference has a quinazoline core which I need to replace. I'll use a quinoline core instead, keeping the propoxy group, sulfonamide, and the benzothiazole aniline. This removes the forbidden scaffold while maintaining pharmacophoric features.",
+      "score": 0.4924360980699009
+    },
+    {
+      "iteration": 43,
+      "smiles": "CCCOc1cc2nccnc2cc1S(=O)(=O)C(C)(C)C.Nc1ccc2ncsc2c1",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (which contains a quinazoline core with propoxy group, sulfonamide, and benzothiazole-aniline), 2) Contains the required SMARTS pattern with a propoxy chain connected to an aromatic system linked to aminobenzothiazole, 3) Does NOT contain the specific quinazoline-ether scaffold pattern. I'll replace the quinazoline core with a different bicyclic system (pyridopyrimidine or similar) while keeping the key pharmacophoric features: the propoxy group, sulfonamide, and the aminobenzothiazole moiety connected via the required linker pattern.",
+      "score": 0.3937677053824363
+    },
+    {
+      "iteration": 44,
+      "smiles": "CCCOc1cc2cccnc2cc1S(=O)(=O)C(C)(C)C.Nc1ccc2ncsc2c1",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (a propoxy chain connected to an aromatic system with an NH linked to benzothiazole), 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a specific quinazoline pattern with oxygen). The reference has a quinazoline core with benzothiazole. I'll replace the quinazoline with a different bicyclic system (like quinoline or naphthalene) while keeping the propoxy chain, sulfonamide, and benzothiazole amine to maintain pharmacophore similarity.",
+      "score": 0.37991266375545846
+    },
+    {
+      "iteration": 45,
+      "smiles": "CCCOc1cc(Nc2ccc3ncsc3c2)nc(N)c1S(=O)(=O)C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (which contains a quinazoline core with propoxy, sulfonamide, and benzothiazole-aniline groups), 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to an aromatic system linked to aminobenzothiazole), and 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (which is essentially a 4-aminoquinazoline with specific substitution). I'll design a molecule with a different core scaffold (not quinazoline) but maintaining the key pharmacophoric features: the propoxy chain, sulfonamide, and benzothiazole-aniline moiety. Using a pyridine-based core instead of quinazoline should avoid the forbidden scaffold while preserving similarity.",
+      "score": 0.5581275720164609
+    },
+    {
+      "iteration": 46,
+      "smiles": "CCCOc1cc2cc(Nc3ccc4ncsc4c3)cnc2cc1S(=O)(=O)C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to aromatic system with benzothiazole amine), 2) Does NOT have the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (which is a quinazoline with specific substitution), 3) Maintains pharmacophore similarity to reference. I'll replace the quinazoline core with a different bicyclic system (quinoline) while keeping the propoxy chain, sulfonamide, and benzothiazole amine fragments that are key pharmacophores.",
+      "score": 0.8251818409831954
+    },
+    {
+      "iteration": 47,
+      "smiles": "CCCOc1cc2ncc(Nc3ccc4ncsc4c3)nc2cc1S(=O)(=O)C(C)(C)C",
+      "reason": "The reference molecule contains a quinazoline core with a benzothiazole aniline substituent. To scaffold hop while meeting all constraints: (1) I need to include the required SMARTS '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' which is a propoxy chain connected to an aromatic ring with an NH linked to benzothiazole. (2) I must avoid the specific quinazoline-oxygen pattern in the forbidden SMARTS. I'll replace the quinazoline with a pyrido[3,4-d]pyrimidine or similar scaffold that maintains pharmacophore features (H-bond donors/acceptors, aromatic rings) but doesn't match the forbidden pattern. The proposed molecule keeps the propoxy group, sulfone, and benzothiazole aniline for pharmacophore similarity while using a different core.",
+      "score": 0.5049053159936117
+    },
+    {
+      "iteration": 48,
+      "smiles": "CCCOc1cc2cc(Nc3ccc4ncsc4c3)cnc2cc1S(=O)(=O)C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' which requires a propoxy chain connected to an aromatic system that links to an amine connected to benzothiazole, 3) Does NOT contain the forbidden scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' which is a quinazoline with specific substitution. The reference has a quinazoline core which I need to replace. I'll use a quinoline or similar scaffold instead, keeping the propoxy group, sulfonamide, and benzothiazole aniline pharmacophores intact.",
+      "score": 0.8251818409831954
+    },
+    {
+      "iteration": 49,
+      "smiles": "CCCOc1cc2nccnc2cc1S(=O)(=O)C(C)(C)C(=O)Nc1ccc2ncsc2c1",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (which contains a quinazoline core with benzothiazole amine, propoxy chain, and sulfonyl group), 2) Contains the required SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain connected to aromatic system with benzothiazole amine), 3) Does NOT contain the forbidden scaffold pattern (quinazoline with specific substitution). I'll replace the quinazoline core with a different bicyclic system (pyrido-pyrimidine or similar) while keeping the benzothiazole amine, propoxy chain, and sulfonyl group for pharmacophore similarity.",
+      "score": 0.46280882547232133
+    },
+    {
+      "iteration": 50,
+      "smiles": "CCCOc1ccc2cc(Nc3ccc4ncsc4c3)ncc2c1S(=O)(=O)C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Contains the SMARTS pattern '[#6]-[#6]-[#6]-[#8]-[#6]~[#6]~[#6]~[#6]~[#6]-[#7]-c1ccc2ncsc2c1' (propoxy chain linked to aromatic system connected to benzothiazole via NH), 3) Does NOT contain the specific quinazoline scaffold pattern. The reference has a quinazoline core with benzothiazole substituent. I'll replace the quinazoline with a different bicyclic system (like quinoline or isoquinoline) while keeping the propoxy chain, sulfonamide, and benzothiazole amine. This should maintain pharmacophore similarity while satisfying the SMARTS constraints.",
+      "score": 0.4918011281647645
+    }
+  ],
+  "iterations": 50
+}
