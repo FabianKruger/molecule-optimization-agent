@@ -10,29 +10,29 @@ set -e  # Exit on error
 # List of TDC oracle names to run experiments for
 ORACLE_NAMES=(
     # Basic oracles
-    "qed"
-    "drd2"
-    "gsk3b"
-    "jnk3"
+    #"qed"
+    #"drd2"
+    #"gsk3b"
+    #"jnk3"
     # Rediscovery tasks
-    "celecoxib_rediscovery"
-    "troglitazone_rediscovery"
-    "thiothixene_rediscovery"
+    #"celecoxib_rediscovery"
+    #"troglitazone_rediscovery"
+    #"thiothixene_rediscovery"
     # Similarity tasks
-    "albuterol_similarity"
-    "mestranol_similarity"
+    #"albuterol_similarity"
+    #"mestranol_similarity"
     # Isomer tasks
-    "isomers_c7h8n2o2"
-    "isomers_c9h10n2o2pf2cl"
+    #"isomers_c7h8n2o2"
+    #"isomers_c9h10n2o2pf2cl"
     # Median molecules
-    "median1"
-    "median2"
+    #"median1"
+    #"median2"
     # MPO tasks
-    "osimertinib_mpo"
-    "fexofenadine_mpo"
-    "ranolazine_mpo"
-    "perindopril_mpo"
-    "amlodipine_mpo"
+    #"osimertinib_mpo"
+    #"fexofenadine_mpo"
+    #"ranolazine_mpo"
+    #"perindopril_mpo"
+    #"amlodipine_mpo"
     "sitagliptin_mpo"
     "zaleplon_mpo"
     # SMARTS-constrained
