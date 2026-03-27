@@ -89,7 +89,7 @@ def predict_one(task: dict) -> dict:
     ]
 
     logger.info("START row_id=%s gpu=%d smiles=%s", row_id, gpu_id, smiles[:60])
-    run(cmds, check=True, capture_output=True, text=True, timeout=TIMEOUT, env=env)
+    run(cmds, check=True, timeout=TIMEOUT, env=env)
     logger.info("BOLTZ DONE row_id=%s", row_id)
 
     with open(_affinity_path(work_dir)) as f:
