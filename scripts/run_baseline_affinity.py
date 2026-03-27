@@ -150,14 +150,6 @@ def main():
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_base = out_path.parent / "runs"
 
-    # Load already-completed results (keyed by row_id)
-    completed: dict[str, dict] = {}
-    if out_path.exists():
-        with open(out_path) as f:
-            for row in csv.DictReader(f):
-                completed[row["row_id"]] = row
-        logger.info("Loaded %d already-completed results", len(completed))
-
     # Read tasks, skipping already-completed ones
     all_tasks = []
     with open(csv_path) as f:
@@ -183,10 +175,13 @@ def main():
                 }
             )
 
-    tasks = [t for t in all_tasks if t["row_id"] not in completed]
+    def is_done(row_id: str) -> bool:
+        return _affinity_path(out_base / row_id).exists()
+
+    tasks = [t for t in all_tasks if not is_done(t["row_id"])]
     logger.info(
         "%d ligands total, %d already done, %d to run",
-        len(all_tasks), len(completed), len(tasks),
+        len(all_tasks), len(all_tasks) - len(tasks), len(tasks),
     )
 
     max_workers = args.gpus * args.workers_per_gpu
@@ -204,8 +199,7 @@ def main():
             new_results.append(res)
             logger.info("Progress: %d/%d", done_idx, len(tasks))
 
-    # Merge new results with previously completed ones and write
-    all_results = list(completed.values()) + new_results
+    all_results = new_results
     fieldnames = [
         "row_id", "model", "replicate", "iteration", "smiles",
         "gpu_id", "affinity_probability_binary", "affinity_pred_value",
