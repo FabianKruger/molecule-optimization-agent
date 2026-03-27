@@ -6,6 +6,7 @@ Usage:
     python scripts/run_baseline_affinity.py \
         --csv data/molecules/baseline_molecules.csv \
         --out data/boltz2_baseline_mgyp001550541752/results.csv \
+        --msa data/msa/mgyp001550541752_warmup/boltz_results_mgyp001550541752_msa_input/msa/mgyp001550541752_msa_input_0.csv \
         --gpus 8 \
         --workers-per-gpu 1
 """
@@ -37,6 +38,7 @@ sequences:
   - protein:
       id: [A]
       sequence: {sequence}
+      msa: {msa_path}
   - ligand:
       id: [B]
       smiles: {smiles}
@@ -72,7 +74,11 @@ def predict_one(task: dict) -> dict:
 
     input_path = work_dir / "affinity_prediction.yaml"
     input_path.write_text(
-        INPUT_TEMPLATE.format(sequence=PROTEIN_SEQUENCE, smiles=smiles)
+        INPUT_TEMPLATE.format(
+            sequence=PROTEIN_SEQUENCE,
+            smiles=smiles,
+            msa_path=task["msa_path"],
+        )
     )
 
     env = os.environ.copy()
@@ -83,7 +89,6 @@ def predict_one(task: dict) -> dict:
         "boltz", "predict", str(input_path),
         "--out_dir", str(work_dir),
         "--output_format", "pdb",
-        "--use_msa_server",
         "--accelerator", "gpu",
         "--devices", "1",
     ]
@@ -130,7 +135,15 @@ def main():
         default=1,
         help="Parallel workers per GPU (keep at 1 unless GPU has headroom)",
     )
+    parser.add_argument(
+        "--msa",
+        required=True,
+        help="Path to pre-computed MSA file (.csv or .a3m) for the target protein",
+    )
     args = parser.parse_args()
+    msa_path = Path(args.msa).resolve()
+    if not msa_path.exists():
+        raise FileNotFoundError(f"MSA file not found: {msa_path}")
 
     csv_path = Path(args.csv)
     out_path = Path(args.out)
@@ -163,6 +176,7 @@ def main():
                     "gpu_id": i % args.gpus,
                     "out_base": str(out_base),
                     "row_id": row_id,
+                    "msa_path": str(msa_path),
                     "model": model,
                     "replicate": replicate,
                     "iteration": iteration,
