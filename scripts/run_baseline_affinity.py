@@ -88,7 +88,9 @@ def predict_one(task: dict) -> dict:
         "--devices", "1",
     ]
 
+    logger.info("START row_id=%s gpu=%d smiles=%s", row_id, gpu_id, smiles[:60])
     run(cmds, check=True, capture_output=True, text=True, timeout=TIMEOUT, env=env)
+    logger.info("BOLTZ DONE row_id=%s", row_id)
 
     with open(_affinity_path(work_dir)) as f:
         affinity_data = json.load(f)
@@ -174,6 +176,7 @@ def main():
     )
 
     max_workers = args.gpus * args.workers_per_gpu
+    logger.info("Submitting tasks to %d workers", max_workers)
     new_results: list[dict] = []
 
     with ProcessPoolExecutor(max_workers=max_workers) as pool:
