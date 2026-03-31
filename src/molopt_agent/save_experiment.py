@@ -42,6 +42,8 @@ def save_conversation_log(
         "trace": state["trace"],
         "iterations": state["iteration_count"],
         "summary": state["final_response"],
+        "termination_reason": state.get("termination_reason", ""),
+        "generation_error": state.get("generation_error", ""),
     }
 
     with open(log_file, "w") as f:

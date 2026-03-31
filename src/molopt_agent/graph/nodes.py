@@ -6,13 +6,67 @@ import time
 import httpcore
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-from openai import APIConnectionError, RateLimitError
+from openai import APIConnectionError, BadRequestError, RateLimitError
 from rdkit import Chem
 
 from ..objectives.base import Objective
 from ..state import WorkflowState
 
 logger = logging.getLogger(__name__)
+
+# Stable error codes used by native OpenAI for context overflow.
+_CONTEXT_WINDOW_CODES = {"context_length_exceeded", "context_window_exceeded"}
+# Phrase present in this deployment's proxy error body / message.
+_CONTEXT_WINDOW_PHRASES = ("context window exceeded",)
+
+
+def _extract_error_message(error: Exception) -> str:
+    """Return the most descriptive text available from a provider error."""
+    body = getattr(error, "body", None)
+    if isinstance(body, dict):
+        # Proxy pattern:  {"detail": "Context window exceeded ..."}
+        detail = body.get("detail")
+        if isinstance(detail, str) and detail.strip():
+            return detail.strip()
+        # Native OpenAI:  {"error": {"message": "...", "code": "..."}}
+        nested = body.get("error")
+        if isinstance(nested, dict):
+            message = nested.get("message")
+            if isinstance(message, str) and message.strip():
+                return message.strip()
+
+    message = getattr(error, "message", None)
+    if isinstance(message, str) and message.strip():
+        return message.strip()
+
+    text = str(error).strip()
+    if text:
+        return text
+
+    return error.__class__.__name__
+
+
+def is_context_window_error(error: Exception) -> bool:
+    if not isinstance(error, BadRequestError):
+        return False
+    # Primary: stable machine-readable code (native OpenAI endpoints).
+    if getattr(error, "code", None) in _CONTEXT_WINDOW_CODES:
+        return True
+    # Secondary: body detail or message text (proxy / Anthropic-compatible endpoints).
+    text = _extract_error_message(error).lower()
+    return any(phrase in text for phrase in _CONTEXT_WINDOW_PHRASES)
+
+
+def _mark_context_window_stop(state: WorkflowState, error: Exception) -> None:
+    error_message = _extract_error_message(error)
+    state["terminated_early"] = True
+    state["termination_reason"] = "context_window_exceeded"
+    state["generation_error"] = error_message
+    state["raw_model_output"] = ""
+    state["current_smiles"] = ""
+    state["current_reason"] = ""
+    state["is_valid"] = False
+    state["validation_error"] = ""
 
 
 def rate_limit_sensible_llm_call(llm: ChatOpenAI, message, max_attempts=3):
@@ -51,6 +105,9 @@ def make_generation_node(objective: Objective, llm: ChatOpenAI, system_prompt: s
     def generation_node(state: WorkflowState) -> WorkflowState:
         iteration = state["iteration_count"] + 1  # +1 because we increment at the end
         logger.info(f"=== Starting Iteration {iteration} ===")
+        state["terminated_early"] = False
+        state["termination_reason"] = ""
+        state["generation_error"] = ""
 
         if state["iteration_count"] == 0:
             logger.info(
@@ -71,26 +128,56 @@ def make_generation_node(objective: Objective, llm: ChatOpenAI, system_prompt: s
                 state["validation_error"] = ""
 
         logger.info(f"Iteration {iteration}: Calling LLM to generate molecule...")
-        response = rate_limit_sensible_llm_call(llm, state["messages"])
+        _llm_t0 = time.time()
+        state["last_llm_start_ts"] = _llm_t0
+        try:
+            response = rate_limit_sensible_llm_call(llm, state["messages"])
+        except Exception as error:
+            # Always record wall time regardless of error type.
+            state["last_llm_wall_time_s"] = round(time.time() - _llm_t0, 3)
+            if is_context_window_error(error):
+                _mark_context_window_stop(state, error)
+                logger.warning(
+                    "Iteration %s: Context window exceeded, routing to final summary: %s",
+                    iteration,
+                    state["generation_error"],
+                )
+            else:
+                # Any other LLM error (timeout, auth, unexpected HTTP, etc.): still
+                # mark terminated_early so the graph routes to the final node and
+                # the conversation+trace are saved.  Never re-raise from here.
+                error_message = _extract_error_message(error)
+                state["terminated_early"] = True
+                state["termination_reason"] = "generation_error"
+                state["generation_error"] = f"{type(error).__name__}: {error_message}"
+                state["raw_model_output"] = ""
+                state["current_smiles"] = ""
+                state["current_reason"] = ""
+                state["is_valid"] = False
+                state["validation_error"] = ""
+                logger.error(
+                    "Iteration %s: Unexpected LLM error, routing to final summary: %s",
+                    iteration,
+                    error_message,
+                    exc_info=True,
+                )
+            return state
+
+        state["last_llm_wall_time_s"] = round(time.time() - _llm_t0, 3)
+        token_usage = (getattr(response, "response_metadata", {}) or {}).get("token_usage", {}) or {}
+        state["last_prompt_tokens"] = token_usage.get("prompt_tokens", 0)
+        state["last_completion_tokens"] = token_usage.get("completion_tokens", 0)
+        state["last_total_tokens"] = token_usage.get("total_tokens", 0)
         state["messages"].append(response)
         state["raw_model_output"] = response.content.strip()
         state["iteration_count"] += 1
-        logger.info(f"Iteration {iteration}: LLM response received")
-
-        """
-        now = time.time()
-        with open("timing_gpt.log", "r", encoding="utf-8") as f:
-            last_line = f.readlines()[-1]
-
-        _, last_ts = last_line.strip().split("|")
-        last_time = float(last_ts)
-
-        elapsed = now - last_time
-
-        with open("timing_gpt.log", "a", encoding="utf-8") as f:
-            f.write(f"LLM message took {elapsed:.3f}s\n")
-            f.write(f"LLM message received at |{now}\n")
-        """
+        logger.info(
+            "Iteration %s: LLM response received (prompt_tokens=%s, completion_tokens=%s, wall_time=%.2fs)",
+            iteration,
+            state["last_prompt_tokens"],
+            state["last_completion_tokens"],
+            state["last_llm_wall_time_s"],
+        )
         return state
 
     return generation_node
@@ -147,10 +234,17 @@ def make_prediction_node(objective: Objective):
             f"Iteration {iteration}: Calling oracle to evaluate SMILES: {smiles}"
         )
 
+        _oracle_t0 = time.time()
         result = objective.evaluate(state)
+        _oracle_wall_s = round(time.time() - _oracle_t0, 3)
 
         score = result["score"]
-        logger.info(f"Iteration {iteration}: Oracle returned score: {score:.4f}")
+        logger.info(
+            "Iteration %s: Oracle returned score: %.4f (wall_time=%.2fs)",
+            iteration,
+            score,
+            _oracle_wall_s,
+        )
 
         # Log individual scores if this is a composite oracle
         if "scores" in result:
@@ -167,6 +261,13 @@ def make_prediction_node(objective: Objective):
             "reason": state["current_reason"],
             "score": result["score"],
             "explanation": result["explanation"],
+            "llm_start_ts": round(state.get("last_llm_start_ts", 0.0), 3),
+            "llm_wall_time_s": state.get("last_llm_wall_time_s", 0.0),
+            "prompt_tokens": state.get("last_prompt_tokens", 0),
+            "completion_tokens": state.get("last_completion_tokens", 0),
+            "total_tokens": state.get("last_total_tokens", 0),
+            "oracle_start_ts": round(_oracle_t0, 3),
+            "oracle_wall_time_s": _oracle_wall_s,
         }
 
         # If we mess with the score, save the original
@@ -209,11 +310,25 @@ def make_final_response_node(llm: ChatOpenAI, xai_mode: str | None = None):
             for entry in state["trace"]
         ]
 
+        stop_note = ""
+        termination_reason = state.get("termination_reason", "")
+        if termination_reason == "context_window_exceeded":
+            stop_note = f"""
+
+The optimization loop stopped early because the generation prompt exceeded the model context window.
+Provider error: {state.get("generation_error", "")}"""
+        elif termination_reason == "generation_error":
+            stop_note = f"""
+
+The optimization loop stopped early due to an unexpected error during LLM generation.
+Error: {state.get("generation_error", "")}"""
+
         summary_prompt = f"""
 You are given the objective and trace of a molecular optimization loop.
 
 Objective:
 {objective_context}
+{stop_note}
 
 Trace (each entry includes iteration, SMILES, reason, score):
 {json.dumps(trace_for_summary, indent=2)}
@@ -222,18 +337,42 @@ Write a concise scientific summary of the optimization process.
 Use ONLY the information provided. In particular, do not name the protein. Do not invent any steps or molecules.
 """.strip()
 
-        # summary_response = llm.invoke([HumanMessage(content=summary_prompt)])
-        summary_response = rate_limit_sensible_llm_call(
-            llm, [HumanMessage(content=summary_prompt)]
-        )
-        response_metadata = getattr(summary_response, "response_metadata", {})
-        finish_reason = response_metadata.get("finish_reason", "unknown")
-        logger.info(f"Final summary generated (finish_reason: {finish_reason})")
-        logger.info(
-            f"Content filter results: {response_metadata.get('content_filter_results')}"
-        )
-        logger.info(f"Token usage: {response_metadata.get('token_usage')}")
-        state["final_response"] = summary_response.content
+        try:
+            summary_response = rate_limit_sensible_llm_call(
+                llm, [HumanMessage(content=summary_prompt)]
+            )
+            response_metadata = getattr(summary_response, "response_metadata", {})
+            finish_reason = response_metadata.get("finish_reason", "unknown")
+            logger.info(f"Final summary generated (finish_reason: {finish_reason})")
+            logger.info(
+                f"Content filter results: {response_metadata.get('content_filter_results')}"
+            )
+            logger.info(f"Token usage: {response_metadata.get('token_usage')}")
+            state["final_response"] = summary_response.content
+        except Exception as error:
+            logger.warning(
+                "Falling back to a local final summary after summary generation failed: %s",
+                _extract_error_message(error),
+            )
+            _reason = state.get("termination_reason", "")
+            if _reason == "context_window_exceeded":
+                state["final_response"] = (
+                    "Optimization stopped because the model context window was reached. "
+                    f"Completed {state['iteration_count']} iterations before termination. "
+                    "The conversation and trace were preserved."
+                )
+            elif _reason == "generation_error":
+                state["final_response"] = (
+                    f"Optimization stopped after {state['iteration_count']} iterations due to an "
+                    f"unexpected LLM error ({state.get('generation_error', 'unknown')}). "
+                    "The conversation and trace were preserved."
+                )
+            else:
+                state["final_response"] = (
+                    "Optimization finished, but the final summary call failed. "
+                    f"Completed {state['iteration_count']} iterations. "
+                    f"Summary error: {_extract_error_message(error)}"
+                )
         return state
 
     return final_response_node

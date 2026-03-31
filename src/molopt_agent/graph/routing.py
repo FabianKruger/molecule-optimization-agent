@@ -10,6 +10,11 @@ logger = logging.getLogger(__name__)
 def make_route_after_parse(objective: Objective):
     def route_after_parse(state: WorkflowState) -> Literal["validation", "generation", "final"]:
         iteration = state["iteration_count"]
+        if state.get("terminated_early"):
+            logger.info(
+                f"Iteration {iteration}: Stopping early due to {state.get('termination_reason', 'workflow termination')}"
+            )
+            return "final"
         if state["iteration_count"] >= objective.max_iterations():
             logger.info(f"Iteration {iteration}: Reached max iterations, moving to final summary")
             return "final"
@@ -24,6 +29,11 @@ def make_route_after_parse(objective: Objective):
 def make_route_after_validation(objective: Objective):
     def route_after_validation(state: WorkflowState) -> Literal["prediction", "generation", "final"]:
         iteration = state["iteration_count"]
+        if state.get("terminated_early"):
+            logger.info(
+                f"Iteration {iteration}: Stopping early due to {state.get('termination_reason', 'workflow termination')}"
+            )
+            return "final"
         if state["iteration_count"] >= objective.max_iterations():
             logger.info(f"Iteration {iteration}: Reached max iterations, moving to final summary")
             return "final"
@@ -38,6 +48,11 @@ def make_route_after_validation(objective: Objective):
 def make_route_after_prediction(objective: Objective):
     def route_after_prediction(state: WorkflowState) -> Literal["generation", "final"]:
         iteration = state["iteration_count"]
+        if state.get("terminated_early"):
+            logger.info(
+                f"Iteration {iteration}: Stopping early due to {state.get('termination_reason', 'workflow termination')}"
+            )
+            return "final"
         result = state.get("oracle_result", {})
         if result and objective.is_done(state, result):
             logger.info(f"Iteration {iteration}: Objective achieved! Moving to final summary")

@@ -497,6 +497,8 @@ Continue optimizing. Respond with JSON:
             "iterations": self.state["iteration_count"],
             "final_smiles": self.state["current_smiles"],
             "summary": self.state.get("final_response", ""),
+            "termination_reason": self.state.get("termination_reason", ""),
+            "generation_error": self.state.get("generation_error", ""),
         }
         
         with open(filepath, "w") as f:
@@ -913,6 +915,8 @@ Continue optimizing. Respond with JSON:
             "iterations": self.state["iteration_count"],
             "final_smiles": self.state["current_smiles"],
             "summary": self.state.get("final_response", ""),
+            "termination_reason": self.state.get("termination_reason", ""),
+            "generation_error": self.state.get("generation_error", ""),
         }
         
         with open(filepath, "w") as f:
