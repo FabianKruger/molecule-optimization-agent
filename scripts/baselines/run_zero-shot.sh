@@ -1,7 +1,6 @@
 #!/bin/zsh
 #
-# TDC Tasks Experiments Runner for Zero-Shot Generation Baseline
-# This script runs molecule optimization experiments for multiple TDC oracles.
+# Tasks Experiments Runner for Zero-Shot Generation Baseline
 # Each oracle gets its own results folder with JSON files from repetitions.
 #
 
@@ -57,16 +56,15 @@ NUM_REPETITIONS=3
 # Zero-shot generation mode (batch or independent)
 MODE="batch"
 
-'''
-for run_idx in $(seq 1 "$NUM_REPETITIONS"); do
-    pixi run python scripts/baselines/zero-shot-generation.py \
-        --n-molecules $NUMBER_OF_MOLECULES \
-        --model $LLM_MODEL \
-        --temperature $TEMPERATURE \
-        --tasks "${ORACLE_NAMES[@]}" \
-        --mode $MODE
-done
-'''
+# run all standard TDC tasks
+# for run_idx in $(seq 1 "$NUM_REPETITIONS"); do
+#     pixi run python scripts/baselines/zero-shot-generation.py \
+#         --n-molecules "$NUMBER_OF_MOLECULES" \
+#         --model "$LLM_MODEL" \
+#         --temperature "$TEMPERATURE" \
+#         --tasks "${ORACLE_NAMES[@]}" \
+#         --mode "$MODE"
+# done
 
 PROMPT_STYLE=(
     "task"
@@ -75,21 +73,32 @@ PROMPT_STYLE=(
     
 for prompt_style in "${PROMPT_STYLE[@]}"; do
     for run_idx in $(seq 1 "$NUM_REPETITIONS"); do
+        # run IC50/QED/novel task
+        # pixi run python scripts/baselines/zero-shot-generation.py \
+        #     --n-molecules "$NUMBER_OF_MOLECULES" \
+        #     --model "$LLM_MODEL" \
+        #     --temperature "$TEMPERATURE" \
+        #     --tasks "ic50mpro_qed_novel" \
+        #     --mode "$MODE" \
+        #     --prompt-style "$prompt_style"
+
+        # run similarity_qed_quercetin task
         pixi run python scripts/baselines/zero-shot-generation.py \
-            --n-molecules $NUMBER_OF_MOLECULES \
-            --model $LLM_MODEL \
-            --temperature $TEMPERATURE \
-            --tasks "ic50mpro_qed_novel" \
-            --mode $MODE \
-            --prompt-style $prompt_style
+            --n-molecules "$NUMBER_OF_MOLECULES" \
+            --model "$LLM_MODEL" \
+            --temperature "$TEMPERATURE" \
+            --tasks "similarity_qed_quercetin" \
+            --mode "$MODE" \
+            --prompt-style "$prompt_style"
     done
 
-    pixi run python scripts/baselines/zero-shot-generation.py \
-        --n-molecules $NUMBER_OF_MOLECULES \
-        --model $LLM_MODEL \
-        --temperature $TEMPERATURE \
-        --tasks "similarity_qed_pubchem" \
-        --mode $MODE \
-        --prompt-style $prompt_style
+    # run similarity_qed_pubchem task
+    # pixi run python scripts/baselines/zero-shot-generation.py \
+    #     --n-molecules "$NUMBER_OF_MOLECULES" \
+    #     --model "$LLM_MODEL" \
+    #     --temperature "$TEMPERATURE" \
+    #     --tasks "similarity_qed_pubchem" \
+    #     --mode "$MODE" \
+    #     --prompt-style "$prompt_style"
 done
 

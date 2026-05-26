@@ -67,8 +67,10 @@ SIM_MIN_SIMILARITY: float = 0.7
 SIM_MIN_QED: float = 0.7
 SIM_TARGET_SCORE: float = 0.9
 SIM_WEIGHTS: list[float] = [0.5, 0.5]
+QUERCETIN_NAME = "quercetin"
+QUERCETIN_SMILES = "C1=CC(=C(C=C1C2=C(C(=O)C3=C(C=C(C=C3O2)O)O)O)O)O"
 
-CUSTOM_TASKS: set[str] = {"ic50mpro_qed_novel", "similarity_qed_pubchem"}
+CUSTOM_TASKS: set[str] = {"ic50mpro_qed_novel", "similarity_qed_pubchem", "similarity_qed_quercetin"}
 
 
 BATCH_SYSTEM_PROMPT = """
@@ -178,11 +180,17 @@ def _ic50_user_prompt(n_molecules: int, mode: Mode) -> str:
 	)
 
 
-def _similarity_user_prompt(target_smiles: str, n_molecules: int, mode: Mode) -> str:
+def _similarity_user_prompt(
+	target_smiles: str,
+	n_molecules: int,
+	mode: Mode,
+	target_name: str | None = None,
+) -> str:
+	target_label = f"{target_name} ({target_smiles})" if target_name else target_smiles
 	task_desc = (
 		"We are optimizing molecules for TWO objectives simultaneously:\n\n"
 		"1. Structural Similarity to a target molecule using MACCS fingerprints\n"
-		f"   - Target molecule SMILES: {target_smiles}\n"
+		f"   - Target molecule: {target_label}\n"
 		f"   - Minimum required: similarity \u2265 {SIM_MIN_SIMILARITY:.2f}\n"
 		"   - IMPORTANT: You must NOT propose the exact target molecule.\n\n"
 		"2. Drug-likeness using the QED score\n"
@@ -223,6 +231,13 @@ def build_user_prompt(
 		if target_smiles is None:
 			raise ValueError("similarity_qed_pubchem requires target_smiles")
 		return _similarity_user_prompt(target_smiles, n_molecules, mode)
+	if task_name == "similarity_qed_quercetin":
+		return _similarity_user_prompt(
+			QUERCETIN_SMILES,
+			n_molecules,
+			mode,
+			target_name=QUERCETIN_NAME,
+		)
 	d = TDC_ORACLE_DESCRIPTIONS[task_name]
 	task_description = d["task_description"]
 	metric_name = d["metric_name"]
@@ -281,6 +296,12 @@ def build_task_oracle(task_name: str, target_smiles: str | None = None) -> Any:
 			raise ValueError("similarity_qed_pubchem requires target_smiles")
 		return CompositeOracle(
 			oracles=[SimilarityOracle(target_smiles=target_smiles), ExplainableQedOracle()],
+			weights=SIM_WEIGHTS,
+			names=["Similarity", "QED"],
+		)
+	if task_name == "similarity_qed_quercetin":
+		return CompositeOracle(
+			oracles=[SimilarityOracle(target_smiles=QUERCETIN_SMILES), ExplainableQedOracle()],
 			weights=SIM_WEIGHTS,
 			names=["Similarity", "QED"],
 		)
@@ -405,6 +426,7 @@ def save_trace(
 	output_dir: Path,
 	task_name: str,
 	mode: Mode,
+	prompt_style: Literal["task", "generic"],
 	model: str,
 	temperature: float,
 	n_molecules: int,
@@ -413,11 +435,11 @@ def save_trace(
 	extra_config: dict[str, Any] | None = None,
 	target_idx: int | None = None,
 ) -> Path:
-	task_dir = output_dir / task_name
+	task_dir = output_dir / task_name / prompt_style
 	task_dir.mkdir(parents=True, exist_ok=True)
 
 	timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-	suffix = f"_target{target_idx}" if target_idx is not None else ""
+	suffix = f"_target{target_idx}" if task_name == "similarity_qed_pubchem" and target_idx is not None else ""
 	out_path = task_dir / f"zero_shot_{mode}{suffix}_{timestamp}.json"
 
 	config: dict[str, Any] = {
@@ -492,6 +514,8 @@ def main() -> None:
 			sampled = _load_sampled_molecules()
 			print(f"  Running over {len(sampled)} sampled targets.")
 			targets: list[tuple[str | None, int | None]] = [(s, i) for i, s in enumerate(sampled, start=1)]
+		elif task_name == "similarity_qed_quercetin":
+			targets = [(QUERCETIN_SMILES, 1)]
 		else:
 			targets = [(None, None)]
 
@@ -524,6 +548,7 @@ def main() -> None:
 				output_dir=output_dir,
 				task_name=task_name,
 				mode=mode,
+				prompt_style=prompt_style,
 				model=args.model,
 				temperature=args.temperature,
 				n_molecules=args.n_molecules,
