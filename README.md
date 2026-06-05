@@ -1,4 +1,6 @@
-# Molecule Optimization Agent
+# SEISMO: Molecule Optimization Agent
+
+**S**ample-**E**fficient **I**nference-**S**tage **MO**lecular-Optimization agent
 
 LLM-driven molecular optimization using LangGraph. The agent iteratively proposes molecules, evaluates them with oracles, and optimizes toward a specified objective.
 
