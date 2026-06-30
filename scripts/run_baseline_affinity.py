@@ -202,13 +202,19 @@ def main():
 
     with ProcessPoolExecutor(max_workers=max_workers) as pool:
         futures = {pool.submit(predict_one, t): t for t in tasks}
+        failed = 0
         for done_idx, future in enumerate(as_completed(futures), 1):
             t = futures[future]
-            res = future.result()  # raises immediately on any error
+            try:
+                res = future.result()
+            except Exception as e:
+                failed += 1
+                logger.warning("FAILED row_id=%s: %s", t["row_id"], e)
+                continue
             for f in meta_fields:
                 res[f] = t[f]
             new_results.append(res)
-            logger.info("Progress: %d/%d", done_idx, len(tasks))
+            logger.info("Progress: %d/%d (failed: %d)", done_idx, len(tasks), failed)
 
     all_results = new_results
     out_fieldnames = ["row_id", *meta_fields, "smiles", "gpu_id", "affinity_probability_binary", "affinity_pred_value"]
