@@ -159,20 +159,21 @@ def main():
     all_tasks = []
     with open(csv_path) as f:
         reader = csv.DictReader(f)
+        fieldnames = reader.fieldnames or []
+        meta_fields = [f for f in fieldnames if f != "smiles"]
         for i, row in enumerate(reader):
             smiles = row["smiles"].strip()
             if not smiles:
                 continue
-            model = row.get("model", "")
-            replicate = row.get("replicate", "")
-            iteration = row.get("iteration", "")
             target = row["target"].strip().upper()
             if target not in TARGET_SEQUENCES:
                 raise ValueError(f"Unknown target '{target}' in row {i}. Known targets: {list(TARGET_SEQUENCES)}")
             msa_path = Path(TARGET_MSA[target]).resolve()
             if not msa_path.exists():
                 raise FileNotFoundError(f"MSA file not found for target '{target}': {msa_path}")
-            row_id = f"{model}_r{replicate}_i{iteration}_{i:04d}"
+            meta = {f: row[f] for f in meta_fields}
+            meta_str = "_".join(str(meta[f]) for f in meta_fields)
+            row_id = f"{meta_str}_{i:04d}"
             all_tasks.append(
                 {
                     "smiles": smiles,
@@ -180,11 +181,9 @@ def main():
                     "out_base": str(out_base),
                     "row_id": row_id,
                     "msa_path": str(msa_path),
-                    "model": model,
-                    "replicate": replicate,
-                    "iteration": iteration,
                     "target": target,
                     "sequence": TARGET_SEQUENCES[target],
+                    **meta,
                 }
             )
 
@@ -206,19 +205,15 @@ def main():
         for done_idx, future in enumerate(as_completed(futures), 1):
             t = futures[future]
             res = future.result()  # raises immediately on any error
-            res["model"] = t["model"]
-            res["replicate"] = t["replicate"]
-            res["iteration"] = t["iteration"]
+            for f in meta_fields:
+                res[f] = t[f]
             new_results.append(res)
             logger.info("Progress: %d/%d", done_idx, len(tasks))
 
     all_results = new_results
-    fieldnames = [
-        "row_id", "model", "replicate", "iteration", "smiles",
-        "gpu_id", "affinity_probability_binary", "affinity_pred_value",
-    ]
+    out_fieldnames = ["row_id", *meta_fields, "smiles", "gpu_id", "affinity_probability_binary", "affinity_pred_value"]
     with open(out_path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+        writer = csv.DictWriter(f, fieldnames=out_fieldnames, extrasaction="ignore")
         writer.writeheader()
         all_results.sort(key=lambda r: r["row_id"])
         writer.writerows(all_results)
