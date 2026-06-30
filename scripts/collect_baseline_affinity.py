@@ -88,15 +88,15 @@ def main():
     if missing:
         logger.info("Missing row_ids (first 10): %s", [r["row_id"] for r in missing[:10]])
 
-    # Write output CSV merging baseline metadata with affinity scores
-    out_fieldnames = ["row_id", *meta_fields, "smiles", "affinity_probability_binary", "affinity_pred_value"]
+    # Write merged output: original columns + affinity scores
+    out_fieldnames = [*meta_fields, "smiles", "affinity_probability_binary", "affinity_pred_value"]
     with open(out_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=out_fieldnames)
         writer.writeheader()
         for row in baseline_rows:
             res = result_by_row_id.get(row["row_id"], {})
             writer.writerow({
-                **row,
+                **{k: row[k] for k in out_fieldnames if k in row},
                 "affinity_probability_binary": res.get("affinity_probability_binary", ""),
                 "affinity_pred_value": res.get("affinity_pred_value", ""),
             })
