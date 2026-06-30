@@ -69,21 +69,16 @@ def main():
     baseline_rows = []
     with open(args.csv) as f:
         reader = csv.DictReader(f)
+        fieldnames = reader.fieldnames or []
+        meta_fields = [f for f in fieldnames if f != "smiles"]
         for i, row in enumerate(reader):
             smiles = row["smiles"].strip()
             if not smiles:
                 continue
-            model = row.get("model", "")
-            replicate = row.get("replicate", "")
-            iteration = row.get("iteration", "")
-            row_id = f"{model}_r{replicate}_i{iteration}_{i:04d}"
-            baseline_rows.append({
-                "row_id": row_id,
-                "model": model,
-                "replicate": replicate,
-                "iteration": iteration,
-                "smiles": smiles,
-            })
+            meta = {f: row[f] for f in meta_fields}
+            meta_str = "_".join(str(meta[f]) for f in meta_fields)
+            row_id = f"{meta_str}_{i:04d}"
+            baseline_rows.append({"row_id": row_id, "smiles": smiles, **meta})
 
     missing = [r for r in baseline_rows if r["row_id"] not in result_by_row_id]
     logger.info(
@@ -94,12 +89,9 @@ def main():
         logger.info("Missing row_ids (first 10): %s", [r["row_id"] for r in missing[:10]])
 
     # Write output CSV merging baseline metadata with affinity scores
-    fieldnames = [
-        "row_id", "model", "replicate", "iteration", "smiles",
-        "affinity_probability_binary", "affinity_pred_value",
-    ]
+    out_fieldnames = ["row_id", *meta_fields, "smiles", "affinity_probability_binary", "affinity_pred_value"]
     with open(out_path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer = csv.DictWriter(f, fieldnames=out_fieldnames)
         writer.writeheader()
         for row in baseline_rows:
             res = result_by_row_id.get(row["row_id"], {})
