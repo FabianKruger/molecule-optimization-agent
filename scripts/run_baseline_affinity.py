@@ -1,12 +1,11 @@
 """
-Run Boltz-2 binding affinity predictions for all baseline molecules against
-mgyp001550541752 protein, distributed across 8 GPUs.
+Run Boltz-2 binding affinity predictions for all baseline molecules, distributed across GPUs.
+The target protein is read from the CSV 'target' column (supported: MGYP, TRIB2).
 
 Usage:
     python scripts/run_baseline_affinity.py \
         --csv data/molecules/baseline_molecules.csv \
-        --out data/boltz2_baseline_mgyp001550541752/results.csv \
-        --msa data/msa/mgyp001550541752_warmup/boltz_results_mgyp001550541752_msa_input/msa/mgyp001550541752_msa_input_0.csv \
+        --out data/boltz2_baseline/results.csv \
         --gpus 8 \
         --workers-per-gpu 1
 """
@@ -26,11 +25,25 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-PROTEIN_SEQUENCE = (
-    "ILRRYCMEEPAQALIDQLAAQLEADNWELAPLFKTLFMSEAFYSQIARTGFIKSPVEHALGFIHATGMTVQLER"
-    "GNIGFGFENGLDRFFNDMDNRPTQPPVVDGWPEGTGWLSAQALVDRANMLEFITASRDFQASEGFNVASLLPA"
-    "GTPTAEQVVESLALLLGITLTAPEVADLAAYLGKDNSGVADPFDPSNTAQVEERVRGLLYILGQHPQYMLR"
-)
+TARGET_MSA = {
+    "MGYP": "data/msa/mgyp001550541752_warmup/boltz_results_mgyp001550541752_msa_input/msa/mgyp001550541752_msa_input_0.csv",
+    "TRIB2": "data/msa/trib2_warmup/boltz_results_trib2_msa_input/msa/trib2_msa_input_0.csv",
+}
+
+TARGET_SEQUENCES = {
+    "MGYP": (
+        "ILRRYCMEEPAQALIDQLAAQLEADNWELAPLFKTLFMSEAFYSQIARTGFIKSPVEHALGFIHATGMTVQLER"
+        "GNIGFGFENGLDRFFNDMDNRPTQPPVVDGWPEGTGWLSAQALVDRANMLEFITASRDFQASEGFNVASLLPA"
+        "GTPTAEQVVESLALLLGITLTAPEVADLAAYLGKDNSGVADPFDPSNTAQVEERVRGLLYILGQHPQYMLR"
+    ),
+    "TRIB2": (
+        "MNIHRSTPITIARYGRSRNKTQDFEELSSIRSAEPSQSFSPNLGSPSPPETPNLSHCVSCIGKYLLLEPLEGDH"
+        "VFRAVHLHSGEELVCKVFDISCYQESLAPCFCLSAHSNINQITEIILGETKAYVFFERSYGDMHSFVRTCKKL"
+        "REEEAARLFYQIASAVAHCHDGGLVLRDLKLRKFIFKDEERTRVKLESLEDAYILRGDDDSLSDKHGCPAYVS"
+        "PEILNTSGSYSGKAADVWSLGVMLYTMLVGRYPFHDIEPSSLFSKIRRGQFNIPETLSPKAKCLIRSILRREP"
+        "SERLTSQEILDHPWFSTDFSVSNSAYGAKEVSDQLVPDVNMEENLDPFFN"
+    ),
+}
 
 INPUT_TEMPLATE = """\
 version: 1
@@ -75,7 +88,7 @@ def predict_one(task: dict) -> dict:
     input_path = work_dir / "affinity_prediction.yaml"
     input_path.write_text(
         INPUT_TEMPLATE.format(
-            sequence=PROTEIN_SEQUENCE,
+            sequence=task["sequence"],
             smiles=smiles,
             msa_path=task["msa_path"],
         )
@@ -135,15 +148,7 @@ def main():
         default=1,
         help="Parallel workers per GPU (keep at 1 unless GPU has headroom)",
     )
-    parser.add_argument(
-        "--msa",
-        required=True,
-        help="Path to pre-computed MSA file (.csv or .a3m) for the target protein",
-    )
     args = parser.parse_args()
-    msa_path = Path(args.msa).resolve()
-    if not msa_path.exists():
-        raise FileNotFoundError(f"MSA file not found: {msa_path}")
 
     csv_path = Path(args.csv)
     out_path = Path(args.out)
@@ -161,6 +166,12 @@ def main():
             model = row.get("model", "")
             replicate = row.get("replicate", "")
             iteration = row.get("iteration", "")
+            target = row["target"].strip().upper()
+            if target not in TARGET_SEQUENCES:
+                raise ValueError(f"Unknown target '{target}' in row {i}. Known targets: {list(TARGET_SEQUENCES)}")
+            msa_path = Path(TARGET_MSA[target]).resolve()
+            if not msa_path.exists():
+                raise FileNotFoundError(f"MSA file not found for target '{target}': {msa_path}")
             row_id = f"{model}_r{replicate}_i{iteration}_{i:04d}"
             all_tasks.append(
                 {
@@ -172,6 +183,8 @@ def main():
                     "model": model,
                     "replicate": replicate,
                     "iteration": iteration,
+                    "target": target,
+                    "sequence": TARGET_SEQUENCES[target],
                 }
             )
 
