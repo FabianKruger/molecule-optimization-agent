@@ -10,8 +10,6 @@ Two modes are supported:
 - independent: N independent LLM calls, one molecule per call
 - batch: one LLM call that returns N molecules at once
 
-Outputs are saved in a JSON format compatible with the loaders in
-analysis/paper/tdc_task.ipynb.
 """
 
 from __future__ import annotations
@@ -548,12 +546,16 @@ def save_trace(
     extra_config: dict[str, Any] | None = None,
     target_idx: int | None = None,
 ) -> Path:
-    task_dir = output_dir / task_name / prompt_style
+    
+    if task_name in TDC_ORACLE_DESCRIPTIONS.keys():
+        task_dir = output_dir / "tdc_tasks" / task_name
+    else:
+        task_dir = output_dir / task_name / prompt_style
     task_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     suffix = f"_target{target_idx}" if task_name == "similarity_qed_pubchem" and target_idx is not None else ""
-    out_path = task_dir / f"zero_shot_{mode}{suffix}_{timestamp}.json"
+    out_path = task_dir / f"zero_shot_{mode}{suffix}_{prompt_style}_{timestamp}.json"
 
     config: dict[str, Any] = {
         "llm": {"model": model, "temperature": temperature},
@@ -566,7 +568,7 @@ def save_trace(
 
     data = {
         "timestamp": timestamp,
-        "experiment": f"zero_shot_{mode}_{task_name}",
+        "experiment": f"zero_shot_{mode}_{task_name}_{prompt_style}",
         "config": config,
         "conversation": conversation,
         "trace": trace,
