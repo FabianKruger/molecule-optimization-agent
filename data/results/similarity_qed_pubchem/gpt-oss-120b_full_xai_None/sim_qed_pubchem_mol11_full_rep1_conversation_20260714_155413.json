@@ -1,0 +1,929 @@
+{
+  "timestamp": "20260714_155413",
+  "experiment": "sim_qed_pubchem_mol11_full_rep1",
+  "config": {
+    "experiment_name": "sim_qed_pubchem_mol11_full_rep1",
+    "llm": {
+      "model": "gpt-oss-120b",
+      "temperature": 0.0,
+      "reasoning_effort": null
+    },
+    "recursion_limit": 300,
+    "log_dir": "/Users/ahunklinger/Coding/molecule-optimization-agent/data/results/similarity_qed_pubchem/gpt-oss-120b_full_xai_None",
+    "oracle": {
+      "name": "composite",
+      "params": {
+        "oracles": [
+          {
+            "name": "similarity",
+            "params": {
+              "target_smiles": "O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ccccc1SCc1cscn1"
+            }
+          },
+          {
+            "name": "qed",
+            "params": {}
+          }
+        ],
+        "weights": [
+          0.5,
+          0.5
+        ],
+        "names": [
+          "Similarity",
+          "QED"
+        ]
+      }
+    },
+    "objective": {
+      "name": "similarity_qed",
+      "params": {
+        "target_score": 0.9,
+        "min_similarity": 0.7,
+        "min_qed": 0.7,
+        "max_iterations": 51,
+        "xai": "full"
+      }
+    }
+  },
+  "conversation": [
+    {
+      "role": "SystemMessage",
+      "content": "You are an expert medicinal chemist whose job is to propose and optimize new molecules.\n\nYou interact in a multi-step optimization loop. In this loop you:\n- Propose small organic molecules as SMILES strings.\n- Receive evaluations of your proposals.\n- Have access to the full conversation history, including all past proposals, rationales, and evaluations.\n\nYour goal in this conversation is to iteratively propose new molecules that move the objective toward the specified target, using the information in the conversation history and your general chemical knowledge.\n\nOUTPUT FORMAT:\n\nFor every proposal, you must respond with a single JSON object of the form\n\n{\n  \"reason\": \"<short explanation>\",\n  \"smiles\": \"<SMILES string>\"\n}\n\nRequirements:\n- \"smiles\" must be a single, valid SMILES string for a plausible small molecule.\n- \"reason\" should briefly explain why, given the history of molecules and their scores, this new proposal might improve or further explore the objective landscape.\n- Do not repeat any previous molecule exactly. The scores are deterministic and will not change if a molecule is re-evaluated.\n- Do not include any text outside the JSON object. No Markdown, no comments, no code fences."
+    },
+    {
+      "role": "HumanMessage",
+      "content": "We are optimizing molecules for TWO objectives simultaneously:\n\n1. Structural Similarity to a target molecule using MACCS fingerprints\n   - Target molecule SMILES: O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ccccc1SCc1cscn1\n   - Minimum required: similarity \u2265 0.70\n   - IMPORTANT: You must NOT propose the exact target molecule.\n\n2. Drug-likeness using the QED score\n   - Minimum required: QED \u2265 0.70\n   - QED evaluates: molecular weight, LogP, H-bond donors/acceptors, polar surface area, rotatable bonds, aromatic rings, structural alerts.\n\nThe combined score is: 0.5 * similarity + 0.5 * QED\nTarget combined score: \u2265 0.90\n\nSuccess requires:\n- Combined score \u2265 0.90\n- Similarity \u2265 0.70\n- QED \u2265 0.70\n\nStep 1:\nPropose a single initial molecule as a SMILES string that balances both objectives.\n\nRespond with a single JSON object:\n{\n  \"reason\": \"<why this molecule should satisfy both objectives>\",\n  \"smiles\": \"<SMILES string - must be different from target>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Adds a single fluorine on the distal phenyl ring to increase lipophilicity and QED while preserving all major scaffolds (amide, succinimide, thio\u2011aryl, thiazole). This minimal modification should keep MACCS similarity well above 0.70 and push QED toward the 0.70+ range.\",\n  \"smiles\": \"O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ccc(F)cc1SCc1cscn1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ccc(F)cc1SCc1cscn1\nIteration: 1 / 51\n\nCombined score: 0.6736 (target: \u2265 0.90) \u2717\nSimilarity: 0.9273 (min: 0.70) \u2713\nQED: 0.4199 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 4 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 42: F\n  Key 87: [F,Cl,Br,I]!@*@*\n  Key 107: [F,Cl,Br,I]~*(~*)~*\n  Key 134: [F,Cl,Br,I]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.793 (value=455.54, optimal=281-332 Da)\n  ALOGP: -0.164 (value=4.48, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=79.37, optimal=40-69 \u0172)\n  ROTB: -0.409 (value=7, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Removed the bulky succinimide side\u2011chain and fluorine to lower MW, rotatable bonds and structural alerts, while keeping the key amide, two phenyl rings, thio\u2011ether and thiazole core that drive high MACCS similarity.\",\n  \"smiles\": \"O=C(Nc1ccc(CN)cc1)c1ccc(SCc2cscn2)cc1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(CN)cc1)c1ccc(SCc2cscn2)cc1\nIteration: 2 / 51\n\nCombined score: 0.6408 (target: \u2265 0.90) \u2717\nSimilarity: 0.6296 (min: 0.70) \u2717\nQED: 0.6520 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 17 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 75: *!@[#7]@*\n  Key 85: [#6]~[#7](~[#6])~[#6]\n  Key 89: [#8]~*~*~*~[#8]\n  Key 118: [$(*~[CH2]~[CH2]~*),$(*1~[CH2]~[CH2]1)] (count > 1)\n  Key 122: *~[#7](~*)~*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 128: [$(*~[CH2]~*~*~*~[CH2]~*),$([R]1@[CH2;R]@[R]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[R]@[CH2;R]1),$(*~[CH2]~*~[R]1@[R]@[CH2;R]1)]\n  Key 129: [$(*~[CH2]~*~*~[CH2]~*),$([R]1@[CH2]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[CH2;R]1)]\n  Key 132: [#8]~*~[CH2]~*\n  Key 136: [#8]=* (count > 1)\n  Key 143: *@*!@[#8]\n  Key 144: *!:*:*!:*\n  Key 146: [#8] (count > 2)\n  Key 147: [$(*~[CH2]~[CH2]~*),$([R]1@[CH2;R]@[CH2;R]1)]\n  Key 148: *~[!#6;!#1](~*)~*\n  Key 150: *!@*@*!@*\n  Key 159: [#8] (count > 1)\n\nThe following 3 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 82: *~[CH2]~[!#6;!#1;!H0]\n  Key 84: [NH2]\n  Key 131: [!#6;!#1;!H0] (count > 1)\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.115 (value=355.49, optimal=281-332 Da)\n  ALOGP: -0.091 (value=4.15, optimal=1.95-3.57)\n  HBA: -0.006 (value=4, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.003 (value=68.01, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  c[SX2][C;!R]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Replaced the thio\u2011ether (S\u2011CH2) with a direct aryl\u2011ether (O\u2011aryl) to remove the structural alert and lower logP, kept the succinimide side\u2011chain and both aromatic rings to retain high MACCS similarity, and kept the amide linkage. This should boost QED while preserving similarity >0.70.\",\n  \"smiles\": \"O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ccc(Oc2cscn2)cc1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ccc(Oc2cscn2)cc1\nIteration: 3 / 51\n\nCombined score: 0.7244 (target: \u2265 0.90) \u2717\nSimilarity: 0.8214 (min: 0.70) \u2713\nQED: 0.6275 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 5 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 81: [#16]~*(~*)~*\n  Key 138: [!#6;!#1]~[CH2]~* (count > 1)\n  Key 144: *!:*:*!:*\n\nThe following 5 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 113: [#8]!:*:*\n  Key 126: *!@[#8]!@*\n  Key 140: [#8] (count > 3)\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.423 (value=407.45, optimal=281-332 Da)\n  ALOGP: -0.047 (value=3.84, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.013 (value=88.60, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Revert to a thio\u2011ether (remove the extra ether O) and delete the CH2 bridge between sulfur and the thiazole to cut MW and PSA, keeping the succinimide side\u2011chain and both aromatic rings for high MACCS similarity while improving QED.\",\n  \"smiles\": \"O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ccc(Sc2cscn2)cc1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ccc(Sc2cscn2)cc1\nIteration: 4 / 51\n\nCombined score: 0.7811 (target: \u2265 0.90) \u2717\nSimilarity: 0.9608 (min: 0.70) \u2713\nQED: 0.6014 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 2 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 138: [!#6;!#1]~[CH2]~* (count > 1)\n  Key 144: *!:*:*!:*\n\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.541 (value=423.52, optimal=281-332 Da)\n  ALOGP: -0.100 (value=4.20, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=79.37, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Removed the bulky succinimide side chain and its CH2 linker, replacing it with a simple methyl group. This cuts molecular weight and rotatable bonds, eliminates the imide structural alert, and lowers logP, all of which should raise QED while retaining the two phenyl rings, thio\u2011aryl bridge and thiazole that drive high MACCS similarity.\",\n  \"smiles\": \"O=C(Nc1ccc(C)cc1)c1ccc(Sc2cscn2)cc1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(C)cc1)c1ccc(Sc2cscn2)cc1\nIteration: 5 / 51\n\nCombined score: 0.6511 (target: \u2265 0.90) \u2717\nSimilarity: 0.5577 (min: 0.70) \u2717\nQED: 0.7446 (min: 0.70) \u2713\n\nExplanation:\n\nSimilarity:\nThe following 22 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 75: *!@[#7]@*\n  Key 85: [#6]~[#7](~[#6])~[#6]\n  Key 89: [#8]~*~*~*~[#8]\n  Key 100: *~[CH2]~[#7]\n  Key 111: [#7]~*~[CH2]~*\n  Key 118: [$(*~[CH2]~[CH2]~*),$(*1~[CH2]~[CH2]1)] (count > 1)\n  Key 122: *~[#7](~*)~*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 128: [$(*~[CH2]~*~*~*~[CH2]~*),$([R]1@[CH2;R]@[R]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[R]@[CH2;R]1),$(*~[CH2]~*~[R]1@[R]@[CH2;R]1)]\n  Key 129: [$(*~[CH2]~*~*~[CH2]~*),$([R]1@[CH2]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[CH2;R]1)]\n  Key 132: [#8]~*~[CH2]~*\n  Key 136: [#8]=* (count > 1)\n  Key 138: [!#6;!#1]~[CH2]~* (count > 1)\n  Key 143: *@*!@[#8]\n  Key 144: *!:*:*!:*\n  Key 146: [#8] (count > 2)\n  Key 147: [$(*~[CH2]~[CH2]~*),$([R]1@[CH2;R]@[CH2;R]1)]\n  Key 148: *~[!#6;!#1](~*)~*\n  Key 150: *!@*@*!@*\n  Key 153: [!#6;!#1]~[CH2]~*\n  Key 155: *!@[CH2]!@*\n  Key 159: [#8] (count > 1)\n\nThe following 1 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 160: [C;H3,H4]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.021 (value=326.45, optimal=281-332 Da)\n  ALOGP: -0.289 (value=4.86, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.002 (value=41.99, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Replaced the problematic succinimide imide with a simpler pyrrolidin\u20112\u2011one lactam (removing the second carbonyl and the imide structural alert) and kept the key amide, two phenyl rings, thio\u2011aryl bridge and thiazole to preserve high MACCS similarity. This lowers molecular weight and rotatable bonds, eliminates the alert, and should raise QED above 0.70 while maintaining similarity \u2265 0.70.\",\n  \"smiles\": \"O=C(Nc1ccc(CN1CCCC1=O)cc1)c1ccc(Sc2cscn2)cc1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(CN1CCCC1=O)cc1)c1ccc(Sc2cscn2)cc1\nIteration: 6 / 51\n\nCombined score: 0.7415 (target: \u2265 0.90) \u2717\nSimilarity: 0.6567 (min: 0.70) \u2717\nQED: 0.8262 (min: 0.70) \u2713\n\nExplanation:\n\nSimilarity:\nThe following 7 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 75: *!@[#7]@*\n  Key 89: [#8]~*~*~*~[#8]\n  Key 135: [#7]!:*:*\n  Key 144: *!:*:*!:*\n  Key 146: [#8] (count > 2)\n  Key 150: *!@*@*!@*\n  Key 155: *!@[CH2]!@*\n\nThe following 16 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 21: [#6]=[#6](~[!#6;!#1])~[!#6;!#1]\n  Key 26: [#6]=;@[#6](@*)@*\n  Key 38: [#7]~[#6](~[#6])~[#7]\n  Key 45: [#6]=[#6]~[#7]\n  Key 50: [#6]=[#6](~[#6])~[#6]\n  Key 76: [#6]=[#6](~*)~*\n  Key 77: [#7]~*~[#7]\n  Key 86: [C;H2,H3][!#6;!#1][C;H2,H3]\n  Key 90: [$([!#6;!#1;!H0]~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[CH2;R]1)]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 97: [#7]~*~*~*~[#8]\n  Key 98: [!#6;!#1]1~*~*~*~*~*~1\n  Key 99: [#6]=[#6]\n  Key 101: [$([R]@1@[R]@[R]@[R]@[R]@[R]@[R]@[R]1),$([R]@1@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]1),$([R]@1@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]1),$([R]@1@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]1),$([R]@1@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]1),$([R]@1@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]1),$([R]@1@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]1)]\n  Key 105: *@*(@*)@*\n  Key 152: [#8]~[#6](~[#6])~[#6]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.438 (value=409.54, optimal=281-332 Da)\n  ALOGP: -0.072 (value=4.03, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.001 (value=62.30, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Re\u2011introduces the succinimide imide side chain (key for similarity) and adds a phenolic OH on the same aromatic ring to increase polarity and lower logP, aiming to keep QED \u2265\u202f0.70 while pushing MACCS similarity above the 0.70 threshold.\",\n  \"smiles\": \"O=C(Nc1c(O)ccc(CN2C(=O)CCC2=O)c1)c1ccc(SCc2cscn2)cc1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1c(O)ccc(CN2C(=O)CCC2=O)c1)c1ccc(SCc2cscn2)cc1\nIteration: 7 / 51\n\nCombined score: 0.5841 (target: \u2265 0.90) \u2717\nSimilarity: 0.8500 (min: 0.70) \u2713\nQED: 0.3182 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 9 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 54: [!#6;!#1;!H0]~*~*~[!#6;!#1;!H0]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 95: [#7]~*~*~[#8]\n  Key 113: [#8]!:*:*\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 140: [#8] (count > 3)\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.777 (value=453.55, optimal=281-332 Da)\n  ALOGP: -0.074 (value=4.04, optimal=1.95-3.57)\n  HBA: -0.032 (value=6, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.022 (value=99.60, optimal=40-69 \u0172)\n  ROTB: -0.409 (value=7, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -2.380 (value=3, optimal=0)\n\n3 structural alert(s) triggered. SMARTS patterns of alerts:\n  c1c([OH])c([OH,NH2,NH])ccc1\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Replaced the bulky succinimide with a smaller hydantoin (imidazolidine\u20112,4\u2011dione) to cut molecular weight and retain the key imide fingerprint that drives high MACCS similarity, while keeping the amide, two aromatic rings, thio\u2011ether bridge and thiazole core. This should improve QED toward the 0.70+ range without dropping similarity below the required threshold.\",\n  \"smiles\": \"O=C(Nc1ccc(CN2C(=O)C(=O)N2)cc1)c1ccc(SCc2cscn2)cc1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(CN2C(=O)C(=O)N2)cc1)c1ccc(SCc2cscn2)cc1\nIteration: 8 / 51\n\nCombined score: 0.5606 (target: \u2265 0.90) \u2717\nSimilarity: 0.6719 (min: 0.70) \u2717\nQED: 0.4493 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 8 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 85: [#6]~[#7](~[#6])~[#6]\n  Key 89: [#8]~*~*~*~[#8]\n  Key 118: [$(*~[CH2]~[CH2]~*),$(*1~[CH2]~[CH2]1)] (count > 1)\n  Key 128: [$(*~[CH2]~*~*~*~[CH2]~*),$([R]1@[CH2;R]@[R]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[R]@[CH2;R]1),$(*~[CH2]~*~[R]1@[R]@[CH2;R]1)]\n  Key 129: [$(*~[CH2]~*~*~[CH2]~*),$([R]1@[CH2]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[CH2;R]1)]\n  Key 132: [#8]~*~[CH2]~*\n  Key 144: *!:*:*!:*\n  Key 147: [$(*~[CH2]~[CH2]~*),$([R]1@[CH2;R]@[CH2;R]1)]\n\nThe following 13 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 8: [!#6;!#1]1~*~*~*~1\n  Key 11: *1~*~*~*~1\n  Key 52: [#7]~[#7]\n  Key 69: [!#6;!#1]~[!#6;!#1;!H0]\n  Key 72: [#8]~*~*~[#8]\n  Key 79: [#7]~*~*~[#7]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 94: [!#6;!#1]~[#7]\n  Key 95: [#7]~*~*~[#8]\n  Key 97: [#7]~*~*~*~[#8]\n  Key 104: [!#6;!#1;!H0]~*~[CH2]~*\n  Key 124: [!#6;!#1]~[!#6;!#1]\n  Key 131: [!#6;!#1;!H0] (count > 1)\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.549 (value=424.51, optimal=281-332 Da)\n  ALOGP: -0.002 (value=3.06, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.015 (value=91.40, optimal=40-69 \u0172)\n  ROTB: -0.409 (value=7, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [#6](=O)[#6](=O)\n  c[SX2][C;!R]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keep the succinimide imide (critical for high MACCS similarity) and the thio\u2011aryl\u2011thiazole core, but replace the phenyl directly attached to the amide with a pyridine to lower molecular weight and logP, aiming to boost QED while retaining similarity above 0.70.\",\n  \"smiles\": \"O=C(Nc1nccc(CN2C(=O)CCC2=O)c1)c1ccc(Oc2cscn2)cc1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1nccc(CN2C(=O)CCC2=O)c1)c1ccc(Oc2cscn2)cc1\nIteration: 9 / 51\n\nCombined score: 0.6913 (target: \u2265 0.90) \u2717\nSimilarity: 0.7541 (min: 0.70) \u2713\nQED: 0.6286 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 5 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 81: [#16]~*(~*)~*\n  Key 138: [!#6;!#1]~[CH2]~* (count > 1)\n  Key 144: *!:*:*!:*\n\nThe following 10 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 38: [#7]~[#6](~[#6])~[#7]\n  Key 77: [#7]~*~[#7]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 97: [#7]~*~*~*~[#8]\n  Key 98: [!#6;!#1]1~*~*~*~*~*~1\n  Key 113: [#8]!:*:*\n  Key 126: *!@[#8]!@*\n  Key 140: [#8] (count > 3)\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.430 (value=408.44, optimal=281-332 Da)\n  ALOGP: -0.006 (value=3.23, optimal=1.95-3.57)\n  HBA: -0.032 (value=6, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.024 (value=101.49, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Removed the CH2 bridge between the aromatic ring and the thio\u2011ether (direct S\u2011aryl linkage) and added a fluorine on that aromatic ring to lower molecular weight and logP. The succinimide imide and the pyridine\u2011linked amide are retained to keep the key MACCS features, aiming to push QED above 0.70 while staying above the similarity threshold.\",\n  \"smiles\": \"O=C(Nc1nccc(CN2C(=O)CCC2=O)c1)c1ccc(F)Sc2cscn2\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "Invalid SMILES: O=C(Nc1nccc(CN2C(=O)CCC2=O)c1)c1ccc(F)Sc2cscn2"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Removed the CH2 bridge between the phenyl ring and the thio\u2011aryl (direct S\u2011aryl bond) and introduced a fluorine on the phenyl to lower molecular weight and logP while keeping the succinimide imide and pyridine\u2011linked amide that drive high MACCS similarity. This should improve QED without sacrificing similarity.\",\n  \"smiles\": \"O=C(Nc1nccc(CN2C(=O)CCC2=O)c1)c1ccc(F)cc1Sc2cscn2\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1nccc(CN2C(=O)CCC2=O)c1)c1ccc(F)cc1Sc2cscn2\nIteration: 11 / 51\n\nCombined score: 0.7092 (target: \u2265 0.90) \u2717\nSimilarity: 0.8333 (min: 0.70) \u2713\nQED: 0.5851 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 138: [!#6;!#1]~[CH2]~* (count > 1)\n\nThe following 9 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 38: [#7]~[#6](~[#6])~[#7]\n  Key 42: F\n  Key 77: [#7]~*~[#7]\n  Key 87: [F,Cl,Br,I]!@*@*\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 97: [#7]~*~*~*~[#8]\n  Key 98: [!#6;!#1]1~*~*~*~*~*~1\n  Key 107: [F,Cl,Br,I]~*(~*)~*\n  Key 134: [F,Cl,Br,I]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.689 (value=442.50, optimal=281-332 Da)\n  ALOGP: -0.036 (value=3.73, optimal=1.95-3.57)\n  HBA: -0.032 (value=6, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.016 (value=92.26, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Replaced the bulky succinimide imide side chain with a simple primary amide (\u2011CH2\u2011CH2\u2011C(=O)NH2) to lower molecular weight, eliminate the imide structural alert, and reduce logP, while retaining the amide linkage, the fluorinated phenyl, the thio\u2011aryl bridge, and the thiazole heterocycle that drive high MACCS similarity. This should raise QED above 0.70 and keep similarity \u2265\u202f0.70.\",\n  \"smiles\": \"O=C(Nc1nccc(CC(=O)N)c1)c1ccc(F)cc1Sc2cscn2\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1nccc(CC(=O)N)c1)c1ccc(F)cc1Sc2cscn2\nIteration: 12 / 51\n\nCombined score: 0.6238 (target: \u2265 0.90) \u2717\nSimilarity: 0.5714 (min: 0.70) \u2717\nQED: 0.6761 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 15 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 75: *!@[#7]@*\n  Key 85: [#6]~[#7](~[#6])~[#6]\n  Key 89: [#8]~*~*~*~[#8]\n  Key 100: *~[CH2]~[#7]\n  Key 118: [$(*~[CH2]~[CH2]~*),$(*1~[CH2]~[CH2]1)] (count > 1)\n  Key 122: *~[#7](~*)~*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 128: [$(*~[CH2]~*~*~*~[CH2]~*),$([R]1@[CH2;R]@[R]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[R]@[CH2;R]1),$(*~[CH2]~*~[R]1@[R]@[CH2;R]1)]\n  Key 129: [$(*~[CH2]~*~*~[CH2]~*),$([R]1@[CH2]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[CH2;R]1)]\n  Key 138: [!#6;!#1]~[CH2]~* (count > 1)\n  Key 143: *@*!@[#8]\n  Key 146: [#8] (count > 2)\n  Key 147: [$(*~[CH2]~[CH2]~*),$([R]1@[CH2;R]@[CH2;R]1)]\n  Key 148: *~[!#6;!#1](~*)~*\n  Key 153: [!#6;!#1]~[CH2]~*\n\nThe following 12 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 38: [#7]~[#6](~[#6])~[#7]\n  Key 42: F\n  Key 77: [#7]~*~[#7]\n  Key 84: [NH2]\n  Key 87: [F,Cl,Br,I]!@*@*\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 97: [#7]~*~*~*~[#8]\n  Key 98: [!#6;!#1]1~*~*~*~*~*~1\n  Key 104: [!#6;!#1;!H0]~*~[CH2]~*\n  Key 107: [F,Cl,Br,I]~*(~*)~*\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 134: [F,Cl,Br,I]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.294 (value=388.45, optimal=281-332 Da)\n  ALOGP: -0.003 (value=3.11, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.021 (value=97.97, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Replaced the bulky succinimide with a minimal N\u2011acetyl\u2011benzyl side chain (CH2\u2013NH\u2013C(=O)CH3). This keeps the key amide, thio\u2011aryl bridge, thiazole and pyridine motifs that drive high MACCS similarity, while substantially lowering molecular weight, rotatable bonds and removing the imide structural alert, thereby improving QED toward the required \u22650.70.\",\n  \"smiles\": \"O=C(Nc1nccc(CNC(=O)C)c1)c1ccc(F)cc1Sc2cscn2\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1nccc(CNC(=O)C)c1)c1ccc(F)cc1Sc2cscn2\nIteration: 13 / 51\n\nCombined score: 0.6095 (target: \u2265 0.90) \u2717\nSimilarity: 0.5625 (min: 0.70) \u2717\nQED: 0.6566 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 15 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 75: *!@[#7]@*\n  Key 85: [#6]~[#7](~[#6])~[#6]\n  Key 89: [#8]~*~*~*~[#8]\n  Key 111: [#7]~*~[CH2]~*\n  Key 118: [$(*~[CH2]~[CH2]~*),$(*1~[CH2]~[CH2]1)] (count > 1)\n  Key 122: *~[#7](~*)~*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 128: [$(*~[CH2]~*~*~*~[CH2]~*),$([R]1@[CH2;R]@[R]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[R]@[CH2;R]1),$(*~[CH2]~*~[R]1@[R]@[CH2;R]1)]\n  Key 129: [$(*~[CH2]~*~*~[CH2]~*),$([R]1@[CH2]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[CH2;R]1)]\n  Key 132: [#8]~*~[CH2]~*\n  Key 138: [!#6;!#1]~[CH2]~* (count > 1)\n  Key 143: *@*!@[#8]\n  Key 146: [#8] (count > 2)\n  Key 147: [$(*~[CH2]~[CH2]~*),$([R]1@[CH2;R]@[CH2;R]1)]\n  Key 148: *~[!#6;!#1](~*)~*\n\nThe following 13 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 38: [#7]~[#6](~[#6])~[#7]\n  Key 42: F\n  Key 77: [#7]~*~[#7]\n  Key 82: *~[CH2]~[!#6;!#1;!H0]\n  Key 87: [F,Cl,Br,I]!@*@*\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 97: [#7]~*~*~*~[#8]\n  Key 98: [!#6;!#1]1~*~*~*~*~*~1\n  Key 107: [F,Cl,Br,I]~*(~*)~*\n  Key 116: [$([CH3]~*~*~[CH2]~*),$([CH3]~*1~*~[CH2]1)]\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 134: [F,Cl,Br,I]\n  Key 160: [C;H3,H4]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.388 (value=402.48, optimal=281-332 Da)\n  ALOGP: -0.035 (value=3.72, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.010 (value=83.98, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keep the succinimide side\u2011chain and the thio\u2011aryl\u2011thiazole core that provide the key MACCS features, but add a phenolic OH on the second aromatic ring to increase polarity and lower logP, which should raise the QED above 0.70 while preserving similarity \u2265\u202f0.70.\",\n  \"smiles\": \"O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1c(O)ccc(Sc2cscn2)nc1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "Invalid SMILES: O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1c(O)ccc(Sc2cscn2)nc1"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Replaced the imide succinimide with a simpler lactam (pyrrolidin\u20112\u2011one) to cut one carbonyl, lower molecular weight, H\u2011bond acceptors and PSA, while keeping the amide, the two phenyl rings, the thio\u2011ether bridge and the thiazole that drive high MACCS similarity. This should raise QED above 0.70 and maintain similarity \u2265\u202f0.70.\",\n  \"smiles\": \"O=C(Nc1ccc(CN2C(=O)CCC2)cc1)c1ccc(SCc2cscn2)cc1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(CN2C(=O)CCC2)cc1)c1ccc(SCc2cscn2)cc1\nIteration: 15 / 51\n\nCombined score: 0.7386 (target: \u2265 0.90) \u2717\nSimilarity: 0.9231 (min: 0.70) \u2713\nQED: 0.5541 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 3 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 89: [#8]~*~*~*~[#8]\n  Key 144: *!:*:*!:*\n  Key 146: [#8] (count > 2)\n\nThe following 1 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 86: [C;H2,H3][!#6;!#1][C;H2,H3]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.541 (value=423.56, optimal=281-332 Da)\n  ALOGP: -0.272 (value=4.81, optimal=1.95-3.57)\n  HBA: -0.006 (value=4, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.001 (value=62.30, optimal=40-69 \u0172)\n  ROTB: -0.409 (value=7, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  c[SX2][C;!R]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Replaced the thio\u2011ether (which caused a structural alert and high logP) with an ether link (O\u2011CH2\u2011CH2) to the thiazole, and kept a single\u2011carbonyl lactam side chain (CN2C(=O)CCC2) to retain key amide and carbonyl features that drive high MACCS similarity. This reduces molecular weight, logP, and rotatable bonds, removes the thio\u2011ether alert, and should raise QED above 0.70 while keeping similarity well above 0.70.\",\n  \"smiles\": \"O=C(Nc1ccc(CN2C(=O)CCC2)cc1)c1ccc(OCCc2cscn2)cc1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(CN2C(=O)CCC2)cc1)c1ccc(OCCc2cscn2)cc1\nIteration: 16 / 51\n\nCombined score: 0.6933 (target: \u2265 0.90) \u2717\nSimilarity: 0.7931 (min: 0.70) \u2713\nQED: 0.5934 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 5 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 81: [#16]~*(~*)~*\n  Key 89: [#8]~*~*~*~[#8]\n  Key 144: *!:*:*!:*\n\nThe following 7 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 86: [C;H2,H3][!#6;!#1][C;H2,H3]\n  Key 97: [#7]~*~*~*~[#8]\n  Key 109: *~[CH2]~[#8]\n  Key 113: [#8]!:*:*\n  Key 126: *!@[#8]!@*\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.526 (value=421.52, optimal=281-332 Da)\n  ALOGP: -0.090 (value=4.14, optimal=1.95-3.57)\n  HBA: -0.006 (value=4, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.004 (value=71.53, optimal=40-69 \u0172)\n  ROTB: -0.596 (value=8, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Kept the succinimide imide side\u2011chain and the thio\u2011aryl\u2011thiazole core for high MACCS similarity, but replaced the thio\u2011ether with an ether bearing an extra hydroxyl (O\u2011CH2\u2011CH(OH)\u2011CH2) to increase polarity, lower logP and improve QED while preserving the essential scaffolds.\",\n  \"smiles\": \"O=C(Nc1ccc(CN2C(=O)CCC2)cc1)c1ccc(OCC(O)Cc2cscn2)cc1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(CN2C(=O)CCC2)cc1)c1ccc(OCC(O)Cc2cscn2)cc1\nIteration: 17 / 51\n\nCombined score: 0.6249 (target: \u2265 0.90) \u2717\nSimilarity: 0.7302 (min: 0.70) \u2713\nQED: 0.5196 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 5 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 81: [#16]~*(~*)~*\n  Key 89: [#8]~*~*~*~[#8]\n  Key 144: *!:*:*!:*\n\nThe following 12 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 72: [#8]~*~*~[#8]\n  Key 86: [C;H2,H3][!#6;!#1][C;H2,H3]\n  Key 97: [#7]~*~*~*~[#8]\n  Key 104: [!#6;!#1;!H0]~*~[CH2]~*\n  Key 109: *~[CH2]~[#8]\n  Key 113: [#8]!:*:*\n  Key 126: *!@[#8]!@*\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 140: [#8] (count > 3)\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.761 (value=451.55, optimal=281-332 Da)\n  ALOGP: -0.019 (value=3.50, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.016 (value=91.76, optimal=40-69 \u0172)\n  ROTB: -0.797 (value=9, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Kept the key succinimide imide side\u2011chain, the amide linkage and the thio\u2011aryl\u2011thiazole bridge that drive high MACCS similarity, but swapped the right\u2011hand phenyl carbonyl for a pyridine ring to add polarity and lower logP, reducing rotatable bonds and improving QED while staying above the similarity threshold.\",\n  \"smiles\": \"O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ccncc1SCc2cscn2\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ccncc1SCc2cscn2\nIteration: 18 / 51\n\nCombined score: 0.7136 (target: \u2265 0.90) \u2717\nSimilarity: 0.9808 (min: 0.70) \u2713\nQED: 0.4464 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 1 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 98: [!#6;!#1]1~*~*~*~*~*~1\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.657 (value=438.53, optimal=281-332 Da)\n  ALOGP: -0.036 (value=3.73, optimal=1.95-3.57)\n  HBA: -0.032 (value=6, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.016 (value=92.26, optimal=40-69 \u0172)\n  ROTB: -0.409 (value=7, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Combined the two phenyl rings into a single aniline ring, keeping the succinimide imide side\u2011chain, the thio\u2011ether bridge to the thiazole, and the amide linkage. This removes one aromatic ring (reducing aromatic penalty), lowers molecular weight into the drug\u2011like range, and retains the key MACCS features, aiming for QED\u202f\u2265\u202f0.70 while keeping similarity above 0.70.\",\n  \"smiles\": \"O=C(Nc1ccc(CN2C(=O)CCC2=O)c(SCc2cscn2)cc1)\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "Invalid SMILES: O=C(Nc1ccc(CN2C(=O)CCC2=O)c(SCc2cscn2)cc1)"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Removed the thio\u2011ether CH2 (avoids the thio\u2011ether structural alert) and replaced the succinimide imide with a simple acetamide side chain (CH2\u2011C(=O)NH\u2082) to eliminate the imide alert and lower molecular weight. The core amide, thio\u2011aryl\u2011thiazole bridge, pyridine ring and phenolic OH are retained to preserve the MACCS features needed for high similarity while improving polarity and reducing logP, aiming for QED\u202f\u2265\u202f0.70.\",\n  \"smiles\": \"O=C(Nc1nccc(Cc(=O)N)cc1)c1ccc(O)cc1Sc2cscn2\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "Invalid SMILES: O=C(Nc1nccc(Cc(=O)N)cc1)c1ccc(O)cc1Sc2cscn2"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Replaced the succinimide imide with a smaller lactam (pyrrolidin\u20112\u2011one) to eliminate the imide structural alert and reduce molecular weight, and switched the thio\u2011ether for an ether (O\u2011CH2\u2011CH2\u2011CH2) to remove the thio\u2011ether alert. The core amide, two aromatic rings, thio\u2011aryl\u2011thiazole motif and side\u2011chain carbonyl are retained to keep MACCS similarity high while improving drug\u2011likeness (lower MW, fewer rotatable bonds, reduced aromatic penalty).\",\n  \"smiles\": \"O=C(Nc1ccc(CN2CCCC2=O)cc1)c1ccc(OCCc2cscn2)cc1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(CN2CCCC2=O)cc1)c1ccc(OCCc2cscn2)cc1\nIteration: 21 / 51\n\nCombined score: 0.6933 (target: \u2265 0.90) \u2717\nSimilarity: 0.7931 (min: 0.70) \u2713\nQED: 0.5934 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 5 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 81: [#16]~*(~*)~*\n  Key 89: [#8]~*~*~*~[#8]\n  Key 144: *!:*:*!:*\n\nThe following 7 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 86: [C;H2,H3][!#6;!#1][C;H2,H3]\n  Key 97: [#7]~*~*~*~[#8]\n  Key 109: *~[CH2]~[#8]\n  Key 113: [#8]!:*:*\n  Key 126: *!@[#8]!@*\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.526 (value=421.52, optimal=281-332 Da)\n  ALOGP: -0.090 (value=4.14, optimal=1.95-3.57)\n  HBA: -0.006 (value=4, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.004 (value=71.53, optimal=40-69 \u0172)\n  ROTB: -0.596 (value=8, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Kept the succinimide\u2011derived lactam side chain and the thio\u2011aryl\u2011thiazole core for high MACCS similarity, replaced the long O\u2011CH2\u2011CH2 linker with a direct ether (O\u2011aryl) to the thiazole to cut rotatable bonds, and added a phenolic OH on the left aromatic ring to increase polarity and lower logP, aiming to raise QED above 0.70 while preserving similarity \u2265\u202f0.70.\",\n  \"smiles\": \"O=C(Nc1c(O)ccc(CN2CCCC2=O)cc1)c1ccc(Oc2cscn2)cc1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "Invalid SMILES: O=C(Nc1c(O)ccc(CN2CCCC2=O)cc1)c1ccc(Oc2cscn2)cc1"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Kept the key succinimide imide side\u2011chain, the thio\u2011ether bridge and the thiazole heterocycle that drive high MACCS similarity, but removed the extra benzoyl phenyl to lower molecular weight and aromatic count. Added a phenolic OH on the remaining phenyl to increase polarity and lower logP, aiming to push QED above 0.70 while keeping similarity \u2265\u202f0.70.\",\n  \"smiles\": \"O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1O)Sc1cscn1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1O)Sc1cscn1\nIteration: 23 / 51\n\nCombined score: 0.6350 (target: \u2265 0.90) \u2717\nSimilarity: 0.7778 (min: 0.70) \u2713\nQED: 0.4922 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 2 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 138: [!#6;!#1]~[CH2]~* (count > 1)\n  Key 145: *1~*~*~*~*~*~1 (count > 1)\n\nThe following 12 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 54: [!#6;!#1;!H0]~*~*~[!#6;!#1;!H0]\n  Key 80: [#7]~*~*~*~[#7]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 95: [#7]~*~*~[#8]\n  Key 97: [#7]~*~*~*~[#8]\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 113: [#8]!:*:*\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 140: [#8] (count > 3)\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.152 (value=363.42, optimal=281-332 Da)\n  ALOGP: -0.000 (value=2.82, optimal=1.95-3.57)\n  HBA: -0.032 (value=6, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.022 (value=99.60, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -2.380 (value=3, optimal=0)\n\n3 structural alert(s) triggered. SMARTS patterns of alerts:\n  c1c([OH])c([OH,NH2,NH])ccc1\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Kept the succinimide imide side\u2011chain, the amide linkage and the thio\u2011ether bridge, but replaced the second phenyl ring with a short alkyl chain (S\u2011CH2\u2011CH2\u2011thiazole). This drops the aromatic count from three to two, lowers molecular weight and logP, removes the phenolic OH and its alerts, and should raise QED above 0.70 while still retaining the key MACCS features for similarity \u2265\u202f0.70.\",\n  \"smiles\": \"O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)SCCc1cscn1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)SCCc1cscn1\nIteration: 24 / 51\n\nCombined score: 0.8271 (target: \u2265 0.90) \u2717\nSimilarity: 0.8704 (min: 0.70) \u2713\nQED: 0.7839 (min: 0.70) \u2713\n\nExplanation:\n\nSimilarity:\nThe following 4 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 144: *!:*:*!:*\n  Key 145: *1~*~*~*~*~*~1 (count > 1)\n\nThe following 3 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 90: [$([!#6;!#1;!H0]~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[CH2;R]1)]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.216 (value=375.48, optimal=281-332 Da)\n  ALOGP: -0.009 (value=3.30, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=79.37, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Kept the core amide, succinimide side\u2011chain, and the thio\u2011aryl\u2011thiazole bridge that give very high MACCS similarity, and added a short \u2013S\u2011CH2\u2011CH2\u2011OH substituent on the phenyl ring. This introduces additional sulfur\u2011related features present in the target while adding polarity (OH) to improve QED without adding extra aromatic rings.\",\n  \"smiles\": \"O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)C1=CC=C(SCCO)C=C1Sc2cscn2\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)C1=CC=C(SCCO)C=C1Sc2cscn2\nIteration: 25 / 51\n\nCombined score: 0.6071 (target: \u2265 0.90) \u2717\nSimilarity: 0.8793 (min: 0.70) \u2713\nQED: 0.3348 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 7 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 82: *~[CH2]~[!#6;!#1;!H0]\n  Key 104: [!#6;!#1;!H0]~*~[CH2]~*\n  Key 109: *~[CH2]~[#8]\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 140: [#8] (count > 3)\n  Key 157: [#6]-[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -1.152 (value=499.64, optimal=281-332 Da)\n  ALOGP: -0.117 (value=4.28, optimal=1.95-3.57)\n  HBA: -0.055 (value=7, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.022 (value=99.60, optimal=40-69 \u0172)\n  ROTB: -0.797 (value=9, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Replaced the imide succinimide with a single\u2011carbonyl pyrrolidin\u20112\u2011one side chain (removing the extra carbonyl and the imide structural alert) and kept the direct thio\u2011aryl\u2011thiazole connection and the two aromatic rings that provide the bulk of the MACCS fingerprint. This lowers molecular weight and polarity while preserving key similarity features, aiming to raise QED above 0.70 and keep similarity \u2265\u202f0.70.\",\n  \"smiles\": \"O=C(Nc1ccc(CN3CCCC3=O)cc1)c1ccc(Sc2cscn2)cc1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(CN3CCCC3=O)cc1)c1ccc(Sc2cscn2)cc1\nIteration: 26 / 51\n\nCombined score: 0.7829 (target: \u2265 0.90) \u2717\nSimilarity: 0.9231 (min: 0.70) \u2713\nQED: 0.6427 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 3 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 89: [#8]~*~*~*~[#8]\n  Key 144: *!:*:*!:*\n  Key 146: [#8] (count > 2)\n\nThe following 1 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 86: [C;H2,H3][!#6;!#1][C;H2,H3]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.438 (value=409.54, optimal=281-332 Da)\n  ALOGP: -0.222 (value=4.67, optimal=1.95-3.57)\n  HBA: -0.006 (value=4, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.001 (value=62.30, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Added a phenolic OH on the aromatic ring attached to the thio\u2011aryl bridge and replaced the bulky succinimide side\u2011chain with a simple carboxamide (C(=O)NH\u2082). This reduces molecular weight and logP, introduces extra hydrogen\u2011bonding, and retains the key amide, thio\u2011aryl\u2011thiazole scaffold that drives high MACCS similarity, aiming to push QED above 0.70 while keeping similarity \u2265\u202f0.70.\",\n  \"smiles\": \"O=C(Nc1ccc(C(=O)N)cc1)c1ccc(O)cc1Sc2cscn2\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(C(=O)N)cc1)c1ccc(O)cc1Sc2cscn2\nIteration: 27 / 51\n\nCombined score: 0.6347 (target: \u2265 0.90) \u2717\nSimilarity: 0.6316 (min: 0.70) \u2717\nQED: 0.6377 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 15 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 75: *!@[#7]@*\n  Key 85: [#6]~[#7](~[#6])~[#6]\n  Key 89: [#8]~*~*~*~[#8]\n  Key 100: *~[CH2]~[#7]\n  Key 111: [#7]~*~[CH2]~*\n  Key 118: [$(*~[CH2]~[CH2]~*),$(*1~[CH2]~[CH2]1)] (count > 1)\n  Key 122: *~[#7](~*)~*\n  Key 128: [$(*~[CH2]~*~*~*~[CH2]~*),$([R]1@[CH2;R]@[R]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[R]@[CH2;R]1),$(*~[CH2]~*~[R]1@[R]@[CH2;R]1)]\n  Key 129: [$(*~[CH2]~*~*~[CH2]~*),$([R]1@[CH2]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[CH2;R]1)]\n  Key 132: [#8]~*~[CH2]~*\n  Key 138: [!#6;!#1]~[CH2]~* (count > 1)\n  Key 147: [$(*~[CH2]~[CH2]~*),$([R]1@[CH2;R]@[CH2;R]1)]\n  Key 148: *~[!#6;!#1](~*)~*\n  Key 153: [!#6;!#1]~[CH2]~*\n  Key 155: *!@[CH2]!@*\n\nThe following 6 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 84: [NH2]\n  Key 113: [#8]!:*:*\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.194 (value=371.44, optimal=281-332 Da)\n  ALOGP: -0.011 (value=3.35, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.592 (value=3, optimal=1)\n  PSA: -0.028 (value=105.31, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keep the high\u2011similarity succinimide imide side chain and the thio\u2011aryl\u2011thiazole bridge, but add a phenolic OH on the aromatic ring attached to the amide. The OH lowers logP and adds polarity, improving QED while retaining the core features that give similarity >\u202f0.70.\",\n  \"smiles\": \"O=C(Nc1ccc(O)cc1CN2C(=O)CCC2=O)SCCc1cscn1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(O)cc1CN2C(=O)CCC2=O)SCCc1cscn1\nIteration: 28 / 51\n\nCombined score: 0.6835 (target: \u2265 0.90) \u2717\nSimilarity: 0.7869 (min: 0.70) \u2713\nQED: 0.5800 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 3 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 145: *1~*~*~*~*~*~1 (count > 1)\n\nThe following 10 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 80: [#7]~*~*~*~[#7]\n  Key 90: [$([!#6;!#1;!H0]~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[CH2;R]1)]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 113: [#8]!:*:*\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 140: [#8] (count > 3)\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.314 (value=391.47, optimal=281-332 Da)\n  ALOGP: -0.001 (value=3.01, optimal=1.95-3.57)\n  HBA: -0.032 (value=6, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.022 (value=99.60, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [OH]c1ccc([OH,NH2,NH])cc1\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Retained the key succinimide side\u2011chain, the amide linking to the phenyl carbonyl, and the thio\u2011aryl\u2011thiazole bridge (major contributors to high MACCS similarity), and introduced a para\u2011hydroxy group on the carbonyl\u2011attached phenyl to increase polarity and lower LogP, thereby improving QED while keeping similarity above the required threshold.\",\n  \"smiles\": \"O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ccc(O)cc1SCc2cscn2\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ccc(O)cc1SCc2cscn2\nIteration: 29 / 51\n\nCombined score: 0.6542 (target: \u2265 0.90) \u2717\nSimilarity: 0.8947 (min: 0.70) \u2713\nQED: 0.4137 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 6 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 113: [#8]!:*:*\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 140: [#8] (count > 3)\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.777 (value=453.55, optimal=281-332 Da)\n  ALOGP: -0.074 (value=4.04, optimal=1.95-3.57)\n  HBA: -0.032 (value=6, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.022 (value=99.60, optimal=40-69 \u0172)\n  ROTB: -0.409 (value=7, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Added an aryl\u2011thioether side chain (\u2011CH2\u2011S\u2011CH2\u2011CH2\u2011N\u2011\u2026) onto the phenyl bearing the succinimide, which introduces the missing sulfur patterns present in the target and raises MACCS similarity, while keeping the succinimide imide, the amide linkage and the thio\u2011aryl\u2011thiazole bridge that give good QED. The molecular weight remains moderate, preserving QED \u2265\u202f0.70.\",\n  \"smiles\": \"O=C(Nc1ccc(CSCCN2C(=O)CCC2=O)cc1)SCCc1cscn1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(CSCCN2C(=O)CCC2=O)cc1)SCCc1cscn1\nIteration: 30 / 51\n\nCombined score: 0.6638 (target: \u2265 0.90) \u2717\nSimilarity: 0.8545 (min: 0.70) \u2713\nQED: 0.4731 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 4 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 144: *!:*:*!:*\n  Key 145: *1~*~*~*~*~*~1 (count > 1)\n\nThe following 4 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 86: [C;H2,H3][!#6;!#1][C;H2,H3]\n  Key 90: [$([!#6;!#1;!H0]~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[CH2;R]1)]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.634 (value=435.60, optimal=281-332 Da)\n  ALOGP: -0.073 (value=4.03, optimal=1.95-3.57)\n  HBA: -0.032 (value=6, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=79.37, optimal=40-69 \u0172)\n  ROTB: -0.797 (value=9, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [R0;D2][R0;D2][R0;D2][R0;D2]\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keep the amide, the thio\u2011aryl\u2011thiazole bridge and the pyridine ring (key MACCS features), but replace the bulky succinimide imide with a single\u2011carbonyl pyrrolidin\u20112\u2011one side chain. This cuts molecular weight, reduces the number of carbonyls/H\u2011bond acceptors and rotatable bonds, and lowers logP, improving QED while preserving similarity \u2265\u202f0.70.\",\n  \"smiles\": \"O=C(Nc1nccc(CN3CCCC3=O)cc1)c1ccc(SCc2cscn2)cc1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "Invalid SMILES: O=C(Nc1nccc(CN3CCCC3=O)cc1)c1ccc(SCc2cscn2)cc1"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Removed the CH2 linker between the phenyl ring and the succinimide nitrogen, decreasing molecular weight and rotatable bonds while preserving the amide, the succinimide imide, and the thio\u2011aryl\u2011thiazole motif that give high MACCS similarity. This should raise QED toward the required level without dropping similarity below the threshold.\",\n  \"smiles\": \"O=C(Nc1ccc(N2C(=O)CCC2=O)cc1)c1ccc(SCc2cscn2)cc1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(N2C(=O)CCC2=O)cc1)c1ccc(SCc2cscn2)cc1\nIteration: 32 / 51\n\nCombined score: 0.6779 (target: \u2265 0.90) \u2717\nSimilarity: 0.8846 (min: 0.70) \u2713\nQED: 0.4712 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 5 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 100: *~[CH2]~[#7]\n  Key 128: [$(*~[CH2]~*~*~*~[CH2]~*),$([R]1@[CH2;R]@[R]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[R]@[CH2;R]1),$(*~[CH2]~*~[R]1@[R]@[CH2;R]1)]\n  Key 129: [$(*~[CH2]~*~*~[CH2]~*),$([R]1@[CH2]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[CH2;R]1)]\n  Key 138: [!#6;!#1]~[CH2]~* (count > 1)\n  Key 144: *!:*:*!:*\n\nThe following 1 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 62: *@*!@*@*\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.541 (value=423.52, optimal=281-332 Da)\n  ALOGP: -0.131 (value=4.34, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=79.37, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Replaced the imide succinimide with a simple pyrrolidin\u20112\u2011one side chain to remove the imide alert, swapped the thio\u2011ether for an ether (O\u2011CH2\u2011CH2) linking to the thiazole to eliminate the thio\u2011ether alert, and added a phenolic OH on the amide\u2011linked phenyl to increase polarity and lower logP. These changes keep the amide, aromatic rings, thiazole and ether bridge that drive MACCS similarity while improving QED above 0.70.\",\n  \"smiles\": \"O=C(Nc1c(O)ccc(CN2CCCC2=O)c1)c1ccc(OCCc2cscn2)cc1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1c(O)ccc(CN2CCCC2=O)c1)c1ccc(OCCc2cscn2)cc1\nIteration: 33 / 51\n\nCombined score: 0.6285 (target: \u2265 0.90) \u2717\nSimilarity: 0.7344 (min: 0.70) \u2713\nQED: 0.5226 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 4 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 81: [#16]~*(~*)~*\n  Key 89: [#8]~*~*~*~[#8]\n\nThe following 13 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 54: [!#6;!#1;!H0]~*~*~[!#6;!#1;!H0]\n  Key 86: [C;H2,H3][!#6;!#1][C;H2,H3]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 95: [#7]~*~*~[#8]\n  Key 97: [#7]~*~*~*~[#8]\n  Key 109: *~[CH2]~[#8]\n  Key 113: [#8]!:*:*\n  Key 126: *!@[#8]!@*\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 140: [#8] (count > 3)\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.649 (value=437.52, optimal=281-332 Da)\n  ALOGP: -0.048 (value=3.84, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.016 (value=91.76, optimal=40-69 \u0172)\n  ROTB: -0.596 (value=8, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  c1c([OH])c([OH,NH2,NH])ccc1\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Kept the succinimide imide side\u2011chain and the amide linkage (essential for high MACCS similarity) but replaced the thio\u2011ether bridge with an ether (O\u2011CH2\u2011CH2) to eliminate the thio\u2011ether structural alert. The second aromatic ring was swapped for a cyclohexyl ring, reducing the aromatic count and molecular weight, which together raise the QED score while still preserving the key imide and thiazole features needed for similarity \u2265\u202f0.70.\",\n  \"smiles\": \"O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)C1CCCC1OCCc2cscn2\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)C1CCCC1OCCc2cscn2\nIteration: 34 / 51\n\nCombined score: 0.7168 (target: \u2265 0.90) \u2717\nSimilarity: 0.7797 (min: 0.70) \u2713\nQED: 0.6540 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 5 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 81: [#16]~*(~*)~*\n  Key 144: *!:*:*!:*\n  Key 145: *1~*~*~*~*~*~1 (count > 1)\n\nThe following 8 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 90: [$([!#6;!#1;!H0]~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[CH2;R]1)]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 97: [#7]~*~*~*~[#8]\n  Key 109: *~[CH2]~[#8]\n  Key 126: *!@[#8]!@*\n  Key 140: [#8] (count > 3)\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.572 (value=427.53, optimal=281-332 Da)\n  ALOGP: -0.004 (value=3.16, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.013 (value=88.60, optimal=40-69 \u0172)\n  ROTB: -0.596 (value=8, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the essential succinimide imide side\u2011chain, the amide linkage and the phenyl ring that carries the thio\u2011alkyl substituent, but removes the second aromatic benzene ring. The phenyl now bears the thio\u2011CH2\u2011CH2\u2011thiazole group directly, preserving the sulfur pattern and thiazole core that drive high MACCS similarity while dropping the overall aromatic count to two rings, which should raise the QED score and push the combined metric above the target.\",\n  \"smiles\": \"O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)C1=CC=C(SCCc2cscn2)C=C1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)C1=CC=C(SCCc2cscn2)C=C1\nIteration: 35 / 51\n\nCombined score: 0.6933 (target: \u2265 0.90) \u2717\nSimilarity: 0.9804 (min: 0.70) \u2713\nQED: 0.4062 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 144: *!:*:*!:*\n\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.761 (value=451.57, optimal=281-332 Da)\n  ALOGP: -0.140 (value=4.38, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=79.37, optimal=40-69 \u0172)\n  ROTB: -0.596 (value=8, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Removed the extra benzoyl phenyl and the thio\u2011CH2 bridge, attaching the amide carbonyl directly to the thiazole ring. This keeps the key succinimide imide side\u2011chain, the amide linkage and the thiazole heterocycle that drive high MACCS similarity, while cutting ~120\u202fDa of weight, reducing aromatic count to two rings and lowering logP. The resulting molecule should achieve QED\u202f\u2265\u202f0.70 and still maintain similarity above the 0.70 threshold.\",\n  \"smiles\": \"O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1cscn1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1cscn1\nIteration: 36 / 51\n\nCombined score: 0.8624 (target: \u2265 0.90) \u2717\nSimilarity: 0.8491 (min: 0.70) \u2713\nQED: 0.8758 (min: 0.70) \u2713\n\nExplanation:\n\nSimilarity:\nThe following 6 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 81: [#16]~*(~*)~*\n  Key 138: [!#6;!#1]~[CH2]~* (count > 1)\n  Key 144: *!:*:*!:*\n  Key 145: *1~*~*~*~*~*~1 (count > 1)\n\nThe following 2 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 79: [#7]~*~*~[#7]\n  Key 95: [#7]~*~*~[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.004 (value=315.35, optimal=281-332 Da)\n  ALOGP: -0.018 (value=2.04, optimal=1.95-3.57)\n  HBA: -0.006 (value=4, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=79.37, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Re\u2011introduced the missing benzoyl phenyl and the thio\u2011ether bridge (key similarity features) while adding a small methyl substituent on the thiazole to avoid reproducing the exact target. This preserves the high\u2011similarity core (succinamide, two phenyl rings, thio\u2011aryl\u2011thiazole) and the added methyl modestly improves lipophilicity without dropping QED below the required threshold.\",\n  \"smiles\": \"O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ccccc1SCc1cscn1C\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "Invalid SMILES: O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ccccc1SCc1cscn1C"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Adds the missing thio\u2011ether bridge and a phenyl ring (with a small fluorine substituent to keep it distinct from the exact target) to restore the sulfur\u2011related MACCS features while retaining the succinimide imide side\u2011chain. This should raise similarity above 0.92 and keep QED well above 0.70.\",\n  \"smiles\": \"O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ccc(F)cc1SCc2cscn2\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ccc(F)cc1SCc2cscn2\nIteration: 38 / 51\n\nCombined score: 0.6736 (target: \u2265 0.90) \u2717\nSimilarity: 0.9273 (min: 0.70) \u2713\nQED: 0.4199 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 4 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 42: F\n  Key 87: [F,Cl,Br,I]!@*@*\n  Key 107: [F,Cl,Br,I]~*(~*)~*\n  Key 134: [F,Cl,Br,I]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.793 (value=455.54, optimal=281-332 Da)\n  ALOGP: -0.164 (value=4.48, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=79.37, optimal=40-69 \u0172)\n  ROTB: -0.409 (value=7, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the succinimide imide side\u2011chain and the amide\u2011linked phenyl that are essential for high MACCS similarity, and adds a small thio\u2011methyl substituent on the thiazole ring. The extra sulfur re\u2011introduces the key sulfur\u2011related MACCS features missing in the previous high\u2011QED scaffold, while the overall size and aromatic count stay low enough to retain QED\u202f>\u202f0.70 and boost similarity toward the target.\",\n  \"smiles\": \"O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1c(SC)scn1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1c(SC)scn1\nIteration: 39 / 51\n\nCombined score: 0.7726 (target: \u2265 0.90) \u2717\nSimilarity: 0.8909 (min: 0.70) \u2713\nQED: 0.6543 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 2 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 138: [!#6;!#1]~[CH2]~* (count > 1)\n  Key 145: *1~*~*~*~*~*~1 (count > 1)\n\nThe following 4 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 79: [#7]~*~*~[#7]\n  Key 93: [!#6;!#1]~[CH3]\n  Key 95: [#7]~*~*~[#8]\n  Key 160: [C;H3,H4]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.142 (value=361.45, optimal=281-332 Da)\n  ALOGP: -0.000 (value=2.77, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=79.37, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Replaced the succinimide imide with a simple pyrrolidin\u20112\u2011one side chain to remove the imide alert and lower molecular weight. Added a phenolic OH on the amide\u2011linked phenyl to increase polarity and lower logP, while keeping the thio\u2011ether bridge to the thiazole (key sulfur feature) and the thiazole heterocycle. This should raise QED above 0.70 and maintain similarity well above the 0.70 threshold.\",\n  \"smiles\": \"O=C(Nc1ccc(CN2CCCC2=O)cc1)c1ccc(O)cc1SCCc2cscn2\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(CN2CCCC2=O)cc1)c1ccc(O)cc1SCCc2cscn2\nIteration: 40 / 51\n\nCombined score: 0.6830 (target: \u2265 0.90) \u2717\nSimilarity: 0.8772 (min: 0.70) \u2713\nQED: 0.4888 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 89: [#8]~*~*~*~[#8]\n\nThe following 6 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 86: [C;H2,H3][!#6;!#1][C;H2,H3]\n  Key 113: [#8]!:*:*\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.778 (value=453.59, optimal=281-332 Da)\n  ALOGP: -0.187 (value=4.56, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.010 (value=82.53, optimal=40-69 \u0172)\n  ROTB: -0.596 (value=8, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  c[SX2][C;!R]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Added a thio\u2011methyl substituent on the phenyl ring that carries the succinimide side\u2011chain, introducing the missing aromatic\u2011sulfur pattern present in the target and boosting MACCS similarity while keeping molecular weight modest and preserving the high\u2011QED core (amide, succinimide, thiazole).\",\n  \"smiles\": \"O=C(Nc1ccc(CN2C(=O)CCC2=O)c(SC)cc1)c1cscn1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "Invalid SMILES: O=C(Nc1ccc(CN2C(=O)CCC2=O)c(SC)cc1)c1cscn1"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Re\u2011added the phenyl carbonyl and the thio\u2011CH2\u2011link to the thiazole (key sulfur and CH2 features missing in the current scaffold) while keeping the succinimide imide side\u2011chain. A fluorine is placed on the phenyl ring to keep the molecule distinct from the exact target. This should raise MACCS similarity above 0.95 and maintain QED well above 0.70, moving the combined score past the 0.90 threshold.\",\n  \"smiles\": \"O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)C1=CC=C(F)C=C1SCc2cscn2\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)C1=CC=C(F)C=C1SCc2cscn2\nIteration: 42 / 51\n\nCombined score: 0.6736 (target: \u2265 0.90) \u2717\nSimilarity: 0.9273 (min: 0.70) \u2713\nQED: 0.4199 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 4 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 42: F\n  Key 87: [F,Cl,Br,I]!@*@*\n  Key 107: [F,Cl,Br,I]~*(~*)~*\n  Key 134: [F,Cl,Br,I]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.793 (value=455.54, optimal=281-332 Da)\n  ALOGP: -0.164 (value=4.48, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=79.37, optimal=40-69 \u0172)\n  ROTB: -0.409 (value=7, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Restores the missing phenyl carbonyl and thio\u2011CH2\u2011thiazole bridge that are key to the target fingerprint, while adding a methoxy group on that phenyl to boost polarity and lower logP. This keeps the succinimide imide side\u2011chain and amide linkage for high similarity, and the extra O atom should raise QED above the 0.70 threshold.\",\n  \"smiles\": \"O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ccc(OC)cc1SCc1cscn1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ccc(OC)cc1SCc1cscn1\nIteration: 43 / 51\n\nCombined score: 0.6354 (target: \u2265 0.90) \u2717\nSimilarity: 0.8793 (min: 0.70) \u2713\nQED: 0.3915 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 7 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 93: [!#6;!#1]~[CH3]\n  Key 113: [#8]!:*:*\n  Key 126: *!@[#8]!@*\n  Key 140: [#8] (count > 3)\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 160: [C;H3,H4]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.891 (value=467.57, optimal=281-332 Da)\n  ALOGP: -0.132 (value=4.35, optimal=1.95-3.57)\n  HBA: -0.032 (value=6, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.013 (value=88.60, optimal=40-69 \u0172)\n  ROTB: -0.596 (value=8, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the key succinimide imide side\u2011chain, the amide linkage and the direct thio\u2011CH\u2082\u2011aryl\u2011thiazole bridge that provide the high\u2011similarity sulfur features, and introduces a phenolic OH on the carbonyl\u2011linked phenyl to increase polarity and lower logP, which should raise the QED while preserving similarity well above 0.70.\",\n  \"smiles\": \"O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ccc(SCc2cscn2)cc1O\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ccc(SCc2cscn2)cc1O\nIteration: 44 / 51\n\nCombined score: 0.6391 (target: \u2265 0.90) \u2717\nSimilarity: 0.8644 (min: 0.70) \u2713\nQED: 0.4137 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 8 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 53: [!#6;!#1;!H0]~*~*~*~[!#6;!#1;!H0]\n  Key 97: [#7]~*~*~*~[#8]\n  Key 113: [#8]!:*:*\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 140: [#8] (count > 3)\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.777 (value=453.55, optimal=281-332 Da)\n  ALOGP: -0.074 (value=4.04, optimal=1.95-3.57)\n  HBA: -0.032 (value=6, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.022 (value=99.60, optimal=40-69 \u0172)\n  ROTB: -0.409 (value=7, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the high\u2011QED succinimide\u2011amido core and the thiazole heterocycle that give excellent drug\u2011likeness, but adds a small thio\u2011methyl substituent on the phenyl ring to introduce the missing sulfur\u2011related MACCS features present in the target. This modest increase in size should raise similarity above 0.90 while keeping QED above 0.70.\",\n  \"smiles\": \"O=C(Nc1c(SC)ccc(CN2C(=O)CCC2=O)c1)c1cscn1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1c(SC)ccc(CN2C(=O)CCC2=O)c1)c1cscn1\nIteration: 45 / 51\n\nCombined score: 0.7646 (target: \u2265 0.90) \u2717\nSimilarity: 0.8750 (min: 0.70) \u2713\nQED: 0.6543 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 2 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 138: [!#6;!#1]~[CH2]~* (count > 1)\n  Key 145: *1~*~*~*~*~*~1 (count > 1)\n\nThe following 5 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 79: [#7]~*~*~[#7]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 93: [!#6;!#1]~[CH3]\n  Key 95: [#7]~*~*~[#8]\n  Key 160: [C;H3,H4]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.142 (value=361.45, optimal=281-332 Da)\n  ALOGP: -0.000 (value=2.77, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=79.37, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Replaced the left phenyl ring with a pyridine to lower logP and molecular weight while keeping the amide, the succinimide imide side\u2011chain, and the phenyl\u2011S\u2011CH\u2082\u2011thiazole bridge that drive high MACCS similarity. This should raise QED above 0.70 without losing the key similarity features.\",\n  \"smiles\": \"O=C(Nc1nccc(CN2C(=O)CCC2=O)c1)c1ccc(SCc2cscn2)cc1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1nccc(CN2C(=O)CCC2=O)c1)c1ccc(SCc2cscn2)cc1\nIteration: 46 / 51\n\nCombined score: 0.6696 (target: \u2265 0.90) \u2717\nSimilarity: 0.8929 (min: 0.70) \u2713\nQED: 0.4464 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 144: *!:*:*!:*\n\nThe following 5 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 38: [#7]~[#6](~[#6])~[#7]\n  Key 77: [#7]~*~[#7]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 97: [#7]~*~*~*~[#8]\n  Key 98: [!#6;!#1]1~*~*~*~*~*~1\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.657 (value=438.53, optimal=281-332 Da)\n  ALOGP: -0.036 (value=3.73, optimal=1.95-3.57)\n  HBA: -0.032 (value=6, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.016 (value=92.26, optimal=40-69 \u0172)\n  ROTB: -0.409 (value=7, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Removed the imide (eliminating the structural alert) and replaced the thio\u2011CH2\u2011thiazole with a direct thio\u2011aryl connection to a saturated thiazolidine ring, which avoids the thio\u2011ether alert and reduces the aromatic count to two rings. The remaining amide, phenyl, succinimide\u2011derived lactam side chain and sulfur atoms preserve the key MACCS features, improving QED while keeping similarity \u2265\u202f0.70.\",\n  \"smiles\": \"O=C(Nc1ccc(CN3CCCC3=O)cc1)c1ccc(SC1CCNS1)cc1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(CN3CCCC3=O)cc1)c1ccc(SC1CCNS1)cc1\nIteration: 47 / 51\n\nCombined score: 0.6791 (target: \u2265 0.90) \u2717\nSimilarity: 0.6232 (min: 0.70) \u2717\nQED: 0.7349 (min: 0.70) \u2713\n\nExplanation:\n\nSimilarity:\nThe following 8 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 47: [#16]~*~[#7]\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 65: c:n\n  Key 89: [#8]~*~*~*~[#8]\n  Key 125: Aromatic Ring > 1 (rdkit: GetRingInfo().BondRings() aromaticity check)\n  Key 144: *!:*:*!:*\n  Key 146: [#8] (count > 2)\n\nThe following 18 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 26: [#6]=;@[#6](@*)@*\n  Key 32: [#6]~[#16]~[#7]\n  Key 33: [#7]~[#16]\n  Key 50: [#6]=[#6](~[#6])~[#6]\n  Key 67: [!#6;!#1]~[#16]\n  Key 69: [!#6;!#1]~[!#6;!#1;!H0]\n  Key 76: [#6]=[#6](~*)~*\n  Key 82: *~[CH2]~[!#6;!#1;!H0]\n  Key 86: [C;H2,H3][!#6;!#1][C;H2,H3]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 94: [!#6;!#1]~[#7]\n  Key 98: [!#6;!#1]1~*~*~*~*~*~1\n  Key 99: [#6]=[#6]\n  Key 101: [$([R]@1@[R]@[R]@[R]@[R]@[R]@[R]@[R]1),$([R]@1@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]1),$([R]@1@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]1),$([R]@1@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]1),$([R]@1@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]1),$([R]@1@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]1),$([R]@1@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]1)]\n  Key 104: [!#6;!#1;!H0]~*~[CH2]~*\n  Key 105: *@*(@*)@*\n  Key 124: [!#6;!#1]~[!#6;!#1]\n  Key 131: [!#6;!#1;!H0] (count > 1)\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.467 (value=413.57, optimal=281-332 Da)\n  ALOGP: -0.046 (value=3.83, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.001 (value=61.44, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.091 (value=1, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  [SX2H0][N]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Adds a pyridine ring (instead of the target phenyl) to the carbonyl side and re\u2011introduces the thio\u2011CH\u2082\u2011link to the thiazole, restoring the missing sulfur\u2011related MACCS features while keeping the succinimide imide side\u2011chain. The hetero\u2011aryl reduces lipophilicity compared to a phenyl, so QED stays \u2265\u202f0.70 and similarity rises above 0.90.\",\n  \"smiles\": \"O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ncccc1SCc2cscn2\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ncccc1SCc2cscn2\nIteration: 48 / 51\n\nCombined score: 0.6954 (target: \u2265 0.90) \u2717\nSimilarity: 0.9444 (min: 0.70) \u2713\nQED: 0.4464 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 3 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 79: [#7]~*~*~[#7]\n  Key 95: [#7]~*~*~[#8]\n  Key 98: [!#6;!#1]1~*~*~*~*~*~1\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.657 (value=438.53, optimal=281-332 Da)\n  ALOGP: -0.036 (value=3.73, optimal=1.95-3.57)\n  HBA: -0.032 (value=6, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.016 (value=92.26, optimal=40-69 \u0172)\n  ROTB: -0.409 (value=7, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the essential succinimide imide side\u2011chain, the thio\u2011CH\u2082\u2011thiazole bridge and the amide linkage that drive high MACCS similarity, but replaces the phenyl ring with a cyclohexyl ring. This lowers molecular weight, reduces aromatic ring count to one, and removes the aromatic\u2011ring penalty, thereby boosting QED while still preserving the key structural features for similarity \u2265\u202f0.70.\",\n  \"smiles\": \"O=C(NC1CCCCC1CN2C(=O)CCC2=O)CSc1cscn1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(NC1CCCCC1CN2C(=O)CCC2=O)CSc1cscn1\nIteration: 49 / 51\n\nCombined score: 0.7347 (target: \u2265 0.90) \u2717\nSimilarity: 0.8545 (min: 0.70) \u2713\nQED: 0.6149 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 4 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 125: Aromatic Ring > 1 (rdkit: GetRingInfo().BondRings() aromaticity check)\n  Key 135: [#7]!:*:*\n  Key 144: *!:*:*!:*\n  Key 145: *1~*~*~*~*~*~1 (count > 1)\n\nThe following 4 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 80: [#7]~*~*~*~[#7]\n  Key 90: [$([!#6;!#1;!H0]~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[CH2;R]1)]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 104: [!#6;!#1;!H0]~*~[CH2]~*\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.173 (value=367.50, optimal=281-332 Da)\n  ALOGP: -0.018 (value=2.06, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=79.37, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -0.091 (value=1, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the succinimide imide side\u2011chain and the thio\u2011CH\u2082\u2011thiazole bridge (key MACCS features) but reduces the cyclohexyl ring to a cyclopentyl, lowering molecular weight and PSA. This improves QED while preserving similarity above the required threshold.\",\n  \"smiles\": \"O=C(NC1CCCC1CN2C(=O)CCC2=O)CSc1cscn1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: O=C(NC1CCCC1CN2C(=O)CCC2=O)CSc1cscn1\nIteration: 50 / 51\n\nCombined score: 0.7290 (target: \u2265 0.90) \u2717\nSimilarity: 0.8364 (min: 0.70) \u2713\nQED: 0.6216 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 5 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 125: Aromatic Ring > 1 (rdkit: GetRingInfo().BondRings() aromaticity check)\n  Key 135: [#7]!:*:*\n  Key 144: *!:*:*!:*\n  Key 145: *1~*~*~*~*~*~1 (count > 1)\n  Key 163: *1~*~*~*~*~*~1\n\nThe following 4 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 80: [#7]~*~*~*~[#7]\n  Key 90: [$([!#6;!#1;!H0]~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[CH2;R]1)]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 104: [!#6;!#1;!H0]~*~[CH2]~*\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.106 (value=353.47, optimal=281-332 Da)\n  ALOGP: -0.042 (value=1.67, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=79.37, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -0.091 (value=1, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the key succinimide imide side\u2011chain, the amide linkage, the thio\u2011CH\u2082\u2011thiazole bridge and both aromatic rings of the original high\u2011similarity scaffold, but adds a phenolic OH on the thio\u2011aryl phenyl. This modestly increases polarity, lowers logP and overall molecular weight stays around the optimal range, aiming to boost QED above 0.80 while preserving or improving MACCS similarity.\",\n  \"smiles\": \"O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1c(O)ccc(Sc2cscn2)c1\"\n}"
+    }
+  ],
+  "trace": [
+    {
+      "iteration": 1,
+      "smiles": "O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ccc(F)cc1SCc1cscn1",
+      "reason": "Adds a single fluorine on the distal phenyl ring to increase lipophilicity and QED while preserving all major scaffolds (amide, succinimide, thio\u2011aryl, thiazole). This minimal modification should keep MACCS similarity well above 0.70 and push QED toward the 0.70+ range.",
+      "score": 0.6735908758055578,
+      "explanation": "Similarity:\nThe following 4 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 42: F\n  Key 87: [F,Cl,Br,I]!@*@*\n  Key 107: [F,Cl,Br,I]~*(~*)~*\n  Key 134: [F,Cl,Br,I]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.793 (value=455.54, optimal=281-332 Da)\n  ALOGP: -0.164 (value=4.48, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=79.37, optimal=40-69 \u0172)\n  ROTB: -0.409 (value=7, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]",
+      "scores": {
+        "Similarity": 0.9272727272727272,
+        "QED": 0.4199090243383883
+      }
+    },
+    {
+      "iteration": 2,
+      "smiles": "O=C(Nc1ccc(CN)cc1)c1ccc(SCc2cscn2)cc1",
+      "reason": "Removed the bulky succinimide side\u2011chain and fluorine to lower MW, rotatable bonds and structural alerts, while keeping the key amide, two phenyl rings, thio\u2011ether and thiazole core that drive high MACCS similarity.",
+      "score": 0.6408184565479861,
+      "explanation": "Similarity:\nThe following 17 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 75: *!@[#7]@*\n  Key 85: [#6]~[#7](~[#6])~[#6]\n  Key 89: [#8]~*~*~*~[#8]\n  Key 118: [$(*~[CH2]~[CH2]~*),$(*1~[CH2]~[CH2]1)] (count > 1)\n  Key 122: *~[#7](~*)~*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 128: [$(*~[CH2]~*~*~*~[CH2]~*),$([R]1@[CH2;R]@[R]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[R]@[CH2;R]1),$(*~[CH2]~*~[R]1@[R]@[CH2;R]1)]\n  Key 129: [$(*~[CH2]~*~*~[CH2]~*),$([R]1@[CH2]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[CH2;R]1)]\n  Key 132: [#8]~*~[CH2]~*\n  Key 136: [#8]=* (count > 1)\n  Key 143: *@*!@[#8]\n  Key 144: *!:*:*!:*\n  Key 146: [#8] (count > 2)\n  Key 147: [$(*~[CH2]~[CH2]~*),$([R]1@[CH2;R]@[CH2;R]1)]\n  Key 148: *~[!#6;!#1](~*)~*\n  Key 150: *!@*@*!@*\n  Key 159: [#8] (count > 1)\n\nThe following 3 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 82: *~[CH2]~[!#6;!#1;!H0]\n  Key 84: [NH2]\n  Key 131: [!#6;!#1;!H0] (count > 1)\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.115 (value=355.49, optimal=281-332 Da)\n  ALOGP: -0.091 (value=4.15, optimal=1.95-3.57)\n  HBA: -0.006 (value=4, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.003 (value=68.01, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  c[SX2][C;!R]",
+      "scores": {
+        "Similarity": 0.6296296296296297,
+        "QED": 0.6520072834663425
+      }
+    },
+    {
+      "iteration": 3,
+      "smiles": "O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ccc(Oc2cscn2)cc1",
+      "reason": "Replaced the thio\u2011ether (S\u2011CH2) with a direct aryl\u2011ether (O\u2011aryl) to remove the structural alert and lower logP, kept the succinimide side\u2011chain and both aromatic rings to retain high MACCS similarity, and kept the amide linkage. This should boost QED while preserving similarity >0.70.",
+      "score": 0.7244407412658207,
+      "explanation": "Similarity:\nThe following 5 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 81: [#16]~*(~*)~*\n  Key 138: [!#6;!#1]~[CH2]~* (count > 1)\n  Key 144: *!:*:*!:*\n\nThe following 5 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 113: [#8]!:*:*\n  Key 126: *!@[#8]!@*\n  Key 140: [#8] (count > 3)\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.423 (value=407.45, optimal=281-332 Da)\n  ALOGP: -0.047 (value=3.84, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.013 (value=88.60, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]",
+      "scores": {
+        "Similarity": 0.8214285714285714,
+        "QED": 0.6274529111030701
+      }
+    },
+    {
+      "iteration": 4,
+      "smiles": "O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ccc(Sc2cscn2)cc1",
+      "reason": "Revert to a thio\u2011ether (remove the extra ether O) and delete the CH2 bridge between sulfur and the thiazole to cut MW and PSA, keeping the succinimide side\u2011chain and both aromatic rings for high MACCS similarity while improving QED.",
+      "score": 0.7811123719723005,
+      "explanation": "Similarity:\nThe following 2 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 138: [!#6;!#1]~[CH2]~* (count > 1)\n  Key 144: *!:*:*!:*\n\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.541 (value=423.52, optimal=281-332 Da)\n  ALOGP: -0.100 (value=4.20, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=79.37, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]",
+      "scores": {
+        "Similarity": 0.9607843137254902,
+        "QED": 0.6014404302191108
+      }
+    },
+    {
+      "iteration": 5,
+      "smiles": "O=C(Nc1ccc(C)cc1)c1ccc(Sc2cscn2)cc1",
+      "reason": "Removed the bulky succinimide side chain and its CH2 linker, replacing it with a simple methyl group. This cuts molecular weight and rotatable bonds, eliminates the imide structural alert, and lowers logP, all of which should raise QED while retaining the two phenyl rings, thio\u2011aryl bridge and thiazole that drive high MACCS similarity.",
+      "score": 0.6511441014306958,
+      "explanation": "Similarity:\nThe following 22 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 75: *!@[#7]@*\n  Key 85: [#6]~[#7](~[#6])~[#6]\n  Key 89: [#8]~*~*~*~[#8]\n  Key 100: *~[CH2]~[#7]\n  Key 111: [#7]~*~[CH2]~*\n  Key 118: [$(*~[CH2]~[CH2]~*),$(*1~[CH2]~[CH2]1)] (count > 1)\n  Key 122: *~[#7](~*)~*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 128: [$(*~[CH2]~*~*~*~[CH2]~*),$([R]1@[CH2;R]@[R]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[R]@[CH2;R]1),$(*~[CH2]~*~[R]1@[R]@[CH2;R]1)]\n  Key 129: [$(*~[CH2]~*~*~[CH2]~*),$([R]1@[CH2]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[CH2;R]1)]\n  Key 132: [#8]~*~[CH2]~*\n  Key 136: [#8]=* (count > 1)\n  Key 138: [!#6;!#1]~[CH2]~* (count > 1)\n  Key 143: *@*!@[#8]\n  Key 144: *!:*:*!:*\n  Key 146: [#8] (count > 2)\n  Key 147: [$(*~[CH2]~[CH2]~*),$([R]1@[CH2;R]@[CH2;R]1)]\n  Key 148: *~[!#6;!#1](~*)~*\n  Key 150: *!@*@*!@*\n  Key 153: [!#6;!#1]~[CH2]~*\n  Key 155: *!@[CH2]!@*\n  Key 159: [#8] (count > 1)\n\nThe following 1 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 160: [C;H3,H4]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.021 (value=326.45, optimal=281-332 Da)\n  ALOGP: -0.289 (value=4.86, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.002 (value=41.99, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)",
+      "scores": {
+        "Similarity": 0.5576923076923077,
+        "QED": 0.7445958951690839
+      }
+    },
+    {
+      "iteration": 6,
+      "smiles": "O=C(Nc1ccc(CN1CCCC1=O)cc1)c1ccc(Sc2cscn2)cc1",
+      "reason": "Replaced the problematic succinimide imide with a simpler pyrrolidin\u20112\u2011one lactam (removing the second carbonyl and the imide structural alert) and kept the key amide, two phenyl rings, thio\u2011aryl bridge and thiazole to preserve high MACCS similarity. This lowers molecular weight and rotatable bonds, eliminates the alert, and should raise QED above 0.70 while maintaining similarity \u2265 0.70.",
+      "score": 0.7414585348342309,
+      "explanation": "Similarity:\nThe following 7 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 75: *!@[#7]@*\n  Key 89: [#8]~*~*~*~[#8]\n  Key 135: [#7]!:*:*\n  Key 144: *!:*:*!:*\n  Key 146: [#8] (count > 2)\n  Key 150: *!@*@*!@*\n  Key 155: *!@[CH2]!@*\n\nThe following 16 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 21: [#6]=[#6](~[!#6;!#1])~[!#6;!#1]\n  Key 26: [#6]=;@[#6](@*)@*\n  Key 38: [#7]~[#6](~[#6])~[#7]\n  Key 45: [#6]=[#6]~[#7]\n  Key 50: [#6]=[#6](~[#6])~[#6]\n  Key 76: [#6]=[#6](~*)~*\n  Key 77: [#7]~*~[#7]\n  Key 86: [C;H2,H3][!#6;!#1][C;H2,H3]\n  Key 90: [$([!#6;!#1;!H0]~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[CH2;R]1)]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 97: [#7]~*~*~*~[#8]\n  Key 98: [!#6;!#1]1~*~*~*~*~*~1\n  Key 99: [#6]=[#6]\n  Key 101: [$([R]@1@[R]@[R]@[R]@[R]@[R]@[R]@[R]1),$([R]@1@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]1),$([R]@1@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]1),$([R]@1@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]1),$([R]@1@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]1),$([R]@1@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]1),$([R]@1@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]1)]\n  Key 105: *@*(@*)@*\n  Key 152: [#8]~[#6](~[#6])~[#6]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.438 (value=409.54, optimal=281-332 Da)\n  ALOGP: -0.072 (value=4.03, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.001 (value=62.30, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)",
+      "scores": {
+        "Similarity": 0.6567164179104478,
+        "QED": 0.826200651758014
+      }
+    },
+    {
+      "iteration": 7,
+      "smiles": "O=C(Nc1c(O)ccc(CN2C(=O)CCC2=O)c1)c1ccc(SCc2cscn2)cc1",
+      "reason": "Re\u2011introduces the succinimide imide side chain (key for similarity) and adds a phenolic OH on the same aromatic ring to increase polarity and lower logP, aiming to keep QED \u2265\u202f0.70 while pushing MACCS similarity above the 0.70 threshold.",
+      "score": 0.584089600049341,
+      "explanation": "Similarity:\nThe following 9 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 54: [!#6;!#1;!H0]~*~*~[!#6;!#1;!H0]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 95: [#7]~*~*~[#8]\n  Key 113: [#8]!:*:*\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 140: [#8] (count > 3)\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.777 (value=453.55, optimal=281-332 Da)\n  ALOGP: -0.074 (value=4.04, optimal=1.95-3.57)\n  HBA: -0.032 (value=6, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.022 (value=99.60, optimal=40-69 \u0172)\n  ROTB: -0.409 (value=7, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -2.380 (value=3, optimal=0)\n\n3 structural alert(s) triggered. SMARTS patterns of alerts:\n  c1c([OH])c([OH,NH2,NH])ccc1\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]",
+      "scores": {
+        "Similarity": 0.85,
+        "QED": 0.31817920009868184
+      }
+    },
+    {
+      "iteration": 8,
+      "smiles": "O=C(Nc1ccc(CN2C(=O)C(=O)N2)cc1)c1ccc(SCc2cscn2)cc1",
+      "reason": "Replaced the bulky succinimide with a smaller hydantoin (imidazolidine\u20112,4\u2011dione) to cut molecular weight and retain the key imide fingerprint that drives high MACCS similarity, while keeping the amide, two aromatic rings, thio\u2011ether bridge and thiazole core. This should improve QED toward the 0.70+ range without dropping similarity below the required threshold.",
+      "score": 0.5606021629829878,
+      "explanation": "Similarity:\nThe following 8 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 85: [#6]~[#7](~[#6])~[#6]\n  Key 89: [#8]~*~*~*~[#8]\n  Key 118: [$(*~[CH2]~[CH2]~*),$(*1~[CH2]~[CH2]1)] (count > 1)\n  Key 128: [$(*~[CH2]~*~*~*~[CH2]~*),$([R]1@[CH2;R]@[R]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[R]@[CH2;R]1),$(*~[CH2]~*~[R]1@[R]@[CH2;R]1)]\n  Key 129: [$(*~[CH2]~*~*~[CH2]~*),$([R]1@[CH2]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[CH2;R]1)]\n  Key 132: [#8]~*~[CH2]~*\n  Key 144: *!:*:*!:*\n  Key 147: [$(*~[CH2]~[CH2]~*),$([R]1@[CH2;R]@[CH2;R]1)]\n\nThe following 13 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 8: [!#6;!#1]1~*~*~*~1\n  Key 11: *1~*~*~*~1\n  Key 52: [#7]~[#7]\n  Key 69: [!#6;!#1]~[!#6;!#1;!H0]\n  Key 72: [#8]~*~*~[#8]\n  Key 79: [#7]~*~*~[#7]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 94: [!#6;!#1]~[#7]\n  Key 95: [#7]~*~*~[#8]\n  Key 97: [#7]~*~*~*~[#8]\n  Key 104: [!#6;!#1;!H0]~*~[CH2]~*\n  Key 124: [!#6;!#1]~[!#6;!#1]\n  Key 131: [!#6;!#1;!H0] (count > 1)\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.549 (value=424.51, optimal=281-332 Da)\n  ALOGP: -0.002 (value=3.06, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.015 (value=91.40, optimal=40-69 \u0172)\n  ROTB: -0.409 (value=7, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [#6](=O)[#6](=O)\n  c[SX2][C;!R]",
+      "scores": {
+        "Similarity": 0.671875,
+        "QED": 0.4493293259659756
+      }
+    },
+    {
+      "iteration": 9,
+      "smiles": "O=C(Nc1nccc(CN2C(=O)CCC2=O)c1)c1ccc(Oc2cscn2)cc1",
+      "reason": "Keep the succinimide imide (critical for high MACCS similarity) and the thio\u2011aryl\u2011thiazole core, but replace the phenyl directly attached to the amide with a pyridine to lower molecular weight and logP, aiming to boost QED while retaining similarity above 0.70.",
+      "score": 0.6913320581666331,
+      "explanation": "Similarity:\nThe following 5 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 81: [#16]~*(~*)~*\n  Key 138: [!#6;!#1]~[CH2]~* (count > 1)\n  Key 144: *!:*:*!:*\n\nThe following 10 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 38: [#7]~[#6](~[#6])~[#7]\n  Key 77: [#7]~*~[#7]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 97: [#7]~*~*~*~[#8]\n  Key 98: [!#6;!#1]1~*~*~*~*~*~1\n  Key 113: [#8]!:*:*\n  Key 126: *!@[#8]!@*\n  Key 140: [#8] (count > 3)\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.430 (value=408.44, optimal=281-332 Da)\n  ALOGP: -0.006 (value=3.23, optimal=1.95-3.57)\n  HBA: -0.032 (value=6, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.024 (value=101.49, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]",
+      "scores": {
+        "Similarity": 0.7540983606557377,
+        "QED": 0.6285657556775287
+      }
+    },
+    {
+      "iteration": 11,
+      "smiles": "O=C(Nc1nccc(CN2C(=O)CCC2=O)c1)c1ccc(F)cc1Sc2cscn2",
+      "reason": "Removed the CH2 bridge between the phenyl ring and the thio\u2011aryl (direct S\u2011aryl bond) and introduced a fluorine on the phenyl to lower molecular weight and logP while keeping the succinimide imide and pyridine\u2011linked amide that drive high MACCS similarity. This should improve QED without sacrificing similarity.",
+      "score": 0.7092075678422038,
+      "explanation": "Similarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 138: [!#6;!#1]~[CH2]~* (count > 1)\n\nThe following 9 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 38: [#7]~[#6](~[#6])~[#7]\n  Key 42: F\n  Key 77: [#7]~*~[#7]\n  Key 87: [F,Cl,Br,I]!@*@*\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 97: [#7]~*~*~*~[#8]\n  Key 98: [!#6;!#1]1~*~*~*~*~*~1\n  Key 107: [F,Cl,Br,I]~*(~*)~*\n  Key 134: [F,Cl,Br,I]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.689 (value=442.50, optimal=281-332 Da)\n  ALOGP: -0.036 (value=3.73, optimal=1.95-3.57)\n  HBA: -0.032 (value=6, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.016 (value=92.26, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]",
+      "scores": {
+        "Similarity": 0.8333333333333334,
+        "QED": 0.5850818023510742
+      }
+    },
+    {
+      "iteration": 12,
+      "smiles": "O=C(Nc1nccc(CC(=O)N)c1)c1ccc(F)cc1Sc2cscn2",
+      "reason": "Replaced the bulky succinimide imide side chain with a simple primary amide (\u2011CH2\u2011CH2\u2011C(=O)NH2) to lower molecular weight, eliminate the imide structural alert, and reduce logP, while retaining the amide linkage, the fluorinated phenyl, the thio\u2011aryl bridge, and the thiazole heterocycle that drive high MACCS similarity. This should raise QED above 0.70 and keep similarity \u2265\u202f0.70.",
+      "score": 0.6237701150048269,
+      "explanation": "Similarity:\nThe following 15 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 75: *!@[#7]@*\n  Key 85: [#6]~[#7](~[#6])~[#6]\n  Key 89: [#8]~*~*~*~[#8]\n  Key 100: *~[CH2]~[#7]\n  Key 118: [$(*~[CH2]~[CH2]~*),$(*1~[CH2]~[CH2]1)] (count > 1)\n  Key 122: *~[#7](~*)~*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 128: [$(*~[CH2]~*~*~*~[CH2]~*),$([R]1@[CH2;R]@[R]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[R]@[CH2;R]1),$(*~[CH2]~*~[R]1@[R]@[CH2;R]1)]\n  Key 129: [$(*~[CH2]~*~*~[CH2]~*),$([R]1@[CH2]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[CH2;R]1)]\n  Key 138: [!#6;!#1]~[CH2]~* (count > 1)\n  Key 143: *@*!@[#8]\n  Key 146: [#8] (count > 2)\n  Key 147: [$(*~[CH2]~[CH2]~*),$([R]1@[CH2;R]@[CH2;R]1)]\n  Key 148: *~[!#6;!#1](~*)~*\n  Key 153: [!#6;!#1]~[CH2]~*\n\nThe following 12 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 38: [#7]~[#6](~[#6])~[#7]\n  Key 42: F\n  Key 77: [#7]~*~[#7]\n  Key 84: [NH2]\n  Key 87: [F,Cl,Br,I]!@*@*\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 97: [#7]~*~*~*~[#8]\n  Key 98: [!#6;!#1]1~*~*~*~*~*~1\n  Key 104: [!#6;!#1;!H0]~*~[CH2]~*\n  Key 107: [F,Cl,Br,I]~*(~*)~*\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 134: [F,Cl,Br,I]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.294 (value=388.45, optimal=281-332 Da)\n  ALOGP: -0.003 (value=3.11, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.021 (value=97.97, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)",
+      "scores": {
+        "Similarity": 0.5714285714285714,
+        "QED": 0.6761116585810826
+      }
+    },
+    {
+      "iteration": 13,
+      "smiles": "O=C(Nc1nccc(CNC(=O)C)c1)c1ccc(F)cc1Sc2cscn2",
+      "reason": "Replaced the bulky succinimide with a minimal N\u2011acetyl\u2011benzyl side chain (CH2\u2013NH\u2013C(=O)CH3). This keeps the key amide, thio\u2011aryl bridge, thiazole and pyridine motifs that drive high MACCS similarity, while substantially lowering molecular weight, rotatable bonds and removing the imide structural alert, thereby improving QED toward the required \u22650.70.",
+      "score": 0.6095365982242489,
+      "explanation": "Similarity:\nThe following 15 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 75: *!@[#7]@*\n  Key 85: [#6]~[#7](~[#6])~[#6]\n  Key 89: [#8]~*~*~*~[#8]\n  Key 111: [#7]~*~[CH2]~*\n  Key 118: [$(*~[CH2]~[CH2]~*),$(*1~[CH2]~[CH2]1)] (count > 1)\n  Key 122: *~[#7](~*)~*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 128: [$(*~[CH2]~*~*~*~[CH2]~*),$([R]1@[CH2;R]@[R]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[R]@[CH2;R]1),$(*~[CH2]~*~[R]1@[R]@[CH2;R]1)]\n  Key 129: [$(*~[CH2]~*~*~[CH2]~*),$([R]1@[CH2]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[CH2;R]1)]\n  Key 132: [#8]~*~[CH2]~*\n  Key 138: [!#6;!#1]~[CH2]~* (count > 1)\n  Key 143: *@*!@[#8]\n  Key 146: [#8] (count > 2)\n  Key 147: [$(*~[CH2]~[CH2]~*),$([R]1@[CH2;R]@[CH2;R]1)]\n  Key 148: *~[!#6;!#1](~*)~*\n\nThe following 13 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 38: [#7]~[#6](~[#6])~[#7]\n  Key 42: F\n  Key 77: [#7]~*~[#7]\n  Key 82: *~[CH2]~[!#6;!#1;!H0]\n  Key 87: [F,Cl,Br,I]!@*@*\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 97: [#7]~*~*~*~[#8]\n  Key 98: [!#6;!#1]1~*~*~*~*~*~1\n  Key 107: [F,Cl,Br,I]~*(~*)~*\n  Key 116: [$([CH3]~*~*~[CH2]~*),$([CH3]~*1~*~[CH2]1)]\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 134: [F,Cl,Br,I]\n  Key 160: [C;H3,H4]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.388 (value=402.48, optimal=281-332 Da)\n  ALOGP: -0.035 (value=3.72, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.010 (value=83.98, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)",
+      "scores": {
+        "Similarity": 0.5625,
+        "QED": 0.6565731964484977
+      }
+    },
+    {
+      "iteration": 15,
+      "smiles": "O=C(Nc1ccc(CN2C(=O)CCC2)cc1)c1ccc(SCc2cscn2)cc1",
+      "reason": "Replaced the imide succinimide with a simpler lactam (pyrrolidin\u20112\u2011one) to cut one carbonyl, lower molecular weight, H\u2011bond acceptors and PSA, while keeping the amide, the two phenyl rings, the thio\u2011ether bridge and the thiazole that drive high MACCS similarity. This should raise QED above 0.70 and maintain similarity \u2265\u202f0.70.",
+      "score": 0.7385994805918945,
+      "explanation": "Similarity:\nThe following 3 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 89: [#8]~*~*~*~[#8]\n  Key 144: *!:*:*!:*\n  Key 146: [#8] (count > 2)\n\nThe following 1 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 86: [C;H2,H3][!#6;!#1][C;H2,H3]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.541 (value=423.56, optimal=281-332 Da)\n  ALOGP: -0.272 (value=4.81, optimal=1.95-3.57)\n  HBA: -0.006 (value=4, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.001 (value=62.30, optimal=40-69 \u0172)\n  ROTB: -0.409 (value=7, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  c[SX2][C;!R]",
+      "scores": {
+        "Similarity": 0.9230769230769231,
+        "QED": 0.554122038106866
+      }
+    },
+    {
+      "iteration": 16,
+      "smiles": "O=C(Nc1ccc(CN2C(=O)CCC2)cc1)c1ccc(OCCc2cscn2)cc1",
+      "reason": "Replaced the thio\u2011ether (which caused a structural alert and high logP) with an ether link (O\u2011CH2\u2011CH2) to the thiazole, and kept a single\u2011carbonyl lactam side chain (CN2C(=O)CCC2) to retain key amide and carbonyl features that drive high MACCS similarity. This reduces molecular weight, logP, and rotatable bonds, removes the thio\u2011ether alert, and should raise QED above 0.70 while keeping similarity well above 0.70.",
+      "score": 0.6932589006797931,
+      "explanation": "Similarity:\nThe following 5 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 81: [#16]~*(~*)~*\n  Key 89: [#8]~*~*~*~[#8]\n  Key 144: *!:*:*!:*\n\nThe following 7 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 86: [C;H2,H3][!#6;!#1][C;H2,H3]\n  Key 97: [#7]~*~*~*~[#8]\n  Key 109: *~[CH2]~[#8]\n  Key 113: [#8]!:*:*\n  Key 126: *!@[#8]!@*\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.526 (value=421.52, optimal=281-332 Da)\n  ALOGP: -0.090 (value=4.14, optimal=1.95-3.57)\n  HBA: -0.006 (value=4, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.004 (value=71.53, optimal=40-69 \u0172)\n  ROTB: -0.596 (value=8, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)",
+      "scores": {
+        "Similarity": 0.7931034482758621,
+        "QED": 0.593414353083724
+      }
+    },
+    {
+      "iteration": 17,
+      "smiles": "O=C(Nc1ccc(CN2C(=O)CCC2)cc1)c1ccc(OCC(O)Cc2cscn2)cc1",
+      "reason": "Kept the succinimide imide side\u2011chain and the thio\u2011aryl\u2011thiazole core for high MACCS similarity, but replaced the thio\u2011ether with an ether bearing an extra hydroxyl (O\u2011CH2\u2011CH(OH)\u2011CH2) to increase polarity, lower logP and improve QED while preserving the essential scaffolds.",
+      "score": 0.6248764694810709,
+      "explanation": "Similarity:\nThe following 5 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 81: [#16]~*(~*)~*\n  Key 89: [#8]~*~*~*~[#8]\n  Key 144: *!:*:*!:*\n\nThe following 12 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 72: [#8]~*~*~[#8]\n  Key 86: [C;H2,H3][!#6;!#1][C;H2,H3]\n  Key 97: [#7]~*~*~*~[#8]\n  Key 104: [!#6;!#1;!H0]~*~[CH2]~*\n  Key 109: *~[CH2]~[#8]\n  Key 113: [#8]!:*:*\n  Key 126: *!@[#8]!@*\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 140: [#8] (count > 3)\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.761 (value=451.55, optimal=281-332 Da)\n  ALOGP: -0.019 (value=3.50, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.016 (value=91.76, optimal=40-69 \u0172)\n  ROTB: -0.797 (value=9, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)",
+      "scores": {
+        "Similarity": 0.7301587301587301,
+        "QED": 0.5195942088034116
+      }
+    },
+    {
+      "iteration": 18,
+      "smiles": "O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ccncc1SCc2cscn2",
+      "reason": "Kept the key succinimide imide side\u2011chain, the amide linkage and the thio\u2011aryl\u2011thiazole bridge that drive high MACCS similarity, but swapped the right\u2011hand phenyl carbonyl for a pyridine ring to add polarity and lower logP, reducing rotatable bonds and improving QED while staying above the similarity threshold.",
+      "score": 0.7135627408020917,
+      "explanation": "Similarity:\nThe following 1 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 98: [!#6;!#1]1~*~*~*~*~*~1\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.657 (value=438.53, optimal=281-332 Da)\n  ALOGP: -0.036 (value=3.73, optimal=1.95-3.57)\n  HBA: -0.032 (value=6, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.016 (value=92.26, optimal=40-69 \u0172)\n  ROTB: -0.409 (value=7, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]",
+      "scores": {
+        "Similarity": 0.9807692307692307,
+        "QED": 0.4463562508349526
+      }
+    },
+    {
+      "iteration": 21,
+      "smiles": "O=C(Nc1ccc(CN2CCCC2=O)cc1)c1ccc(OCCc2cscn2)cc1",
+      "reason": "Replaced the succinimide imide with a smaller lactam (pyrrolidin\u20112\u2011one) to eliminate the imide structural alert and reduce molecular weight, and switched the thio\u2011ether for an ether (O\u2011CH2\u2011CH2\u2011CH2) to remove the thio\u2011ether alert. The core amide, two aromatic rings, thio\u2011aryl\u2011thiazole motif and side\u2011chain carbonyl are retained to keep MACCS similarity high while improving drug\u2011likeness (lower MW, fewer rotatable bonds, reduced aromatic penalty).",
+      "score": 0.6932589006797931,
+      "explanation": "Similarity:\nThe following 5 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 81: [#16]~*(~*)~*\n  Key 89: [#8]~*~*~*~[#8]\n  Key 144: *!:*:*!:*\n\nThe following 7 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 86: [C;H2,H3][!#6;!#1][C;H2,H3]\n  Key 97: [#7]~*~*~*~[#8]\n  Key 109: *~[CH2]~[#8]\n  Key 113: [#8]!:*:*\n  Key 126: *!@[#8]!@*\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.526 (value=421.52, optimal=281-332 Da)\n  ALOGP: -0.090 (value=4.14, optimal=1.95-3.57)\n  HBA: -0.006 (value=4, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.004 (value=71.53, optimal=40-69 \u0172)\n  ROTB: -0.596 (value=8, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)",
+      "scores": {
+        "Similarity": 0.7931034482758621,
+        "QED": 0.593414353083724
+      }
+    },
+    {
+      "iteration": 23,
+      "smiles": "O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1O)Sc1cscn1",
+      "reason": "Kept the key succinimide imide side\u2011chain, the thio\u2011ether bridge and the thiazole heterocycle that drive high MACCS similarity, but removed the extra benzoyl phenyl to lower molecular weight and aromatic count. Added a phenolic OH on the remaining phenyl to increase polarity and lower logP, aiming to push QED above 0.70 while keeping similarity \u2265\u202f0.70.",
+      "score": 0.6349898344200708,
+      "explanation": "Similarity:\nThe following 2 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 138: [!#6;!#1]~[CH2]~* (count > 1)\n  Key 145: *1~*~*~*~*~*~1 (count > 1)\n\nThe following 12 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 54: [!#6;!#1;!H0]~*~*~[!#6;!#1;!H0]\n  Key 80: [#7]~*~*~*~[#7]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 95: [#7]~*~*~[#8]\n  Key 97: [#7]~*~*~*~[#8]\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 113: [#8]!:*:*\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 140: [#8] (count > 3)\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.152 (value=363.42, optimal=281-332 Da)\n  ALOGP: -0.000 (value=2.82, optimal=1.95-3.57)\n  HBA: -0.032 (value=6, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.022 (value=99.60, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -2.380 (value=3, optimal=0)\n\n3 structural alert(s) triggered. SMARTS patterns of alerts:\n  c1c([OH])c([OH,NH2,NH])ccc1\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]",
+      "scores": {
+        "Similarity": 0.7777777777777778,
+        "QED": 0.49220189106236384
+      }
+    },
+    {
+      "iteration": 24,
+      "smiles": "O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)SCCc1cscn1",
+      "reason": "Kept the succinimide imide side\u2011chain, the amide linkage and the thio\u2011ether bridge, but replaced the second phenyl ring with a short alkyl chain (S\u2011CH2\u2011CH2\u2011thiazole). This drops the aromatic count from three to two, lowers molecular weight and logP, removes the phenolic OH and its alerts, and should raise QED above 0.70 while still retaining the key MACCS features for similarity \u2265\u202f0.70.",
+      "score": 0.8271163370825725,
+      "explanation": "Similarity:\nThe following 4 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 144: *!:*:*!:*\n  Key 145: *1~*~*~*~*~*~1 (count > 1)\n\nThe following 3 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 90: [$([!#6;!#1;!H0]~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[CH2;R]1)]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.216 (value=375.48, optimal=281-332 Da)\n  ALOGP: -0.009 (value=3.30, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=79.37, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]",
+      "scores": {
+        "Similarity": 0.8703703703703703,
+        "QED": 0.7838623037947745
+      }
+    },
+    {
+      "iteration": 25,
+      "smiles": "O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)C1=CC=C(SCCO)C=C1Sc2cscn2",
+      "reason": "Kept the core amide, succinimide side\u2011chain, and the thio\u2011aryl\u2011thiazole bridge that give very high MACCS similarity, and added a short \u2013S\u2011CH2\u2011CH2\u2011OH substituent on the phenyl ring. This introduces additional sulfur\u2011related features present in the target while adding polarity (OH) to improve QED without adding extra aromatic rings.",
+      "score": 0.6070689425102054,
+      "explanation": "Similarity:\nThe following 7 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 82: *~[CH2]~[!#6;!#1;!H0]\n  Key 104: [!#6;!#1;!H0]~*~[CH2]~*\n  Key 109: *~[CH2]~[#8]\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 140: [#8] (count > 3)\n  Key 157: [#6]-[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -1.152 (value=499.64, optimal=281-332 Da)\n  ALOGP: -0.117 (value=4.28, optimal=1.95-3.57)\n  HBA: -0.055 (value=7, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.022 (value=99.60, optimal=40-69 \u0172)\n  ROTB: -0.797 (value=9, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]",
+      "scores": {
+        "Similarity": 0.8793103448275862,
+        "QED": 0.33482754019282457
+      }
+    },
+    {
+      "iteration": 26,
+      "smiles": "O=C(Nc1ccc(CN3CCCC3=O)cc1)c1ccc(Sc2cscn2)cc1",
+      "reason": "Replaced the imide succinimide with a single\u2011carbonyl pyrrolidin\u20112\u2011one side chain (removing the extra carbonyl and the imide structural alert) and kept the direct thio\u2011aryl\u2011thiazole connection and the two aromatic rings that provide the bulk of the MACCS fingerprint. This lowers molecular weight and polarity while preserving key similarity features, aiming to raise QED above 0.70 and keep similarity \u2265\u202f0.70.",
+      "score": 0.7828762192182928,
+      "explanation": "Similarity:\nThe following 3 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 89: [#8]~*~*~*~[#8]\n  Key 144: *!:*:*!:*\n  Key 146: [#8] (count > 2)\n\nThe following 1 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 86: [C;H2,H3][!#6;!#1][C;H2,H3]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.438 (value=409.54, optimal=281-332 Da)\n  ALOGP: -0.222 (value=4.67, optimal=1.95-3.57)\n  HBA: -0.006 (value=4, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.001 (value=62.30, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)",
+      "scores": {
+        "Similarity": 0.9230769230769231,
+        "QED": 0.6426755153596625
+      }
+    },
+    {
+      "iteration": 27,
+      "smiles": "O=C(Nc1ccc(C(=O)N)cc1)c1ccc(O)cc1Sc2cscn2",
+      "reason": "Added a phenolic OH on the aromatic ring attached to the thio\u2011aryl bridge and replaced the bulky succinimide side\u2011chain with a simple carboxamide (C(=O)NH\u2082). This reduces molecular weight and logP, introduces extra hydrogen\u2011bonding, and retains the key amide, thio\u2011aryl\u2011thiazole scaffold that drives high MACCS similarity, aiming to push QED above 0.70 while keeping similarity \u2265\u202f0.70.",
+      "score": 0.6346551429187293,
+      "explanation": "Similarity:\nThe following 15 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 75: *!@[#7]@*\n  Key 85: [#6]~[#7](~[#6])~[#6]\n  Key 89: [#8]~*~*~*~[#8]\n  Key 100: *~[CH2]~[#7]\n  Key 111: [#7]~*~[CH2]~*\n  Key 118: [$(*~[CH2]~[CH2]~*),$(*1~[CH2]~[CH2]1)] (count > 1)\n  Key 122: *~[#7](~*)~*\n  Key 128: [$(*~[CH2]~*~*~*~[CH2]~*),$([R]1@[CH2;R]@[R]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[R]@[CH2;R]1),$(*~[CH2]~*~[R]1@[R]@[CH2;R]1)]\n  Key 129: [$(*~[CH2]~*~*~[CH2]~*),$([R]1@[CH2]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[CH2;R]1)]\n  Key 132: [#8]~*~[CH2]~*\n  Key 138: [!#6;!#1]~[CH2]~* (count > 1)\n  Key 147: [$(*~[CH2]~[CH2]~*),$([R]1@[CH2;R]@[CH2;R]1)]\n  Key 148: *~[!#6;!#1](~*)~*\n  Key 153: [!#6;!#1]~[CH2]~*\n  Key 155: *!@[CH2]!@*\n\nThe following 6 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 84: [NH2]\n  Key 113: [#8]!:*:*\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.194 (value=371.44, optimal=281-332 Da)\n  ALOGP: -0.011 (value=3.35, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.592 (value=3, optimal=1)\n  PSA: -0.028 (value=105.31, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)",
+      "scores": {
+        "Similarity": 0.631578947368421,
+        "QED": 0.6377313384690375
+      }
+    },
+    {
+      "iteration": 28,
+      "smiles": "O=C(Nc1ccc(O)cc1CN2C(=O)CCC2=O)SCCc1cscn1",
+      "reason": "Keep the high\u2011similarity succinimide imide side chain and the thio\u2011aryl\u2011thiazole bridge, but add a phenolic OH on the aromatic ring attached to the amide. The OH lowers logP and adds polarity, improving QED while retaining the core features that give similarity >\u202f0.70.",
+      "score": 0.6834523174244289,
+      "explanation": "Similarity:\nThe following 3 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 145: *1~*~*~*~*~*~1 (count > 1)\n\nThe following 10 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 80: [#7]~*~*~*~[#7]\n  Key 90: [$([!#6;!#1;!H0]~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[CH2;R]1)]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 113: [#8]!:*:*\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 140: [#8] (count > 3)\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.314 (value=391.47, optimal=281-332 Da)\n  ALOGP: -0.001 (value=3.01, optimal=1.95-3.57)\n  HBA: -0.032 (value=6, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.022 (value=99.60, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [OH]c1ccc([OH,NH2,NH])cc1\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]",
+      "scores": {
+        "Similarity": 0.7868852459016393,
+        "QED": 0.5800193889472185
+      }
+    },
+    {
+      "iteration": 29,
+      "smiles": "O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ccc(O)cc1SCc2cscn2",
+      "reason": "Retained the key succinimide side\u2011chain, the amide linking to the phenyl carbonyl, and the thio\u2011aryl\u2011thiazole bridge (major contributors to high MACCS similarity), and introduced a para\u2011hydroxy group on the carbonyl\u2011attached phenyl to increase polarity and lower LogP, thereby improving QED while keeping similarity above the required threshold.",
+      "score": 0.6542265239121878,
+      "explanation": "Similarity:\nThe following 6 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 113: [#8]!:*:*\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 140: [#8] (count > 3)\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.777 (value=453.55, optimal=281-332 Da)\n  ALOGP: -0.074 (value=4.04, optimal=1.95-3.57)\n  HBA: -0.032 (value=6, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.022 (value=99.60, optimal=40-69 \u0172)\n  ROTB: -0.409 (value=7, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]",
+      "scores": {
+        "Similarity": 0.8947368421052632,
+        "QED": 0.4137162057191125
+      }
+    },
+    {
+      "iteration": 30,
+      "smiles": "O=C(Nc1ccc(CSCCN2C(=O)CCC2=O)cc1)SCCc1cscn1",
+      "reason": "Added an aryl\u2011thioether side chain (\u2011CH2\u2011S\u2011CH2\u2011CH2\u2011N\u2011\u2026) onto the phenyl bearing the succinimide, which introduces the missing sulfur patterns present in the target and raises MACCS similarity, while keeping the succinimide imide, the amide linkage and the thio\u2011aryl\u2011thiazole bridge that give good QED. The molecular weight remains moderate, preserving QED \u2265\u202f0.70.",
+      "score": 0.6638411156261639,
+      "explanation": "Similarity:\nThe following 4 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 144: *!:*:*!:*\n  Key 145: *1~*~*~*~*~*~1 (count > 1)\n\nThe following 4 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 86: [C;H2,H3][!#6;!#1][C;H2,H3]\n  Key 90: [$([!#6;!#1;!H0]~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[CH2;R]1)]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.634 (value=435.60, optimal=281-332 Da)\n  ALOGP: -0.073 (value=4.03, optimal=1.95-3.57)\n  HBA: -0.032 (value=6, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=79.37, optimal=40-69 \u0172)\n  ROTB: -0.797 (value=9, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [R0;D2][R0;D2][R0;D2][R0;D2]\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]",
+      "scores": {
+        "Similarity": 0.8545454545454545,
+        "QED": 0.4731367767068732
+      }
+    },
+    {
+      "iteration": 32,
+      "smiles": "O=C(Nc1ccc(N2C(=O)CCC2=O)cc1)c1ccc(SCc2cscn2)cc1",
+      "reason": "Removed the CH2 linker between the phenyl ring and the succinimide nitrogen, decreasing molecular weight and rotatable bonds while preserving the amide, the succinimide imide, and the thio\u2011aryl\u2011thiazole motif that give high MACCS similarity. This should raise QED toward the required level without dropping similarity below the threshold.",
+      "score": 0.6779280549451977,
+      "explanation": "Similarity:\nThe following 5 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 100: *~[CH2]~[#7]\n  Key 128: [$(*~[CH2]~*~*~*~[CH2]~*),$([R]1@[CH2;R]@[R]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[R]@[CH2;R]1),$(*~[CH2]~*~[R]1@[R]@[CH2;R]1)]\n  Key 129: [$(*~[CH2]~*~*~[CH2]~*),$([R]1@[CH2]@[R]@[R]@[CH2;R]1),$(*~[CH2]~[R]1@[R]@[CH2;R]1)]\n  Key 138: [!#6;!#1]~[CH2]~* (count > 1)\n  Key 144: *!:*:*!:*\n\nThe following 1 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 62: *@*!@*@*\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.541 (value=423.52, optimal=281-332 Da)\n  ALOGP: -0.131 (value=4.34, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=79.37, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]",
+      "scores": {
+        "Similarity": 0.8846153846153846,
+        "QED": 0.4712407252750109
+      }
+    },
+    {
+      "iteration": 33,
+      "smiles": "O=C(Nc1c(O)ccc(CN2CCCC2=O)c1)c1ccc(OCCc2cscn2)cc1",
+      "reason": "Replaced the imide succinimide with a simple pyrrolidin\u20112\u2011one side chain to remove the imide alert, swapped the thio\u2011ether for an ether (O\u2011CH2\u2011CH2) linking to the thiazole to eliminate the thio\u2011ether alert, and added a phenolic OH on the amide\u2011linked phenyl to increase polarity and lower logP. These changes keep the amide, aromatic rings, thiazole and ether bridge that drive MACCS similarity while improving QED above 0.70.",
+      "score": 0.6284713710752368,
+      "explanation": "Similarity:\nThe following 4 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 81: [#16]~*(~*)~*\n  Key 89: [#8]~*~*~*~[#8]\n\nThe following 13 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 54: [!#6;!#1;!H0]~*~*~[!#6;!#1;!H0]\n  Key 86: [C;H2,H3][!#6;!#1][C;H2,H3]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 95: [#7]~*~*~[#8]\n  Key 97: [#7]~*~*~*~[#8]\n  Key 109: *~[CH2]~[#8]\n  Key 113: [#8]!:*:*\n  Key 126: *!@[#8]!@*\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 140: [#8] (count > 3)\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.649 (value=437.52, optimal=281-332 Da)\n  ALOGP: -0.048 (value=3.84, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.016 (value=91.76, optimal=40-69 \u0172)\n  ROTB: -0.596 (value=8, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  c1c([OH])c([OH,NH2,NH])ccc1",
+      "scores": {
+        "Similarity": 0.734375,
+        "QED": 0.5225677421504736
+      }
+    },
+    {
+      "iteration": 34,
+      "smiles": "O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)C1CCCC1OCCc2cscn2",
+      "reason": "Kept the succinimide imide side\u2011chain and the amide linkage (essential for high MACCS similarity) but replaced the thio\u2011ether bridge with an ether (O\u2011CH2\u2011CH2) to eliminate the thio\u2011ether structural alert. The second aromatic ring was swapped for a cyclohexyl ring, reducing the aromatic count and molecular weight, which together raise the QED score while still preserving the key imide and thiazole features needed for similarity \u2265\u202f0.70.",
+      "score": 0.716827267113683,
+      "explanation": "Similarity:\nThe following 5 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 81: [#16]~*(~*)~*\n  Key 144: *!:*:*!:*\n  Key 145: *1~*~*~*~*~*~1 (count > 1)\n\nThe following 8 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 90: [$([!#6;!#1;!H0]~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[CH2;R]1)]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 97: [#7]~*~*~*~[#8]\n  Key 109: *~[CH2]~[#8]\n  Key 126: *!@[#8]!@*\n  Key 140: [#8] (count > 3)\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.572 (value=427.53, optimal=281-332 Da)\n  ALOGP: -0.004 (value=3.16, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.013 (value=88.60, optimal=40-69 \u0172)\n  ROTB: -0.596 (value=8, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]",
+      "scores": {
+        "Similarity": 0.7796610169491526,
+        "QED": 0.6539935172782136
+      }
+    },
+    {
+      "iteration": 35,
+      "smiles": "O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)C1=CC=C(SCCc2cscn2)C=C1",
+      "reason": "Keeps the essential succinimide imide side\u2011chain, the amide linkage and the phenyl ring that carries the thio\u2011alkyl substituent, but removes the second aromatic benzene ring. The phenyl now bears the thio\u2011CH2\u2011CH2\u2011thiazole group directly, preserving the sulfur pattern and thiazole core that drive high MACCS similarity while dropping the overall aromatic count to two rings, which should raise the QED score and push the combined metric above the target.",
+      "score": 0.6932770150852939,
+      "explanation": "Similarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 144: *!:*:*!:*\n\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.761 (value=451.57, optimal=281-332 Da)\n  ALOGP: -0.140 (value=4.38, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=79.37, optimal=40-69 \u0172)\n  ROTB: -0.596 (value=8, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]",
+      "scores": {
+        "Similarity": 0.9803921568627451,
+        "QED": 0.4061618733078428
+      }
+    },
+    {
+      "iteration": 36,
+      "smiles": "O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1cscn1",
+      "reason": "Removed the extra benzoyl phenyl and the thio\u2011CH2 bridge, attaching the amide carbonyl directly to the thiazole ring. This keeps the key succinimide imide side\u2011chain, the amide linkage and the thiazole heterocycle that drive high MACCS similarity, while cutting ~120\u202fDa of weight, reducing aromatic count to two rings and lowering logP. The resulting molecule should achieve QED\u202f\u2265\u202f0.70 and still maintain similarity above the 0.70 threshold.",
+      "score": 0.862405320866463,
+      "explanation": "Similarity:\nThe following 6 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 81: [#16]~*(~*)~*\n  Key 138: [!#6;!#1]~[CH2]~* (count > 1)\n  Key 144: *!:*:*!:*\n  Key 145: *1~*~*~*~*~*~1 (count > 1)\n\nThe following 2 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 79: [#7]~*~*~[#7]\n  Key 95: [#7]~*~*~[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.004 (value=315.35, optimal=281-332 Da)\n  ALOGP: -0.018 (value=2.04, optimal=1.95-3.57)\n  HBA: -0.006 (value=4, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=79.37, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]",
+      "scores": {
+        "Similarity": 0.8490566037735849,
+        "QED": 0.875754037959341
+      }
+    },
+    {
+      "iteration": 38,
+      "smiles": "O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ccc(F)cc1SCc2cscn2",
+      "reason": "Adds the missing thio\u2011ether bridge and a phenyl ring (with a small fluorine substituent to keep it distinct from the exact target) to restore the sulfur\u2011related MACCS features while retaining the succinimide imide side\u2011chain. This should raise similarity above 0.92 and keep QED well above 0.70.",
+      "score": 0.6735908758055578,
+      "explanation": "Similarity:\nThe following 4 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 42: F\n  Key 87: [F,Cl,Br,I]!@*@*\n  Key 107: [F,Cl,Br,I]~*(~*)~*\n  Key 134: [F,Cl,Br,I]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.793 (value=455.54, optimal=281-332 Da)\n  ALOGP: -0.164 (value=4.48, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=79.37, optimal=40-69 \u0172)\n  ROTB: -0.409 (value=7, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]",
+      "scores": {
+        "Similarity": 0.9272727272727272,
+        "QED": 0.4199090243383883
+      }
+    },
+    {
+      "iteration": 39,
+      "smiles": "O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1c(SC)scn1",
+      "reason": "Keeps the succinimide imide side\u2011chain and the amide\u2011linked phenyl that are essential for high MACCS similarity, and adds a small thio\u2011methyl substituent on the thiazole ring. The extra sulfur re\u2011introduces the key sulfur\u2011related MACCS features missing in the previous high\u2011QED scaffold, while the overall size and aromatic count stay low enough to retain QED\u202f>\u202f0.70 and boost similarity toward the target.",
+      "score": 0.7725951189122726,
+      "explanation": "Similarity:\nThe following 2 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 138: [!#6;!#1]~[CH2]~* (count > 1)\n  Key 145: *1~*~*~*~*~*~1 (count > 1)\n\nThe following 4 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 79: [#7]~*~*~[#7]\n  Key 93: [!#6;!#1]~[CH3]\n  Key 95: [#7]~*~*~[#8]\n  Key 160: [C;H3,H4]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.142 (value=361.45, optimal=281-332 Da)\n  ALOGP: -0.000 (value=2.77, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=79.37, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]",
+      "scores": {
+        "Similarity": 0.8909090909090909,
+        "QED": 0.6542811469154545
+      }
+    },
+    {
+      "iteration": 40,
+      "smiles": "O=C(Nc1ccc(CN2CCCC2=O)cc1)c1ccc(O)cc1SCCc2cscn2",
+      "reason": "Replaced the succinimide imide with a simple pyrrolidin\u20112\u2011one side chain to remove the imide alert and lower molecular weight. Added a phenolic OH on the amide\u2011linked phenyl to increase polarity and lower logP, while keeping the thio\u2011ether bridge to the thiazole (key sulfur feature) and the thiazole heterocycle. This should raise QED above 0.70 and maintain similarity well above the 0.70 threshold.",
+      "score": 0.6830125956283613,
+      "explanation": "Similarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 89: [#8]~*~*~*~[#8]\n\nThe following 6 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 86: [C;H2,H3][!#6;!#1][C;H2,H3]\n  Key 113: [#8]!:*:*\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.778 (value=453.59, optimal=281-332 Da)\n  ALOGP: -0.187 (value=4.56, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.010 (value=82.53, optimal=40-69 \u0172)\n  ROTB: -0.596 (value=8, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  c[SX2][C;!R]",
+      "scores": {
+        "Similarity": 0.8771929824561403,
+        "QED": 0.4888322088005821
+      }
+    },
+    {
+      "iteration": 42,
+      "smiles": "O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)C1=CC=C(F)C=C1SCc2cscn2",
+      "reason": "Re\u2011added the phenyl carbonyl and the thio\u2011CH2\u2011link to the thiazole (key sulfur and CH2 features missing in the current scaffold) while keeping the succinimide imide side\u2011chain. A fluorine is placed on the phenyl ring to keep the molecule distinct from the exact target. This should raise MACCS similarity above 0.95 and maintain QED well above 0.70, moving the combined score past the 0.90 threshold.",
+      "score": 0.6735908758055578,
+      "explanation": "Similarity:\nThe following 4 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 42: F\n  Key 87: [F,Cl,Br,I]!@*@*\n  Key 107: [F,Cl,Br,I]~*(~*)~*\n  Key 134: [F,Cl,Br,I]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.793 (value=455.54, optimal=281-332 Da)\n  ALOGP: -0.164 (value=4.48, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=79.37, optimal=40-69 \u0172)\n  ROTB: -0.409 (value=7, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]",
+      "scores": {
+        "Similarity": 0.9272727272727272,
+        "QED": 0.4199090243383883
+      }
+    },
+    {
+      "iteration": 43,
+      "smiles": "O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ccc(OC)cc1SCc1cscn1",
+      "reason": "Restores the missing phenyl carbonyl and thio\u2011CH2\u2011thiazole bridge that are key to the target fingerprint, while adding a methoxy group on that phenyl to boost polarity and lower logP. This keeps the succinimide imide side\u2011chain and amide linkage for high similarity, and the extra O atom should raise QED above the 0.70 threshold.",
+      "score": 0.635418629074031,
+      "explanation": "Similarity:\nThe following 7 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 93: [!#6;!#1]~[CH3]\n  Key 113: [#8]!:*:*\n  Key 126: *!@[#8]!@*\n  Key 140: [#8] (count > 3)\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 160: [C;H3,H4]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.891 (value=467.57, optimal=281-332 Da)\n  ALOGP: -0.132 (value=4.35, optimal=1.95-3.57)\n  HBA: -0.032 (value=6, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.013 (value=88.60, optimal=40-69 \u0172)\n  ROTB: -0.596 (value=8, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]",
+      "scores": {
+        "Similarity": 0.8793103448275862,
+        "QED": 0.3915269133204759
+      }
+    },
+    {
+      "iteration": 44,
+      "smiles": "O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ccc(SCc2cscn2)cc1O",
+      "reason": "Keeps the key succinimide imide side\u2011chain, the amide linkage and the direct thio\u2011CH\u2082\u2011aryl\u2011thiazole bridge that provide the high\u2011similarity sulfur features, and introduces a phenolic OH on the carbonyl\u2011linked phenyl to increase polarity and lower logP, which should raise the QED while preserving similarity well above 0.70.",
+      "score": 0.6390614926900647,
+      "explanation": "Similarity:\nThe following 8 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 53: [!#6;!#1;!H0]~*~*~*~[!#6;!#1;!H0]\n  Key 97: [#7]~*~*~*~[#8]\n  Key 113: [#8]!:*:*\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 140: [#8] (count > 3)\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.777 (value=453.55, optimal=281-332 Da)\n  ALOGP: -0.074 (value=4.04, optimal=1.95-3.57)\n  HBA: -0.032 (value=6, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.022 (value=99.60, optimal=40-69 \u0172)\n  ROTB: -0.409 (value=7, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]",
+      "scores": {
+        "Similarity": 0.864406779661017,
+        "QED": 0.4137162057191125
+      }
+    },
+    {
+      "iteration": 45,
+      "smiles": "O=C(Nc1c(SC)ccc(CN2C(=O)CCC2=O)c1)c1cscn1",
+      "reason": "Keeps the high\u2011QED succinimide\u2011amido core and the thiazole heterocycle that give excellent drug\u2011likeness, but adds a small thio\u2011methyl substituent on the phenyl ring to introduce the missing sulfur\u2011related MACCS features present in the target. This modest increase in size should raise similarity above 0.90 while keeping QED above 0.70.",
+      "score": 0.7646405734577273,
+      "explanation": "Similarity:\nThe following 2 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 138: [!#6;!#1]~[CH2]~* (count > 1)\n  Key 145: *1~*~*~*~*~*~1 (count > 1)\n\nThe following 5 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 79: [#7]~*~*~[#7]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 93: [!#6;!#1]~[CH3]\n  Key 95: [#7]~*~*~[#8]\n  Key 160: [C;H3,H4]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.142 (value=361.45, optimal=281-332 Da)\n  ALOGP: -0.000 (value=2.77, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=79.37, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.031 (value=2, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]",
+      "scores": {
+        "Similarity": 0.875,
+        "QED": 0.6542811469154545
+      }
+    },
+    {
+      "iteration": 46,
+      "smiles": "O=C(Nc1nccc(CN2C(=O)CCC2=O)c1)c1ccc(SCc2cscn2)cc1",
+      "reason": "Replaced the left phenyl ring with a pyridine to lower logP and molecular weight while keeping the amide, the succinimide imide side\u2011chain, and the phenyl\u2011S\u2011CH\u2082\u2011thiazole bridge that drive high MACCS similarity. This should raise QED above 0.70 without losing the key similarity features.",
+      "score": 0.6696066968460478,
+      "explanation": "Similarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 144: *!:*:*!:*\n\nThe following 5 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 38: [#7]~[#6](~[#6])~[#7]\n  Key 77: [#7]~*~[#7]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 97: [#7]~*~*~*~[#8]\n  Key 98: [!#6;!#1]1~*~*~*~*~*~1\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.657 (value=438.53, optimal=281-332 Da)\n  ALOGP: -0.036 (value=3.73, optimal=1.95-3.57)\n  HBA: -0.032 (value=6, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.016 (value=92.26, optimal=40-69 \u0172)\n  ROTB: -0.409 (value=7, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]",
+      "scores": {
+        "Similarity": 0.8928571428571429,
+        "QED": 0.4463562508349526
+      }
+    },
+    {
+      "iteration": 47,
+      "smiles": "O=C(Nc1ccc(CN3CCCC3=O)cc1)c1ccc(SC1CCNS1)cc1",
+      "reason": "Removed the imide (eliminating the structural alert) and replaced the thio\u2011CH2\u2011thiazole with a direct thio\u2011aryl connection to a saturated thiazolidine ring, which avoids the thio\u2011ether alert and reduces the aromatic count to two rings. The remaining amide, phenyl, succinimide\u2011derived lactam side chain and sulfur atoms preserve the key MACCS features, improving QED while keeping similarity \u2265\u202f0.70.",
+      "score": 0.6790533473070199,
+      "explanation": "Similarity:\nThe following 8 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 47: [#16]~*~[#7]\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 65: c:n\n  Key 89: [#8]~*~*~*~[#8]\n  Key 125: Aromatic Ring > 1 (rdkit: GetRingInfo().BondRings() aromaticity check)\n  Key 144: *!:*:*!:*\n  Key 146: [#8] (count > 2)\n\nThe following 18 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 26: [#6]=;@[#6](@*)@*\n  Key 32: [#6]~[#16]~[#7]\n  Key 33: [#7]~[#16]\n  Key 50: [#6]=[#6](~[#6])~[#6]\n  Key 67: [!#6;!#1]~[#16]\n  Key 69: [!#6;!#1]~[!#6;!#1;!H0]\n  Key 76: [#6]=[#6](~*)~*\n  Key 82: *~[CH2]~[!#6;!#1;!H0]\n  Key 86: [C;H2,H3][!#6;!#1][C;H2,H3]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 94: [!#6;!#1]~[#7]\n  Key 98: [!#6;!#1]1~*~*~*~*~*~1\n  Key 99: [#6]=[#6]\n  Key 101: [$([R]@1@[R]@[R]@[R]@[R]@[R]@[R]@[R]1),$([R]@1@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]1),$([R]@1@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]1),$([R]@1@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]1),$([R]@1@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]1),$([R]@1@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]1),$([R]@1@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]@[R]1)]\n  Key 104: [!#6;!#1;!H0]~*~[CH2]~*\n  Key 105: *@*(@*)@*\n  Key 124: [!#6;!#1]~[!#6;!#1]\n  Key 131: [!#6;!#1;!H0] (count > 1)\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.467 (value=413.57, optimal=281-332 Da)\n  ALOGP: -0.046 (value=3.83, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.001 (value=61.44, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.091 (value=1, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  [SX2H0][N]",
+      "scores": {
+        "Similarity": 0.6231884057971014,
+        "QED": 0.7349182888169384
+      }
+    },
+    {
+      "iteration": 48,
+      "smiles": "O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1ncccc1SCc2cscn2",
+      "reason": "Adds a pyridine ring (instead of the target phenyl) to the carbonyl side and re\u2011introduces the thio\u2011CH\u2082\u2011link to the thiazole, restoring the missing sulfur\u2011related MACCS features while keeping the succinimide imide side\u2011chain. The hetero\u2011aryl reduces lipophilicity compared to a phenyl, so QED stays \u2265\u202f0.70 and similarity rises above 0.90.",
+      "score": 0.6954003476396985,
+      "explanation": "Similarity:\nThe following 3 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 79: [#7]~*~*~[#7]\n  Key 95: [#7]~*~*~[#8]\n  Key 98: [!#6;!#1]1~*~*~*~*~*~1\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.657 (value=438.53, optimal=281-332 Da)\n  ALOGP: -0.036 (value=3.73, optimal=1.95-3.57)\n  HBA: -0.032 (value=6, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.016 (value=92.26, optimal=40-69 \u0172)\n  ROTB: -0.409 (value=7, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]",
+      "scores": {
+        "Similarity": 0.9444444444444444,
+        "QED": 0.4463562508349526
+      }
+    },
+    {
+      "iteration": 49,
+      "smiles": "O=C(NC1CCCCC1CN2C(=O)CCC2=O)CSc1cscn1",
+      "reason": "Keeps the essential succinimide imide side\u2011chain, the thio\u2011CH\u2082\u2011thiazole bridge and the amide linkage that drive high MACCS similarity, but replaces the phenyl ring with a cyclohexyl ring. This lowers molecular weight, reduces aromatic ring count to one, and removes the aromatic\u2011ring penalty, thereby boosting QED while still preserving the key structural features for similarity \u2265\u202f0.70.",
+      "score": 0.7347315306328347,
+      "explanation": "Similarity:\nThe following 4 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 125: Aromatic Ring > 1 (rdkit: GetRingInfo().BondRings() aromaticity check)\n  Key 135: [#7]!:*:*\n  Key 144: *!:*:*!:*\n  Key 145: *1~*~*~*~*~*~1 (count > 1)\n\nThe following 4 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 80: [#7]~*~*~*~[#7]\n  Key 90: [$([!#6;!#1;!H0]~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[CH2;R]1)]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 104: [!#6;!#1;!H0]~*~[CH2]~*\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.173 (value=367.50, optimal=281-332 Da)\n  ALOGP: -0.018 (value=2.06, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=79.37, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -0.091 (value=1, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]",
+      "scores": {
+        "Similarity": 0.8545454545454545,
+        "QED": 0.6149176067202149
+      }
+    },
+    {
+      "iteration": 50,
+      "smiles": "O=C(NC1CCCC1CN2C(=O)CCC2=O)CSc1cscn1",
+      "reason": "Keeps the succinimide imide side\u2011chain and the thio\u2011CH\u2082\u2011thiazole bridge (key MACCS features) but reduces the cyclohexyl ring to a cyclopentyl, lowering molecular weight and PSA. This improves QED while preserving similarity above the required threshold.",
+      "score": 0.7289618331111049,
+      "explanation": "Similarity:\nThe following 5 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 125: Aromatic Ring > 1 (rdkit: GetRingInfo().BondRings() aromaticity check)\n  Key 135: [#7]!:*:*\n  Key 144: *!:*:*!:*\n  Key 145: *1~*~*~*~*~*~1 (count > 1)\n  Key 163: *1~*~*~*~*~*~1\n\nThe following 4 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 80: [#7]~*~*~*~[#7]\n  Key 90: [$([!#6;!#1;!H0]~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[CH2;R]1)]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 104: [!#6;!#1;!H0]~*~[CH2]~*\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.106 (value=353.47, optimal=281-332 Da)\n  ALOGP: -0.042 (value=1.67, optimal=1.95-3.57)\n  HBA: -0.016 (value=5, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=79.37, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -0.091 (value=1, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  [cR,CR]~C(=O)NC(=O)~[cR,CR]\n  c[SX2][C;!R]",
+      "scores": {
+        "Similarity": 0.8363636363636363,
+        "QED": 0.6215600298585734
+      }
+    }
+  ],
+  "iterations": 51,
+  "summary": "**Summary of the molecular optimisation campaign**\n\nThe series explored a large chemical space around the target scaffold (amide\u2011linked phenyl\u2011succinimide\u2011thio\u2011aryl\u2011thiazole) with the dual goal of preserving MACCS\u2011fingerprint similarity\u202f\u2265\u202f0.70 while raising the QED drug\u2011likeness score\u202f\u2265\u202f0.70.  The combined metric (0.5\u202f\u00d7\u202fsimilarity\u202f+\u202f0.5\u202f\u00d7\u202fQED) was required to reach\u202f\u2265\u202f0.90.\n\n| Iteration | Key structural modifications | Similarity | QED | Combined |\n|----------|------------------------------|------------|-----|----------|\n|\u202f1\u202f| Fluorine added to distal phenyl (minimally perturbed scaffold) |\u202f0.93\u202f|\u202f0.42\u202f|\u202f0.67 |\n|\u202f2\u202f| Succinamide removed; fluorine removed \u2013 lower MW, fewer rotatable bonds |\u202f0.63\u202f|\u202f0.65\u202f|\u202f0.64 |\n|\u202f3\u202f| Thio\u2011ether \u2192 aryl\u2011ether (O\u2011aryl) to reduce logP |\u202f0.82\u202f|\u202f0.63\u202f|\u202f0.72 |\n|\u202f4\u202f| Thio\u2011ether restored, CH\u2082 bridge removed |\u202f0.96\u202f|\u202f0.60\u202f|\u202f0.78 |\n|\u202f5\u202f| Succinamide replaced by methyl (drastic MW cut) |\u202f0.56\u202f|\u202f0.74\u202f|\u202f0.65 |\n|\u202f6\u202f| Imide \u2192 pyrrolidin\u2011one lactam (one carbonyl removed) |\u202f0.66\u202f|\u202f0.83\u202f|\u202f0.74 |\n|\u202f7\u202f| Phenolic OH added to phenyl (increase polarity) |\u202f0.85\u202f|\u202f0.32\u202f|\u202f0.58 |\n|\u202f8\u202f| Imide \u2192 hydantoin (smaller dione) |\u202f0.67\u202f|\u202f0.45\u202f|\u202f0.56 |\n|\u202f9\u202f| Phenyl \u2192 pyridine (lower logP) |\u202f0.75\u202f|\u202f0.63\u202f|\u202f0.69 |\n|\u202f11\u202f| Pyridine + fluorine + direct S\u2011aryl bond |\u202f0.83\u202f|\u202f0.59\u202f|\u202f0.71 |\n|\u202f12\u202f| Imide \u2192 primary amide (CH\u2082CH\u2082C(=O)NH\u2082) |\u202f0.57\u202f|\u202f0.68\u202f|\u202f0.62 |\n|\u202f15\u202f| Imide \u2192 pyrrolidin\u2011one (single carbonyl) |\u202f0.92\u202f|\u202f0.55\u202f|\u202f0.74 |\n|\u202f16\u202f| Thio\u2011ether \u2192 ether (O\u2011CH\u2082\u2011CH\u2082) |\u202f0.79\u202f|\u202f0.59\u202f|\u202f0.69 |\n|\u202f24\u202f| Phenyl replaced by \u2013S\u2011CH\u2082\u2011CH\u2082\u2011 (thiazole) chain (one aromatic ring removed) |\u202f0.87\u202f|\u202f0.78\u202f|\u202f**0.83** |\n|\u202f26\u202f| Imide \u2192 pyrrolidin\u2011one, S\u2011aryl\u2011thiazole retained |\u202f0.92\u202f|\u202f0.64\u202f|\u202f0.78 |\n|\u202f36\u202f| Both phenyl rings removed; core reduced to succinimide\u2011amide\u2011thiazole only |\u202f0.85\u202f|\u202f0.88\u202f|\u202f**0.86** (highest) |\n|\u202f45\u202f| Small thio\u2011methyl on phenyl to re\u2011introduce sulfur features |\u202f0.88\u202f|\u202f0.65\u202f|\u202f0.76 |\n|\u202f48\u202f| Phenyl \u2192 pyridine while keeping S\u2011CH\u2082\u2011thiazole |\u202f0.94\u202f|\u202f0.45\u202f|\u202f0.70 |\n|\u202f49\u202f| Phenyl \u2192 cyclohexyl (one aromatic ring removed) |\u202f0.85\u202f|\u202f0.61\u202f|\u202f0.73 |\n|\u202f50\u202f| Cyclohexyl \u2192 cyclopentyl (further MW reduction) |\u202f0.84\u202f|\u202f0.62\u202f|\u202f0.73 |\n\n**Strategic trends**\n\n1. **Reducing molecular weight & rotatable bonds** \u2013 removal or simplification of the succinimide imide (iterations\u202f2,\u202f5,\u202f6,\u202f12,\u202f15,\u202f26) consistently raised QED while only modestly lowering similarity.\n2. **Modulating hetero\u2011atom content** \u2013 swapping the thio\u2011ether for ether (iterations\u202f3,\u202f16) removed a structural\u2011alert and lowered logP, improving QED at the cost of similarity.\n3. **Introducing polar substituents** \u2013 phenolic OH or additional hydroxyl groups (iterations\u202f7,\u202f17) increased polarity but often depressed QED due to excessive H\u2011bond donors.\n4. **Re\u2011adding sulfur\u2011related fragments** \u2013 small thio\u2011methyl or S\u2011CH\u2082\u2011linkers (iterations\u202f39,\u202f45) restored key MACCS bits that had been lost when similarity fell below 0.80.\n5. **Aromatic count manipulation** \u2013 replacing one phenyl ring with heterocycles (pyridine) or saturated rings (cyclohexyl, cyclopentyl) lowered logP and improved QED, while still preserving enough fingerprint overlap to keep similarity\u202f\u2265\u202f0.70.\n\n**Outcome**\n\nThe most successful compromise was achieved at **iteration\u202f36** (SMILES `O=C(Nc1ccc(CN2C(=O)CCC2=O)cc1)c1cscn1`), which retained the succinimide imide, the amide linkage and the thiazole core, giving **similarity\u202f\u2248\u202f0.85**, **QED\u202f\u2248\u202f0.88** and a **combined score\u202f\u2248\u202f0.86**.  This exceeds the individual thresholds (similarity\u202f\u2265\u202f0.70, QED\u202f\u2265\u202f0.70) but falls short of the overall target (combined\u202f\u2265\u202f0.90).  Subsequent attempts to re\u2011introduce sulfur\u2011rich fragments (iterations\u202f39,\u202f45) improved similarity but reduced QED, illustrating the inherent trade\u2011off between preserving the target fingerprint and enhancing drug\u2011likeness.  No molecule in the provided trace reaches the required combined score of 0.90."
+}
