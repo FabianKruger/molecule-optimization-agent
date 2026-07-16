@@ -15,7 +15,7 @@ set -e  # Exit on error
 XAI_MODE="full"
 
 # LLM model name
-LLM_MODEL="gpt-oss-120b"
+LLM_MODEL="claude-opus-4.8"
 
 # Results base directory (will be created if it doesn't exist)
 RESULTS_BASE_DIR="data/results"
@@ -36,7 +36,7 @@ NUM_REPETITIONS=1
 # Add reasoning effort (gpt models: minimal, low, medium, high) - put None for default and non-gpt models
 REASONING_EFFORT='None'
 
-SKIP_SMILES=("Br[C@@H]1[C@H](Br)c2cccc3c2[C@](Br)(C3)[C@H]1Br")
+#SKIP_SMILES=("Br[C@@H]1[C@H](Br)c2cccc3c2[C@](Br)(C3)[C@H]1Br")
 
 # ==============================================================================
 # PATHS 
