@@ -1,0 +1,536 @@
+{
+  "timestamp": "20260326_112541",
+  "experiment": "zero_shot_independent_deco_hop",
+  "config": {
+    "llm": {
+      "model": "claude-opus-4.5",
+      "temperature": 1.0
+    },
+    "objective": {
+      "name": "tdc_tasks",
+      "params": {
+        "max_iterations": 50
+      }
+    },
+    "oracle": {
+      "name": "tdc_tasks",
+      "params": {
+        "oracle_name": "deco_hop"
+      }
+    },
+    "generation_mode": "independent"
+  },
+  "conversation": [
+    {
+      "role": "SystemMessage",
+      "content": "You are an expert medicinal chemist whose job is to propose and optimize new molecules.\n\nYou interact in a multi-step optimization loop. In this loop you:\n- Propose small organic molecules as SMILES strings.\n- Receive evaluations of your proposals.\n- Have access to the full conversation history, including all past proposals, rationales, and evaluations.\n\nYour goal in this conversation is to iteratively propose new molecules that move the objective toward the specified target, using the information in the conversation history and your general chemical knowledge.\n\nOUTPUT FORMAT:\n\nFor every proposal, you must respond with a single JSON object of the form\n\n{\n  \"reason\": \"<short explanation>\",\n  \"smiles\": \"<SMILES string>\"\n}\n\nRequirements:\n- \"smiles\" must be a single, valid SMILES string for a plausible small molecule.\n- \"reason\" should briefly explain why, given the history of molecules and their scores, this new proposal might improve or further explore the objective landscape.\n- Do not repeat any previous molecule exactly. The scores are deterministic and will not change if a molecule is re-evaluated.\n- Do not include any text outside the JSON object. No Markdown, no comments, no code fences."
+    },
+    {
+      "role": "HumanMessage",
+      "content": "Decorator Hop task: score is the arithmetic mean of 4 terms:\n  score = mean([similarity_term, deco1_term, deco2_term, scaffold_term])\n\nReference molecule used for similarity (pharmacophore) SMILES:\n  CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C\n\nSimilarity term:\n  - Based on PHCO (2D pharmacophore fingerprint).\n  - sim = Tanimoto(PHCO(test), PHCO(reference))\n  - similarity_term = clip(sim, t=0.85) where clip(x,t)=1 if x>=t else x/t\n\nSMARTS constraint terms (each is binary 0/1):\n  - deco1_term = 1 if SMARTS 'CS([#6])(=O)=O' is ABSENT, else 0\n  - deco2_term = 1 if SMARTS '[#7]-c1ccc2ncsc2c1' is ABSENT, else 0\n  - scaffold_term = 1 if SMARTS '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' is PRESENT, else 0\n\nObjective:\n- generate one molecule that maximize the Deco Hop score (0\u20131; higher is better).\n- give a short explanation why this molecule was chosen.\n\nTask:\nPropose a single initial molecule as a SMILES string that you think will have a high score by:\n- achieving high PHCO pharmacophore similarity to the reference (ideally sim >= 0.85 so the clipped term is 1),\n- NOT containing 'CS([#6])(=O)=O',\n- NOT containing '[#7]-c1ccc2ncsc2c1', and\n- DO containing '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12'.\n\nRespond with a single JSON object:\n{\n  \"reason\": \"<short explanation>\",\n  \"smiles\": \"<SMILES string>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Lacks the CS(=O)=O sulfonamide on carbon, 3) Lacks the specific benzothiazole-amine pattern, 4) Contains the required quinazoline scaffold with oxygen and nitrogen substituents. The reference has a quinazoline core with a benzothiazole amine and a sulfonamide. I'll keep the quinazoline core with the propoxy group (satisfies scaffold requirement with -O attachment), replace the benzothiazole with a different aromatic amine to maintain pharmacophore similarity while avoiding the forbidden pattern, and replace the tert-butyl sulfonamide with a different group to avoid CS(=O)=O.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(N)cc3)c2cc1C(=O)C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a 4-aminoquinazoline with oxygen at position 7 and a substituent at position 6), 2) Avoids the methylsulfonyl 'CS([#6])(=O)=O' pattern, 3) Avoids the '[#7]-c1ccc2ncsc2c1' benzothiazole amine pattern, 4) Maintains pharmacophore similarity to the reference. I'll replace the benzothiazole with a simpler aniline, keep the propoxy group at position 7, and replace the tert-butyl methylsulfone with a different group like trifluoromethyl at position 6.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1C(F)(F)F\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12' (a quinazoline with NH and oxygen substituent), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl), 3) Avoids '[#7]-c1ccc2ncsc2c1' (aminobenzothiazole), 4) Maintains high pharmacophore similarity to the reference. The reference has a quinazoline core with an aminobenzothiazole substituent and a tert-butylsulfonyl group. I'll keep the quinazoline scaffold with an alkoxy substituent but replace the methylsulfonyl with a different group and change the aminobenzothiazole to a different amine that maintains similar pharmacophore properties.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(N)cc3)c2cc1C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Avoids the CS(=O)=O sulfonamide pattern, 3) Avoids the aminobenzothiazole [#7]-c1ccc2ncsc2c1 pattern, 4) Contains the required scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12 (a 4-aminoquinazoline with oxygen at position 7). I'll start with the required quinazoline scaffold with an ether group, and add an aniline substituent that differs from benzothiazole to satisfy deco2. I'll replace the sulfonamide with a different substituent to satisfy deco1.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Contains the scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a 4-aminoquinazoline with oxygen at position 7), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl attached to carbon), 3) Avoids '[#7]-c1ccc2ncsc2c1' (amino-benzothiazole), 4) Maintains high pharmacophore similarity to the reference. The reference has a 4-anilinoquinazoline core with propoxy and tert-butylsulfonyl groups. I'll keep the quinazoline core with an ether substituent, replace the benzothiazole aniline with a simple aniline, and modify the sulfonyl to avoid the forbidden pattern by using a different sulfonyl group or removing it entirely.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1OC\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C), 2) Does NOT contain CS([#6])(=O)=O (methyl sulfonyl), 3) Does NOT contain [#7]-c1ccc2ncsc2c1 (aminobenzothiazole), 4) DOES contain the scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12 (aminoquinazoline with oxygen substituent). The reference has a quinazoline core with an ether group and sulfonyl. I'll keep the quinazoline scaffold with the required oxygen, replace the benzothiazole aniline with a simpler aniline to avoid deco2, and replace the methyl sulfonyl with a different sulfonyl (like tert-butyl sulfonyl without the methyl-S pattern) or another group. Using ethyl sulfonyl instead of methyl sulfonyl should avoid the CS pattern while maintaining similar properties.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1S(=O)(=O)CC(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12' (a 4-aminoquinazoline with oxygen at position 7), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl attached to carbon), 3) Avoids '[#7]-c1ccc2ncsc2c1' (amino-benzothiazole), 4) Maintains pharmacophore similarity to the reference. The reference has a quinazoline core with an ether group, a sulfonyl group, and an aminobenzothiazole. I'll keep the quinazoline-ether scaffold but replace the benzothiazole with a different aromatic amine (like aniline or aminopyridine) and change the sulfonyl to avoid the forbidden pattern. Using an ethylsulfonyl (S(=O)(=O)CC) instead of tert-butylsulfonyl and replacing the benzothiazole with a simple phenyl group should work.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1S(=O)(=O)CC\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a 4-aminoquinazoline with oxygen at position 7), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl attached to carbon), 3) Avoids '[#7]-c1ccc2ncsc2c1' (aminobenzothiazole), 4) Maintains pharmacophore similarity to the reference. The reference has a 4-aminoquinazoline core with a propoxy group and a tert-butylsulfonyl group. I'll keep the quinazoline core, add an oxygen substituent at position 7, use a different amine (not benzothiazole), and replace the methylsulfonyl with a different group to maintain similarity while meeting constraints.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (quinazoline with propoxy and sulfonyl groups), 2) Avoids CS(=O)=O (methylsulfonyl), 3) Avoids the benzothiazole-amine pattern [#7]-c1ccc2ncsc2c1, 4) Contains the required scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12 (aminoquinazoline with oxygen substituent). I'll modify the reference by keeping the quinazoline core with propoxy group, replacing the methylsulfonyl with an ethylsulfonyl (to avoid CS pattern), and replacing the benzothiazole amine with a simple aniline to avoid deco2 pattern while maintaining pharmacophore similarity.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccccc3)c2cc1S(=O)(=O)CC\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C, 2) Does NOT contain CS(=O)=O (methylsulfonyl), 3) Does NOT contain the benzothiazole-amine pattern [#7]-c1ccc2ncsc2c1, 4) DOES contain the scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12 (a 4-amino-7-alkoxy-quinazoline). I'll replace the benzothiazole with a simple phenyl group to maintain pharmacophore similarity while avoiding deco2, replace the methylsulfonyl with a tert-butyl group to avoid deco1, and ensure the quinazoline scaffold with propoxy at position 7 is present.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccccc3)c2cc1C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C), 2) Does NOT contain CS(=O)(=O) (methyl sulfonyl), 3) Does NOT contain the benzothiazole-amine pattern [#7]-c1ccc2ncsc2c1, 4) DOES contain the scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12 (a quinazoline with oxygen substituent and NH). I'll replace the benzothiazole with a different aromatic amine while keeping the quinazoline core with propoxy group. I'll also change the sulfonyl group to avoid the CS pattern - using tert-butyl sulfonyl without the methyl linkage.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3cccc(F)c3)c2cc1S(=O)(=O)C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a 4-aminoquinazoline with oxygen at position 7 and a substituent at position 6), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl group), 3) Avoids '[#7]-c1ccc2ncsc2c1' (aminobenzothiazole), 4) Maintains high pharmacophore similarity to the reference. The reference has a quinazoline core with a propoxy group, a sulfonyl group, and an aminobenzothiazole. I'll keep the quinazoline core with propoxy, replace the aminobenzothiazole with a different amine (like aniline), and replace the tert-butylsulfonyl with a non-methylsulfonyl group (like ethylsulfonyl or remove it entirely). Starting with a simple aniline substituent and keeping the propoxy group.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccccc3)c2cc1OC\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12' (a 4-aminoquinazoline with oxygen at position 6 or 7), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl on carbon), 3) Avoids '[#7]-c1ccc2ncsc2c1' (amino-benzothiazole), 4) Maintains pharmacophore similarity to the reference. The reference has a quinazoline core with an aminobenzothiazole, propoxy group, and tert-butylsulfonyl. I'll keep the quinazoline core with an ether substituent for similarity, replace the methylsulfonyl with something else (like a simple alkyl or halogen), and replace the benzothiazole amine with a different aromatic amine to maintain pharmacophore features while satisfying constraints.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C), 2) Does NOT contain CS([#6])(=O)=O (methylsulfonyl), 3) Does NOT contain the benzothiazole-amine pattern [#7]-c1ccc2ncsc2c1, and 4) DOES contain the scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12 (a quinazoline with oxygen substituent). The reference has a quinazoline core with a propoxy group and a sulfonyl group. I'll keep the quinazoline scaffold with propoxy to satisfy the required scaffold pattern, replace the benzothiazole with a similar aromatic amine (like aniline or aminopyridine) to maintain pharmacophore similarity while avoiding deco2, and replace the tert-butylsulfonyl with a different group to avoid deco1.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (which has a quinazoline core with propoxy, sulfonyl, and aminothiazole groups), 2) Does NOT contain CS(C)(=O)=O (methyl sulfonyl), 3) Does NOT contain the specific N-benzothiazole pattern, 4) DOES contain the required scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12 (which is an amino-quinazoline with an oxygen substituent). I'll build a quinazoline core matching the scaffold SMARTS, add a propoxy group at the oxygen position for similarity, replace the methylsulfonyl with a different group, and replace the benzothiazole amine with a different aromatic amine to maintain pharmacophore similarity while avoiding forbidden patterns.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1C(F)(F)F\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a 4-aminoquinazoline with oxygen at position 7 and substituent at position 6), 2) Avoids the methylsulfonyl group 'CS([#6])(=O)=O', 3) Avoids the benzothiazole aniline '[#7]-c1ccc2ncsc2c1', 4) Maintains pharmacophore similarity to the reference. The reference has a propoxy group at position 7, a tert-butylsulfonyl at position 6, and a benzothiazol-6-yl amino group at position 4. I'll keep the core quinazoline with propoxy at C7, replace the tert-butylsulfonyl with a different substituent (avoiding methylsulfonyl), and replace the benzothiazole with a similar aromatic amine that doesn't match the forbidden SMARTS.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(F)c(Cl)c3)c2cc1C(=O)C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C, 2) Does NOT contain CS(=O)(=O) (methyl sulfonyl), 3) Does NOT contain the benzothiazole-amine pattern [#7]-c1ccc2ncsc2c1, 4) DOES contain the scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12 (a quinazoline with oxygen and nitrogen substituents). I'll keep the quinazoline core with an ether group (propoxy), replace the methylsulfonyl with a tert-butyl group directly, and replace the benzothiazole amine with a simple aniline to maintain pharmacophore features while satisfying all constraints.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccccc3)c2cc1C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (which has a quinazoline core with ether, sulfonyl, and aminobenzothiazole groups), 2) Avoids CS(=O)=O (methylsulfonyl), 3) Avoids the specific aminobenzothiazole pattern [#7]-c1ccc2ncsc2c1, 4) Contains the required scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12 (an aminoquinazoline with an ether substituent). I'll create a quinazoline with the required scaffold, replace the methylsulfonyl with an ethylsulfonyl group (to avoid CS pattern), and replace the benzothiazole with a different aromatic amine like aniline or pyridine to maintain pharmacophore similarity while avoiding the forbidden pattern.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1S(=O)(=O)CC\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a 4-aminoquinazoline with oxygen substituent), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl group), 3) Avoids '[#7]-c1ccc2ncsc2c1' (aminobenzothiazole), 4) Maintains pharmacophore similarity to the reference. The reference has a quinazoline core with an ether group, sulfonyl group, and aminobenzothiazole. I'll keep the quinazoline scaffold with the propoxy group for similarity, but replace the methylsulfonyl with a different group (like fluorine) and replace the aminobenzothiazole with a different aromatic amine (like aminopyridine) to maintain pharmacophore features while satisfying constraints.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccnc4ccccc34)c2cc1F\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' which is a 4-aminoquinazoline with an oxygen substituent, 2) Avoids the CS(=O)=O sulfonamide pattern from the reference, 3) Avoids the aminobenzothiazole '[#7]-c1ccc2ncsc2c1' pattern, 4) Maintains pharmacophore similarity to the reference. The reference has a quinazoline core with an ether group, sulfonamide, and aminobenzothiazole. I'll keep the quinazoline core with propoxy group for similarity, replace the sulfonamide with a different group (like tert-butyl), and replace the benzothiazole amine with a different aromatic amine (like aniline or pyridine) to maintain the pharmacophore while avoiding forbidden SMARTS.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12' while avoiding the forbidden SMARTS patterns. The reference has a quinazoline core with an aminobenzothiazole substituent and a tert-butylsulfonyl group. I'll keep the quinazoline scaffold with an ether substituent at the right position, replace the benzothiazole with a different aromatic amine to maintain pharmacophore similarity while avoiding '[#7]-c1ccc2ncsc2c1', and replace the methylsulfonyl with a different group to avoid 'CS([#6])(=O)=O'. Using an aniline derivative and keeping the propoxy group should maintain similarity.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12' (a 4-aminoquinazoline with oxygen substituent), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl), 3) Avoids '[#7]-c1ccc2ncsc2c1' (aminobenzothiazole), 4) Maintains pharmacophore similarity to the reference. The reference has a quinazoline core with an ether group, sulfonyl group, and aminobenzothiazole. I'll keep the quinazoline core with propoxy group but replace the methylsulfonyl with a different group and change the aminobenzothiazole to a different amine that maintains similar pharmacophore features.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(F)c(Cl)c3)c2cc1OC\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C), 2) Does NOT contain CS(=O)=O (methyl sulfonyl), 3) Does NOT contain the benzothiazole-amine pattern [#7]-c1ccc2ncsc2c1, 4) DOES contain the scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12 (a quinazoline with an oxygen substituent and NH). I'll replace the benzothiazole with a different aromatic amine (like aniline), keep the quinazoline core with the propoxy group, and replace the tert-butyl sulfonyl with a non-methyl sulfonyl group or different substituent to maintain pharmacophore similarity while avoiding the forbidden patterns.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccccc3)c2cc1S(=O)(=O)CC(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a 4-aminoquinazoline with oxygen at position 7), 2) Avoids the CS(=O)(=O) sulfonamide and the benzothiazole-amine patterns, 3) Maintains pharmacophore similarity to the reference. The reference has a quinazoline core with a 6-substituted amine, 7-alkoxy group, and 8-sulfonamide. I'll keep the quinazoline core with 4-amino substitution, add a propoxy group at position 7, but replace the problematic sulfonamide with a different group and use a different amine substituent than benzothiazole.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C, 2) Avoids CS(=O)(=O) (methylsulfonyl), 3) Avoids the benzothiazole-amine pattern [#7]-c1ccc2ncsc2c1, 4) Contains the required scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12 (a quinazoline with oxygen substituent and amine). I'll keep the quinazoline core with propoxy group, replace the methylsulfonyl with a tert-butyl group (no sulfone), and replace the benzothiazole amine with a simple aniline to maintain pharmacophore similarity while satisfying all constraints.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccccc3)c2cc1C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C), 2) Does NOT contain CS(=O)=O (methylsulfonyl), 3) Does NOT contain the benzothiazole-amine pattern [#7]-c1ccc2ncsc2c1, 4) DOES contain the required scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12 (a 4-aminoquinazoline with oxygen substituent). I'll keep the quinazoline core with the amine linkage and oxygen substituent, but replace the benzothiazole with a different aromatic amine (phenyl) and replace the methylsulfonyl with a tert-butyl group to maintain similar steric properties while avoiding the forbidden SMARTS.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccccc3)c2cc1C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Does NOT contain CS([#6])(=O)=O (methyl sulfonyl), 3) Does NOT contain [#7]-c1ccc2ncsc2c1 (aminobenzothiazole), 4) DOES contain [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12 (aminoquinazoline with oxygen substituent). The reference has a quinazoline core with an aniline-linked benzothiazole and a tert-butyl sulfonyl group. I'll keep the quinazoline scaffold with the required oxygen substituent, replace the benzothiazole aniline with a simple aniline to avoid deco2, and replace the methyl sulfonyl with a different group (like ethyl sulfonyl or remove the methyl) to avoid deco1. I'll use a propoxy group for the oxygen attachment and modify the sulfonyl to avoid the CS pattern.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1S(=O)(=O)CC(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C), 2) Does NOT contain CS(=O)(=O) sulfonyl group, 3) Does NOT contain the benzothiazole amine [#7]-c1ccc2ncsc2c1, 4) DOES contain the required scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12 (which is a 4-aminoquinazoline with oxygen substituent). I'll replace the benzothiazole with a different amine and change the sulfonyl group to something else while keeping the core quinazoline with propoxy group. The scaffold requires an aminoquinazoline with oxygen at position 7 and specific hydrogen patterns.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12' (a 4-aminoquinazoline with oxygen substituent), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl), 3) Avoids '[#7]-c1ccc2ncsc2c1' (aminobenzothiazole), 4) Maintains pharmacophore similarity to the reference. The reference has a quinazoline core with an aminobenzothiazole substituent, propoxy group, and tert-butylsulfonyl. I'll keep the quinazoline scaffold with the required pattern, replace the methylsulfonyl with a different group (like tert-butyl directly), replace the benzothiazole with a different aromatic amine, and keep an alkoxy group for the oxygen requirement.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C), 2) Does NOT contain CS(=O)(=O) (methyl sulfonyl), 3) Does NOT contain the benzothiazole-amine pattern [#7]-c1ccc2ncsc2c1, 4) DOES contain the quinazoline scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12. I'll start with a quinazoline core with the required scaffold pattern, add an ether oxygen at the correct position, replace the benzothiazole with a different amine to maintain pharmacophore similarity, and change the sulfonyl group to avoid the forbidden CS pattern. I'll use a tert-butyl sulfonyl without the methyl-S linkage, replacing it with an ethyl or different connection.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1S(=O)(=O)CC(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12' (a 4-aminoquinazoline with oxygen substituent), 2) Avoids the methylsulfonyl 'CS([#6])(=O)=O' pattern, 3) Avoids the '[#7]-c1ccc2ncsc2c1' benzothiazole-amine pattern, 4) Maintains high pharmacophore similarity to the reference. The reference has a quinazoline core with an ether substituent and a sulfonyl group. I'll keep the quinazoline core with propoxy group and replace the problematic sulfonyl with a different group, and change the benzothiazole aniline to a simple aniline to maintain pharmacophore similarity while avoiding forbidden patterns.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1C(F)(F)F\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C, 2) Does NOT contain CS([#6])(=O)=O (methyl sulfonyl), 3) Does NOT contain [#7]-c1ccc2ncsc2c1 (aminobenzothiazole), 4) DOES contain the scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12 (amino-quinazoline with oxygen substituent). The reference has a quinazoline core with an amino group linked to benzothiazole, plus a propoxy and tert-butylsulfonyl group. I'll keep the quinazoline scaffold with the required oxygen attachment, replace the benzothiazole with a different amine (like aniline), and replace the methyl sulfonyl with an ethyl or other sulfonyl group to maintain pharmacophore similarity while avoiding forbidden SMARTS.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1S(=O)(=O)CC(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a 4-aminoquinazoline with oxygen at position 7), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl), 3) Avoids '[#7]-c1ccc2ncsc2c1' (aminobenzothiazole), 4) Maintains pharmacophore similarity to the reference. The reference has a propoxy group, a sulfonyl group, and an aminobenzothiazole. I'll keep the propoxy group for similarity but replace the methylsulfonyl with a different substituent (like a simple halogen or methyl) and replace the benzothiazole with a different amine that maintains pharmacophore features.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1Cl\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' which is a 4-aminoquinazoline with oxygen at position 7, 2) Avoids the methylsulfonyl group 'CS([#6])(=O)=O', 3) Avoids the benzothiazole-amine '[#7]-c1ccc2ncsc2c1', 4) Maintains pharmacophore similarity to the reference. The reference has a propoxy group, a sulfonyl group (which I need to replace), and a benzothiazole amine (which I need to replace). I'll keep the quinazoline core with propoxy substituent but replace the methylsulfonyl with a different group (like ethyl) and replace the benzothiazole with a simple aniline to maintain the amine pharmacophore while avoiding the forbidden SMARTS.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1CC\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a 4-aminoquinazoline with oxygen at position 7 and a substituent at position 6), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl attached to carbon), 3) Avoids '[#7]-c1ccc2ncsc2c1' (amino-benzothiazole), 4) Maintains pharmacophore similarity to the reference. The reference has a propoxy group at position 7, a tert-butylsulfonyl at position 6, and an aminobenzothiazole at position 4. I'll keep the quinazoline core with oxygen at position 7 (using propoxy), replace the methylsulfonyl with an ethylsulfonyl (avoiding the CS pattern), and replace the benzothiazole with a different amine to maintain pharmacophore features while avoiding the forbidden pattern.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(N)cc3)c2cc1S(=O)(=O)CC(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12' (a 4-aminoquinazoline with oxygen at position 7), 2) Avoids the methylsulfonyl group 'CS([#6])(=O)=O', 3) Avoids the benzothiazole-amine '[#7]-c1ccc2ncsc2c1', 4) Maintains pharmacophore similarity to the reference. The reference has a quinazoline core with Nc3ccc4ncsc4c3 (aminobenzothiazole) attached at N4, a propoxy group, and a tert-butylsulfonyl. I'll keep the quinazoline scaffold, add an oxygen substituent at position 7, use a different amine (not benzothiazole), and replace the methylsulfonyl with a different group to maintain similar pharmacophore features.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1OC\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12' (a 4-aminoquinazoline with oxygen substituent), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl attached to carbon), 3) Avoids '[#7]-c1ccc2ncsc2c1' (aminobenzothiazole), 4) Maintains high pharmacophore similarity to the reference. The reference has a quinazoline core with an amino group at position 4, an alkoxy group, and a sulfonyl group. I'll keep the quinazoline core with the required scaffold pattern, use a propoxy group for the oxygen substituent, change the sulfonyl from methylsulfonyl to another group (like ethylsulfonyl to avoid the SMARTS), and replace the benzothiazole with a similar heterocycle like benzimidazole.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc4[nH]cnc4c3)c2cc1S(=O)(=O)CC\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Lacks CS(=O)(=O) sulfonamide with methyl, 3) Lacks the specific benzothiazole-amine pattern, 4) Contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12'. The reference has a quinazoline core with an ether substituent. I'll use the required scaffold (a 4-aminoquinazoline with an oxygen at position 6 or 7) and modify the amine portion to avoid the forbidden benzothiazole pattern while maintaining pharmacophore similarity. I'll replace the benzothiazole with a similar aromatic amine and change the sulfonamide to avoid the CS pattern.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(N)cc3)c2cc1OC\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C), 2) Does NOT contain CS(=O)(=O) (methyl sulfonyl), 3) Does NOT contain the benzothiazole-amine pattern, 4) DOES contain the required scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12. The reference has a quinazoline core with an ether at position 7, a sulfonyl group, and a benzothiazole amine. I'll keep the quinazoline scaffold with the ether group to satisfy the scaffold requirement, replace the benzothiazole with a different amine to avoid deco2, and replace the methyl sulfonyl with a different substituent (like tert-butyl sulfonyl without the methyl-S) to avoid deco1 while maintaining similar pharmacophore features.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C), 2) Does NOT contain CS([#6])(=O)=O (methyl sulfonyl), 3) Does NOT contain [#7]-c1ccc2ncsc2c1 (aminobenzothiazole), 4) DOES contain [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12 (amino-quinazoline with oxygen substituent). The reference has a quinazoline core with an ether group and a sulfonyl group. I'll keep the quinazoline scaffold with the propoxy group, replace the aminobenzothiazole with a simple aniline to maintain pharmacophore features, and replace the tert-butyl sulfonyl with a different substituent that doesn't match the forbidden SMARTS pattern.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccccc3)c2cc1C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C), 2) Does NOT contain CS([#6])(=O)=O (methylsulfonyl), 3) Does NOT contain [#7]-c1ccc2ncsc2c1 (aminobenzothiazole), 4) DOES contain [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12 (aminoquinazoline with oxygen substituent). The reference has a quinazoline core with an ether group and sulfonyl group. I'll keep the quinazoline scaffold with the required oxygen, replace the benzothiazole amine with a simpler aromatic amine to maintain pharmacophore similarity, and replace the tert-butylsulfonyl with a different group to avoid the forbidden SMARTS.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Contains the scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12' (a 4-aminoquinazoline with oxygen at position 7), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl), 3) Avoids '[#7]-c1ccc2ncsc2c1' (aminobenzothiazole), 4) Maintains high pharmacophore similarity to the reference. The reference has a quinazoline core with a 6-amino substituent linked to benzothiazole, a 7-propoxy group, and an 8-tert-butylsulfonyl group. I'll keep the quinazoline core with a 7-alkoxy group, replace the benzothiazole with a different aromatic amine (like aminopyridine), and replace the methylsulfonyl with a different substituent to maintain pharmacophore features while avoiding forbidden SMARTS.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(N)nc3)c2cc1C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12' (a 4-aminoquinazoline with oxygen at position 6 or 7), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl on carbon), 3) Avoids '[#7]-c1ccc2ncsc2c1' (aminobenzothiazole), 4) Maintains pharmacophore similarity to the reference. The reference has a quinazoline core with an ether group, a sulfonyl group, and an aminobenzothiazole. I'll keep the quinazoline core with propoxy ether for similarity, but replace the methylsulfonyl with a different group (like methyl or chloro) and replace the aminobenzothiazole with a similar aromatic amine (like aminopyridine) to maintain pharmacophore features while satisfying constraints.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccnc4ccccc34)c2cc1C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a 4-aminoquinazoline with oxygen substituent), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl on carbon), 3) Avoids '[#7]-c1ccc2ncsc2c1' (aminobenzothiazole), 4) Maintains pharmacophore similarity to the reference. The reference has a quinazoline core with an ether (OC3H7), a sulfonyl group, and an aminobenzothiazole. I'll keep the quinazoline core with propoxy group for similarity, replace the methylsulfonyl with a different group (like ethylsulfonyl which has C-S not methylsulfonyl pattern), and replace the aminobenzothiazole with a simple aniline to maintain the aromatic amine pharmacophore while avoiding the forbidden SMARTS.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccccc3)c2cc1OC\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Does NOT contain CS([#6])(=O)=O (methylsulfonyl), 3) Does NOT contain the benzothiazole-amine pattern [#7]-c1ccc2ncsc2c1, 4) DOES contain the quinazoline scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12. The reference has a quinazoline core with a propoxy group, a sulfonyl group, and a benzothiazole amine. I'll keep the quinazoline core with the required scaffold pattern, replace the benzothiazole with a different aromatic amine to maintain pharmacophore similarity, change the sulfonyl to avoid the methylsulfonyl pattern, and keep the alkoxy group. I'll use an aminopyridine instead of aminobenzothiazole and modify the sulfonyl to a different group.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccnc4ccccc34)c2cc1C(=O)C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12' (a 4-aminoquinazoline with oxygen substituent), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl on carbon), 3) Avoids '[#7]-c1ccc2ncsc2c1' (aminobenzothiazole), 4) Maintains high pharmacophore similarity to the reference. The reference has a quinazoline core with an ether group, sulfonyl group, and aminobenzothiazole. I'll keep the quinazoline scaffold with an ether substituent but replace the methylsulfonyl with a different group (like ethylsulfonyl where S is not attached to methyl-C) and replace the benzothiazole with a different aromatic amine to maintain pharmacophore similarity while satisfying constraints.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc4nccnc4c3)c2cc1S(=O)(=O)CC\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a 4-aminoquinazoline with oxygen at position 6 or 7), 2) Maintains pharmacophore similarity to the reference (propoxy group, sulfonyl group, and aromatic amine), 3) Avoids the forbidden CS(=O)=O pattern (methylsulfonyl) by using a different sulfonyl like tert-butylsulfonyl, 4) Avoids the benzothiazole amine pattern '[#7]-c1ccc2ncsc2c1'. I'll use the quinazoline scaffold with an aniline substituent (not benzothiazole), keep the propoxy and tert-butylsulfonyl groups for similarity.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1S(=O)(=O)C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12' (a 4-aminoquinazoline with oxygen substituent), 2) Avoids the methylsulfonyl 'CS([#6])(=O)=O' pattern (so I'll remove or modify the sulfonyl group), 3) Avoids the '[#7]-c1ccc2ncsc2c1' benzothiazole-amine pattern (so I'll use a different amine substituent), 4) Maintains pharmacophore similarity to the reference. I'll keep the quinazoline core with propoxy and modify the sulfonyl to a different group, and replace the benzothiazole amine with a similar aromatic amine like aminopyridine.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccnc4ccccc34)c2cc1C(C)(C)C\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a 4-aminoquinazoline with oxygen substituent), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl on carbon), 3) Avoids '[#7]-c1ccc2ncsc2c1' (amino-benzothiazole), 4) Maintains pharmacophore similarity to the reference. The reference has a quinazoline core with an ether group, a sulfonyl group, and an aminobenzothiazole. I'll keep the quinazoline core with propoxy group, replace the methylsulfonyl with an ethylsulfonyl (avoiding CS pattern), and replace the benzothiazole with a simple aniline to maintain the amino group pharmacophore while avoiding the forbidden SMARTS.\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1S(=O)(=O)CC\"}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\"reason\": \"I need to design a molecule that: 1) Has high pharmacophore similarity to the reference CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C, 2) Lacks CS(=O)(=O) group (methyl sulfonyl), 3) Lacks the benzothiazole-amine fragment [#7]-c1ccc2ncsc2c1, 4) Contains the required scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12. The reference has a quinazoline core with an ether and sulfonyl group. I'll keep the quinazoline scaffold with the propoxy group, but replace the benzothiazole with a different amine (like aniline) and change the tert-butyl sulfonyl to something else that maintains pharmacophore similarity without the forbidden CS(=O)(=O).\", \"smiles\": \"CCCOc1cc2ncnc(Nc3ccccc3)c2cc1C(C)(C)C\"}"
+    }
+  ],
+  "trace": [
+    {
+      "iteration": 1,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(N)cc3)c2cc1C(=O)C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Lacks the CS(=O)=O sulfonamide on carbon, 3) Lacks the specific benzothiazole-amine pattern, 4) Contains the required quinazoline scaffold with oxygen and nitrogen substituents. The reference has a quinazoline core with a benzothiazole amine and a sulfonamide. I'll keep the quinazoline core with the propoxy group (satisfies scaffold requirement with -O attachment), replace the benzothiazole with a different aromatic amine to maintain pharmacophore similarity while avoiding the forbidden pattern, and replace the tert-butyl sulfonamide with a different group to avoid CS(=O)=O.",
+      "score": 0.9468473663975394
+    },
+    {
+      "iteration": 2,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1C(F)(F)F",
+      "reason": "I need to design a molecule that: 1) Has the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a 4-aminoquinazoline with oxygen at position 7 and a substituent at position 6), 2) Avoids the methylsulfonyl 'CS([#6])(=O)=O' pattern, 3) Avoids the '[#7]-c1ccc2ncsc2c1' benzothiazole amine pattern, 4) Maintains pharmacophore similarity to the reference. I'll replace the benzothiazole with a simpler aniline, keep the propoxy group at position 7, and replace the tert-butyl methylsulfone with a different group like trifluoromethyl at position 6.",
+      "score": 0.8922155688622755
+    },
+    {
+      "iteration": 3,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(N)cc3)c2cc1C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12' (a quinazoline with NH and oxygen substituent), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl), 3) Avoids '[#7]-c1ccc2ncsc2c1' (aminobenzothiazole), 4) Maintains high pharmacophore similarity to the reference. The reference has a quinazoline core with an aminobenzothiazole substituent and a tert-butylsulfonyl group. I'll keep the quinazoline scaffold with an alkoxy substituent but replace the methylsulfonyl with a different group and change the aminobenzothiazole to a different amine that maintains similar pharmacophore properties.",
+      "score": 0.882703081232493
+    },
+    {
+      "iteration": 4,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Avoids the CS(=O)=O sulfonamide pattern, 3) Avoids the aminobenzothiazole [#7]-c1ccc2ncsc2c1 pattern, 4) Contains the required scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12 (a 4-aminoquinazoline with oxygen at position 7). I'll start with the required quinazoline scaffold with an ether group, and add an aniline substituent that differs from benzothiazole to satisfy deco2. I'll replace the sulfonamide with a different substituent to satisfy deco1.",
+      "score": 0.8704481792717087
+    },
+    {
+      "iteration": 5,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1OC",
+      "reason": "I need to design a molecule that: 1) Contains the scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a 4-aminoquinazoline with oxygen at position 7), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl attached to carbon), 3) Avoids '[#7]-c1ccc2ncsc2c1' (amino-benzothiazole), 4) Maintains high pharmacophore similarity to the reference. The reference has a 4-anilinoquinazoline core with propoxy and tert-butylsulfonyl groups. I'll keep the quinazoline core with an ether substituent, replace the benzothiazole aniline with a simple aniline, and modify the sulfonyl to avoid the forbidden pattern by using a different sulfonyl group or removing it entirely.",
+      "score": 0.8723430548690064
+    },
+    {
+      "iteration": 6,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1S(=O)(=O)CC(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C), 2) Does NOT contain CS([#6])(=O)=O (methyl sulfonyl), 3) Does NOT contain [#7]-c1ccc2ncsc2c1 (aminobenzothiazole), 4) DOES contain the scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12 (aminoquinazoline with oxygen substituent). The reference has a quinazoline core with an ether group and sulfonyl. I'll keep the quinazoline scaffold with the required oxygen, replace the benzothiazole aniline with a simpler aniline to avoid deco2, and replace the methyl sulfonyl with a different sulfonyl (like tert-butyl sulfonyl without the methyl-S pattern) or another group. Using ethyl sulfonyl instead of methyl sulfonyl should avoid the CS pattern while maintaining similar properties.",
+      "score": 0.6299408652349829
+    },
+    {
+      "iteration": 7,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1S(=O)(=O)CC",
+      "reason": "I need to design a molecule that: 1) Has the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12' (a 4-aminoquinazoline with oxygen at position 7), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl attached to carbon), 3) Avoids '[#7]-c1ccc2ncsc2c1' (amino-benzothiazole), 4) Maintains pharmacophore similarity to the reference. The reference has a quinazoline core with an ether group, a sulfonyl group, and an aminobenzothiazole. I'll keep the quinazoline-ether scaffold but replace the benzothiazole with a different aromatic amine (like aniline or aminopyridine) and change the sulfonyl to avoid the forbidden pattern. Using an ethylsulfonyl (S(=O)(=O)CC) instead of tert-butylsulfonyl and replacing the benzothiazole with a simple phenyl group should work.",
+      "score": 0.6424287856071964
+    },
+    {
+      "iteration": 8,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a 4-aminoquinazoline with oxygen at position 7), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl attached to carbon), 3) Avoids '[#7]-c1ccc2ncsc2c1' (aminobenzothiazole), 4) Maintains pharmacophore similarity to the reference. The reference has a 4-aminoquinazoline core with a propoxy group and a tert-butylsulfonyl group. I'll keep the quinazoline core, add an oxygen substituent at position 7, use a different amine (not benzothiazole), and replace the methylsulfonyl with a different group to maintain similarity while meeting constraints.",
+      "score": 0.8704481792717087
+    },
+    {
+      "iteration": 9,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccccc3)c2cc1S(=O)(=O)CC",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (quinazoline with propoxy and sulfonyl groups), 2) Avoids CS(=O)=O (methylsulfonyl), 3) Avoids the benzothiazole-amine pattern [#7]-c1ccc2ncsc2c1, 4) Contains the required scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12 (aminoquinazoline with oxygen substituent). I'll modify the reference by keeping the quinazoline core with propoxy group, replacing the methylsulfonyl with an ethylsulfonyl (to avoid CS pattern), and replacing the benzothiazole amine with a simple aniline to avoid deco2 pattern while maintaining pharmacophore similarity.",
+      "score": 0.5736396507628538
+    },
+    {
+      "iteration": 10,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccccc3)c2cc1C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C, 2) Does NOT contain CS(=O)=O (methylsulfonyl), 3) Does NOT contain the benzothiazole-amine pattern [#7]-c1ccc2ncsc2c1, 4) DOES contain the scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12 (a 4-amino-7-alkoxy-quinazoline). I'll replace the benzothiazole with a simple phenyl group to maintain pharmacophore similarity while avoiding deco2, replace the methylsulfonyl with a tert-butyl group to avoid deco1, and ensure the quinazoline scaffold with propoxy at position 7 is present.",
+      "score": 0.8106385611748206
+    },
+    {
+      "iteration": 11,
+      "smiles": "CCCOc1cc2ncnc(Nc3cccc(F)c3)c2cc1S(=O)(=O)C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C), 2) Does NOT contain CS(=O)(=O) (methyl sulfonyl), 3) Does NOT contain the benzothiazole-amine pattern [#7]-c1ccc2ncsc2c1, 4) DOES contain the scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12 (a quinazoline with oxygen substituent and NH). I'll replace the benzothiazole with a different aromatic amine while keeping the quinazoline core with propoxy group. I'll also change the sulfonyl group to avoid the CS pattern - using tert-butyl sulfonyl without the methyl linkage.",
+      "score": 0.6724137931034483
+    },
+    {
+      "iteration": 12,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccccc3)c2cc1OC",
+      "reason": "I need to design a molecule that: 1) Contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a 4-aminoquinazoline with oxygen at position 7 and a substituent at position 6), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl group), 3) Avoids '[#7]-c1ccc2ncsc2c1' (aminobenzothiazole), 4) Maintains high pharmacophore similarity to the reference. The reference has a quinazoline core with a propoxy group, a sulfonyl group, and an aminobenzothiazole. I'll keep the quinazoline core with propoxy, replace the aminobenzothiazole with a different amine (like aniline), and replace the tert-butylsulfonyl with a non-methylsulfonyl group (like ethylsulfonyl or remove it entirely). Starting with a simple aniline substituent and keeping the propoxy group.",
+      "score": 0.8142857142857143
+    },
+    {
+      "iteration": 13,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12' (a 4-aminoquinazoline with oxygen at position 6 or 7), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl on carbon), 3) Avoids '[#7]-c1ccc2ncsc2c1' (amino-benzothiazole), 4) Maintains pharmacophore similarity to the reference. The reference has a quinazoline core with an aminobenzothiazole, propoxy group, and tert-butylsulfonyl. I'll keep the quinazoline core with an ether substituent for similarity, replace the methylsulfonyl with something else (like a simple alkyl or halogen), and replace the benzothiazole amine with a different aromatic amine to maintain pharmacophore features while satisfying constraints.",
+      "score": 0.8704481792717087
+    },
+    {
+      "iteration": 14,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C), 2) Does NOT contain CS([#6])(=O)=O (methylsulfonyl), 3) Does NOT contain the benzothiazole-amine pattern [#7]-c1ccc2ncsc2c1, and 4) DOES contain the scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12 (a quinazoline with oxygen substituent). The reference has a quinazoline core with a propoxy group and a sulfonyl group. I'll keep the quinazoline scaffold with propoxy to satisfy the required scaffold pattern, replace the benzothiazole with a similar aromatic amine (like aniline or aminopyridine) to maintain pharmacophore similarity while avoiding deco2, and replace the tert-butylsulfonyl with a different group to avoid deco1.",
+      "score": 0.8704481792717087
+    },
+    {
+      "iteration": 15,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1C(F)(F)F",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (which has a quinazoline core with propoxy, sulfonyl, and aminothiazole groups), 2) Does NOT contain CS(C)(=O)=O (methyl sulfonyl), 3) Does NOT contain the specific N-benzothiazole pattern, 4) DOES contain the required scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12 (which is an amino-quinazoline with an oxygen substituent). I'll build a quinazoline core matching the scaffold SMARTS, add a propoxy group at the oxygen position for similarity, replace the methylsulfonyl with a different group, and replace the benzothiazole amine with a different aromatic amine to maintain pharmacophore similarity while avoiding forbidden patterns.",
+      "score": 0.8922155688622755
+    },
+    {
+      "iteration": 16,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(F)c(Cl)c3)c2cc1C(=O)C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a 4-aminoquinazoline with oxygen at position 7 and substituent at position 6), 2) Avoids the methylsulfonyl group 'CS([#6])(=O)=O', 3) Avoids the benzothiazole aniline '[#7]-c1ccc2ncsc2c1', 4) Maintains pharmacophore similarity to the reference. The reference has a propoxy group at position 7, a tert-butylsulfonyl at position 6, and a benzothiazol-6-yl amino group at position 4. I'll keep the core quinazoline with propoxy at C7, replace the tert-butylsulfonyl with a different substituent (avoiding methylsulfonyl), and replace the benzothiazole with a similar aromatic amine that doesn't match the forbidden SMARTS.",
+      "score": 0.9647455683922744
+    },
+    {
+      "iteration": 17,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccccc3)c2cc1C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C, 2) Does NOT contain CS(=O)(=O) (methyl sulfonyl), 3) Does NOT contain the benzothiazole-amine pattern [#7]-c1ccc2ncsc2c1, 4) DOES contain the scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12 (a quinazoline with oxygen and nitrogen substituents). I'll keep the quinazoline core with an ether group (propoxy), replace the methylsulfonyl with a tert-butyl group directly, and replace the benzothiazole amine with a simple aniline to maintain pharmacophore features while satisfying all constraints.",
+      "score": 0.8106385611748206
+    },
+    {
+      "iteration": 18,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1S(=O)(=O)CC",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (which has a quinazoline core with ether, sulfonyl, and aminobenzothiazole groups), 2) Avoids CS(=O)=O (methylsulfonyl), 3) Avoids the specific aminobenzothiazole pattern [#7]-c1ccc2ncsc2c1, 4) Contains the required scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12 (an aminoquinazoline with an ether substituent). I'll create a quinazoline with the required scaffold, replace the methylsulfonyl with an ethylsulfonyl group (to avoid CS pattern), and replace the benzothiazole with a different aromatic amine like aniline or pyridine to maintain pharmacophore similarity while avoiding the forbidden pattern.",
+      "score": 0.6424287856071964
+    },
+    {
+      "iteration": 19,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccnc4ccccc34)c2cc1F",
+      "reason": "I need to design a molecule that: 1) Contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a 4-aminoquinazoline with oxygen substituent), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl group), 3) Avoids '[#7]-c1ccc2ncsc2c1' (aminobenzothiazole), 4) Maintains pharmacophore similarity to the reference. The reference has a quinazoline core with an ether group, sulfonyl group, and aminobenzothiazole. I'll keep the quinazoline scaffold with the propoxy group for similarity, but replace the methylsulfonyl with a different group (like fluorine) and replace the aminobenzothiazole with a different aromatic amine (like aminopyridine) to maintain pharmacophore features while satisfying constraints.",
+      "score": 0.8735819998497483
+    },
+    {
+      "iteration": 20,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' which is a 4-aminoquinazoline with an oxygen substituent, 2) Avoids the CS(=O)=O sulfonamide pattern from the reference, 3) Avoids the aminobenzothiazole '[#7]-c1ccc2ncsc2c1' pattern, 4) Maintains pharmacophore similarity to the reference. The reference has a quinazoline core with an ether group, sulfonamide, and aminobenzothiazole. I'll keep the quinazoline core with propoxy group for similarity, replace the sulfonamide with a different group (like tert-butyl), and replace the benzothiazole amine with a different aromatic amine (like aniline or pyridine) to maintain the pharmacophore while avoiding forbidden SMARTS.",
+      "score": 0.8704481792717087
+    },
+    {
+      "iteration": 21,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1C(C)(C)C",
+      "reason": "I need to design a molecule that contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12' while avoiding the forbidden SMARTS patterns. The reference has a quinazoline core with an aminobenzothiazole substituent and a tert-butylsulfonyl group. I'll keep the quinazoline scaffold with an ether substituent at the right position, replace the benzothiazole with a different aromatic amine to maintain pharmacophore similarity while avoiding '[#7]-c1ccc2ncsc2c1', and replace the methylsulfonyl with a different group to avoid 'CS([#6])(=O)=O'. Using an aniline derivative and keeping the propoxy group should maintain similarity.",
+      "score": 0.8704481792717087
+    },
+    {
+      "iteration": 22,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(F)c(Cl)c3)c2cc1OC",
+      "reason": "I need to design a molecule that: 1) Contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12' (a 4-aminoquinazoline with oxygen substituent), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl), 3) Avoids '[#7]-c1ccc2ncsc2c1' (aminobenzothiazole), 4) Maintains pharmacophore similarity to the reference. The reference has a quinazoline core with an ether group, sulfonyl group, and aminobenzothiazole. I'll keep the quinazoline core with propoxy group but replace the methylsulfonyl with a different group and change the aminobenzothiazole to a different amine that maintains similar pharmacophore features.",
+      "score": 0.8929510351626684
+    },
+    {
+      "iteration": 23,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccccc3)c2cc1S(=O)(=O)CC(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C), 2) Does NOT contain CS(=O)=O (methyl sulfonyl), 3) Does NOT contain the benzothiazole-amine pattern [#7]-c1ccc2ncsc2c1, 4) DOES contain the scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12 (a quinazoline with an oxygen substituent and NH). I'll replace the benzothiazole with a different aromatic amine (like aniline), keep the quinazoline core with the propoxy group, and replace the tert-butyl sulfonyl with a non-methyl sulfonyl group or different substituent to maintain pharmacophore similarity while avoiding the forbidden patterns.",
+      "score": 0.5697018533440774
+    },
+    {
+      "iteration": 24,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a 4-aminoquinazoline with oxygen at position 7), 2) Avoids the CS(=O)(=O) sulfonamide and the benzothiazole-amine patterns, 3) Maintains pharmacophore similarity to the reference. The reference has a quinazoline core with a 6-substituted amine, 7-alkoxy group, and 8-sulfonamide. I'll keep the quinazoline core with 4-amino substitution, add a propoxy group at position 7, but replace the problematic sulfonamide with a different group and use a different amine substituent than benzothiazole.",
+      "score": 0.8704481792717087
+    },
+    {
+      "iteration": 25,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccccc3)c2cc1C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C, 2) Avoids CS(=O)(=O) (methylsulfonyl), 3) Avoids the benzothiazole-amine pattern [#7]-c1ccc2ncsc2c1, 4) Contains the required scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12 (a quinazoline with oxygen substituent and amine). I'll keep the quinazoline core with propoxy group, replace the methylsulfonyl with a tert-butyl group (no sulfone), and replace the benzothiazole amine with a simple aniline to maintain pharmacophore similarity while satisfying all constraints.",
+      "score": 0.8106385611748206
+    },
+    {
+      "iteration": 26,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccccc3)c2cc1C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C), 2) Does NOT contain CS(=O)=O (methylsulfonyl), 3) Does NOT contain the benzothiazole-amine pattern [#7]-c1ccc2ncsc2c1, 4) DOES contain the required scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12 (a 4-aminoquinazoline with oxygen substituent). I'll keep the quinazoline core with the amine linkage and oxygen substituent, but replace the benzothiazole with a different aromatic amine (phenyl) and replace the methylsulfonyl with a tert-butyl group to maintain similar steric properties while avoiding the forbidden SMARTS.",
+      "score": 0.8106385611748206
+    },
+    {
+      "iteration": 27,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1S(=O)(=O)CC(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Does NOT contain CS([#6])(=O)=O (methyl sulfonyl), 3) Does NOT contain [#7]-c1ccc2ncsc2c1 (aminobenzothiazole), 4) DOES contain [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12 (aminoquinazoline with oxygen substituent). The reference has a quinazoline core with an aniline-linked benzothiazole and a tert-butyl sulfonyl group. I'll keep the quinazoline scaffold with the required oxygen substituent, replace the benzothiazole aniline with a simple aniline to avoid deco2, and replace the methyl sulfonyl with a different group (like ethyl sulfonyl or remove the methyl) to avoid deco1. I'll use a propoxy group for the oxygen attachment and modify the sulfonyl to avoid the CS pattern.",
+      "score": 0.6299408652349829
+    },
+    {
+      "iteration": 28,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C), 2) Does NOT contain CS(=O)(=O) sulfonyl group, 3) Does NOT contain the benzothiazole amine [#7]-c1ccc2ncsc2c1, 4) DOES contain the required scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12 (which is a 4-aminoquinazoline with oxygen substituent). I'll replace the benzothiazole with a different amine and change the sulfonyl group to something else while keeping the core quinazoline with propoxy group. The scaffold requires an aminoquinazoline with oxygen at position 7 and specific hydrogen patterns.",
+      "score": 0.8704481792717087
+    },
+    {
+      "iteration": 29,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12' (a 4-aminoquinazoline with oxygen substituent), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl), 3) Avoids '[#7]-c1ccc2ncsc2c1' (aminobenzothiazole), 4) Maintains pharmacophore similarity to the reference. The reference has a quinazoline core with an aminobenzothiazole substituent, propoxy group, and tert-butylsulfonyl. I'll keep the quinazoline scaffold with the required pattern, replace the methylsulfonyl with a different group (like tert-butyl directly), replace the benzothiazole with a different aromatic amine, and keep an alkoxy group for the oxygen requirement.",
+      "score": 0.8704481792717087
+    },
+    {
+      "iteration": 30,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1S(=O)(=O)CC(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C), 2) Does NOT contain CS(=O)(=O) (methyl sulfonyl), 3) Does NOT contain the benzothiazole-amine pattern [#7]-c1ccc2ncsc2c1, 4) DOES contain the quinazoline scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12. I'll start with a quinazoline core with the required scaffold pattern, add an ether oxygen at the correct position, replace the benzothiazole with a different amine to maintain pharmacophore similarity, and change the sulfonyl group to avoid the forbidden CS pattern. I'll use a tert-butyl sulfonyl without the methyl-S linkage, replacing it with an ethyl or different connection.",
+      "score": 0.6299408652349829
+    },
+    {
+      "iteration": 31,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1C(F)(F)F",
+      "reason": "I need to design a molecule that: 1) Contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12' (a 4-aminoquinazoline with oxygen substituent), 2) Avoids the methylsulfonyl 'CS([#6])(=O)=O' pattern, 3) Avoids the '[#7]-c1ccc2ncsc2c1' benzothiazole-amine pattern, 4) Maintains high pharmacophore similarity to the reference. The reference has a quinazoline core with an ether substituent and a sulfonyl group. I'll keep the quinazoline core with propoxy group and replace the problematic sulfonyl with a different group, and change the benzothiazole aniline to a simple aniline to maintain pharmacophore similarity while avoiding forbidden patterns.",
+      "score": 0.8922155688622755
+    },
+    {
+      "iteration": 32,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1S(=O)(=O)CC(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C, 2) Does NOT contain CS([#6])(=O)=O (methyl sulfonyl), 3) Does NOT contain [#7]-c1ccc2ncsc2c1 (aminobenzothiazole), 4) DOES contain the scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12 (amino-quinazoline with oxygen substituent). The reference has a quinazoline core with an amino group linked to benzothiazole, plus a propoxy and tert-butylsulfonyl group. I'll keep the quinazoline scaffold with the required oxygen attachment, replace the benzothiazole with a different amine (like aniline), and replace the methyl sulfonyl with an ethyl or other sulfonyl group to maintain pharmacophore similarity while avoiding forbidden SMARTS.",
+      "score": 0.6299408652349829
+    },
+    {
+      "iteration": 33,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1Cl",
+      "reason": "I need to design a molecule that: 1) Has the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a 4-aminoquinazoline with oxygen at position 7), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl), 3) Avoids '[#7]-c1ccc2ncsc2c1' (aminobenzothiazole), 4) Maintains pharmacophore similarity to the reference. The reference has a propoxy group, a sulfonyl group, and an aminobenzothiazole. I'll keep the propoxy group for similarity but replace the methylsulfonyl with a different substituent (like a simple halogen or methyl) and replace the benzothiazole with a different amine that maintains pharmacophore features.",
+      "score": 0.8783181938442544
+    },
+    {
+      "iteration": 34,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1CC",
+      "reason": "I need to design a molecule that: 1) Contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' which is a 4-aminoquinazoline with oxygen at position 7, 2) Avoids the methylsulfonyl group 'CS([#6])(=O)=O', 3) Avoids the benzothiazole-amine '[#7]-c1ccc2ncsc2c1', 4) Maintains pharmacophore similarity to the reference. The reference has a propoxy group, a sulfonyl group (which I need to replace), and a benzothiazole amine (which I need to replace). I'll keep the quinazoline core with propoxy substituent but replace the methylsulfonyl with a different group (like ethyl) and replace the benzothiazole with a simple aniline to maintain the amine pharmacophore while avoiding the forbidden SMARTS.",
+      "score": 0.8783181938442544
+    },
+    {
+      "iteration": 35,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(N)cc3)c2cc1S(=O)(=O)CC(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a 4-aminoquinazoline with oxygen at position 7 and a substituent at position 6), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl attached to carbon), 3) Avoids '[#7]-c1ccc2ncsc2c1' (amino-benzothiazole), 4) Maintains pharmacophore similarity to the reference. The reference has a propoxy group at position 7, a tert-butylsulfonyl at position 6, and an aminobenzothiazole at position 4. I'll keep the quinazoline core with oxygen at position 7 (using propoxy), replace the methylsulfonyl with an ethylsulfonyl (avoiding the CS pattern), and replace the benzothiazole with a different amine to maintain pharmacophore features while avoiding the forbidden pattern.",
+      "score": 0.6407974006633723
+    },
+    {
+      "iteration": 36,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1OC",
+      "reason": "I need to design a molecule that: 1) Contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12' (a 4-aminoquinazoline with oxygen at position 7), 2) Avoids the methylsulfonyl group 'CS([#6])(=O)=O', 3) Avoids the benzothiazole-amine '[#7]-c1ccc2ncsc2c1', 4) Maintains pharmacophore similarity to the reference. The reference has a quinazoline core with Nc3ccc4ncsc4c3 (aminobenzothiazole) attached at N4, a propoxy group, and a tert-butylsulfonyl. I'll keep the quinazoline scaffold, add an oxygen substituent at position 7, use a different amine (not benzothiazole), and replace the methylsulfonyl with a different group to maintain similar pharmacophore features.",
+      "score": 0.8723430548690064
+    },
+    {
+      "iteration": 37,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc4[nH]cnc4c3)c2cc1S(=O)(=O)CC",
+      "reason": "I need to design a molecule that: 1) Contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12' (a 4-aminoquinazoline with oxygen substituent), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl attached to carbon), 3) Avoids '[#7]-c1ccc2ncsc2c1' (aminobenzothiazole), 4) Maintains high pharmacophore similarity to the reference. The reference has a quinazoline core with an amino group at position 4, an alkoxy group, and a sulfonyl group. I'll keep the quinazoline core with the required scaffold pattern, use a propoxy group for the oxygen substituent, change the sulfonyl from methylsulfonyl to another group (like ethylsulfonyl to avoid the SMARTS), and replace the benzothiazole with a similar heterocycle like benzimidazole.",
+      "score": 0.6559556206824366
+    },
+    {
+      "iteration": 38,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(N)cc3)c2cc1OC",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Lacks CS(=O)(=O) sulfonamide with methyl, 3) Lacks the specific benzothiazole-amine pattern, 4) Contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12'. The reference has a quinazoline core with an ether substituent. I'll use the required scaffold (a 4-aminoquinazoline with an oxygen at position 6 or 7) and modify the amine portion to avoid the forbidden benzothiazole pattern while maintaining pharmacophore similarity. I'll replace the benzothiazole with a similar aromatic amine and change the sulfonamide to avoid the CS pattern.",
+      "score": 0.8846084446048358
+    },
+    {
+      "iteration": 39,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C), 2) Does NOT contain CS(=O)(=O) (methyl sulfonyl), 3) Does NOT contain the benzothiazole-amine pattern, 4) DOES contain the required scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12. The reference has a quinazoline core with an ether at position 7, a sulfonyl group, and a benzothiazole amine. I'll keep the quinazoline scaffold with the ether group to satisfy the scaffold requirement, replace the benzothiazole with a different amine to avoid deco2, and replace the methyl sulfonyl with a different substituent (like tert-butyl sulfonyl without the methyl-S) to avoid deco1 while maintaining similar pharmacophore features.",
+      "score": 0.8704481792717087
+    },
+    {
+      "iteration": 40,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccccc3)c2cc1C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C), 2) Does NOT contain CS([#6])(=O)=O (methyl sulfonyl), 3) Does NOT contain [#7]-c1ccc2ncsc2c1 (aminobenzothiazole), 4) DOES contain [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12 (amino-quinazoline with oxygen substituent). The reference has a quinazoline core with an ether group and a sulfonyl group. I'll keep the quinazoline scaffold with the propoxy group, replace the aminobenzothiazole with a simple aniline to maintain pharmacophore features, and replace the tert-butyl sulfonyl with a different substituent that doesn't match the forbidden SMARTS pattern.",
+      "score": 0.8106385611748206
+    },
+    {
+      "iteration": 41,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference (CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C), 2) Does NOT contain CS([#6])(=O)=O (methylsulfonyl), 3) Does NOT contain [#7]-c1ccc2ncsc2c1 (aminobenzothiazole), 4) DOES contain [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12 (aminoquinazoline with oxygen substituent). The reference has a quinazoline core with an ether group and sulfonyl group. I'll keep the quinazoline scaffold with the required oxygen, replace the benzothiazole amine with a simpler aromatic amine to maintain pharmacophore similarity, and replace the tert-butylsulfonyl with a different group to avoid the forbidden SMARTS.",
+      "score": 0.8704481792717087
+    },
+    {
+      "iteration": 42,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(N)nc3)c2cc1C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Contains the scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12' (a 4-aminoquinazoline with oxygen at position 7), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl), 3) Avoids '[#7]-c1ccc2ncsc2c1' (aminobenzothiazole), 4) Maintains high pharmacophore similarity to the reference. The reference has a quinazoline core with a 6-amino substituent linked to benzothiazole, a 7-propoxy group, and an 8-tert-butylsulfonyl group. I'll keep the quinazoline core with a 7-alkoxy group, replace the benzothiazole with a different aromatic amine (like aminopyridine), and replace the methylsulfonyl with a different substituent to maintain pharmacophore features while avoiding forbidden SMARTS.",
+      "score": 0.8714440694310511
+    },
+    {
+      "iteration": 43,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccnc4ccccc34)c2cc1C",
+      "reason": "I need to design a molecule that: 1) Has the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12' (a 4-aminoquinazoline with oxygen at position 6 or 7), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl on carbon), 3) Avoids '[#7]-c1ccc2ncsc2c1' (aminobenzothiazole), 4) Maintains pharmacophore similarity to the reference. The reference has a quinazoline core with an ether group, a sulfonyl group, and an aminobenzothiazole. I'll keep the quinazoline core with propoxy ether for similarity, but replace the methylsulfonyl with a different group (like methyl or chloro) and replace the aminobenzothiazole with a similar aromatic amine (like aminopyridine) to maintain pharmacophore features while satisfying constraints.",
+      "score": 0.8674066356787946
+    },
+    {
+      "iteration": 44,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccccc3)c2cc1OC",
+      "reason": "I need to design a molecule that: 1) Contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a 4-aminoquinazoline with oxygen substituent), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl on carbon), 3) Avoids '[#7]-c1ccc2ncsc2c1' (aminobenzothiazole), 4) Maintains pharmacophore similarity to the reference. The reference has a quinazoline core with an ether (OC3H7), a sulfonyl group, and an aminobenzothiazole. I'll keep the quinazoline core with propoxy group for similarity, replace the methylsulfonyl with a different group (like ethylsulfonyl which has C-S not methylsulfonyl pattern), and replace the aminobenzothiazole with a simple aniline to maintain the aromatic amine pharmacophore while avoiding the forbidden SMARTS.",
+      "score": 0.8142857142857143
+    },
+    {
+      "iteration": 45,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccnc4ccccc34)c2cc1C(=O)C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference, 2) Does NOT contain CS([#6])(=O)=O (methylsulfonyl), 3) Does NOT contain the benzothiazole-amine pattern [#7]-c1ccc2ncsc2c1, 4) DOES contain the quinazoline scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12. The reference has a quinazoline core with a propoxy group, a sulfonyl group, and a benzothiazole amine. I'll keep the quinazoline core with the required scaffold pattern, replace the benzothiazole with a different aromatic amine to maintain pharmacophore similarity, change the sulfonyl to avoid the methylsulfonyl pattern, and keep the alkoxy group. I'll use an aminopyridine instead of aminobenzothiazole and modify the sulfonyl to a different group.",
+      "score": 0.9227108952768858
+    },
+    {
+      "iteration": 46,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc4nccnc4c3)c2cc1S(=O)(=O)CC",
+      "reason": "I need to design a molecule that: 1) Contains the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12' (a 4-aminoquinazoline with oxygen substituent), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl on carbon), 3) Avoids '[#7]-c1ccc2ncsc2c1' (aminobenzothiazole), 4) Maintains high pharmacophore similarity to the reference. The reference has a quinazoline core with an ether group, sulfonyl group, and aminobenzothiazole. I'll keep the quinazoline scaffold with an ether substituent but replace the methylsulfonyl with a different group (like ethylsulfonyl where S is not attached to methyl-C) and replace the benzothiazole with a different aromatic amine to maintain pharmacophore similarity while satisfying constraints.",
+      "score": 0.6945345067160723
+    },
+    {
+      "iteration": 47,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1S(=O)(=O)C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a 4-aminoquinazoline with oxygen at position 6 or 7), 2) Maintains pharmacophore similarity to the reference (propoxy group, sulfonyl group, and aromatic amine), 3) Avoids the forbidden CS(=O)=O pattern (methylsulfonyl) by using a different sulfonyl like tert-butylsulfonyl, 4) Avoids the benzothiazole amine pattern '[#7]-c1ccc2ncsc2c1'. I'll use the quinazoline scaffold with an aniline substituent (not benzothiazole), keep the propoxy and tert-butylsulfonyl groups for similarity.",
+      "score": 0.6869653408589823
+    },
+    {
+      "iteration": 48,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccnc4ccccc34)c2cc1C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12' (a 4-aminoquinazoline with oxygen substituent), 2) Avoids the methylsulfonyl 'CS([#6])(=O)=O' pattern (so I'll remove or modify the sulfonyl group), 3) Avoids the '[#7]-c1ccc2ncsc2c1' benzothiazole-amine pattern (so I'll use a different amine substituent), 4) Maintains pharmacophore similarity to the reference. I'll keep the quinazoline core with propoxy and modify the sulfonyl to a different group, and replace the benzothiazole amine with a similar aromatic amine like aminopyridine.",
+      "score": 0.8596709870388833
+    },
+    {
+      "iteration": 49,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccc(F)cc3)c2cc1S(=O)(=O)CC",
+      "reason": "I need to design a molecule that: 1) Has the required scaffold '[#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h0][c;h1]c12' (a 4-aminoquinazoline with oxygen substituent), 2) Avoids 'CS([#6])(=O)=O' (methylsulfonyl on carbon), 3) Avoids '[#7]-c1ccc2ncsc2c1' (amino-benzothiazole), 4) Maintains pharmacophore similarity to the reference. The reference has a quinazoline core with an ether group, a sulfonyl group, and an aminobenzothiazole. I'll keep the quinazoline core with propoxy group, replace the methylsulfonyl with an ethylsulfonyl (avoiding CS pattern), and replace the benzothiazole with a simple aniline to maintain the amino group pharmacophore while avoiding the forbidden SMARTS.",
+      "score": 0.6424287856071964
+    },
+    {
+      "iteration": 50,
+      "smiles": "CCCOc1cc2ncnc(Nc3ccccc3)c2cc1C(C)(C)C",
+      "reason": "I need to design a molecule that: 1) Has high pharmacophore similarity to the reference CCCOc1cc2ncnc(Nc3ccc4ncsc4c3)c2cc1S(=O)(=O)C(C)(C)C, 2) Lacks CS(=O)(=O) group (methyl sulfonyl), 3) Lacks the benzothiazole-amine fragment [#7]-c1ccc2ncsc2c1, 4) Contains the required scaffold [#7]-c1n[c;h1]nc2[c;h1]c(-[#8])[c;h1]c12. The reference has a quinazoline core with an ether and sulfonyl group. I'll keep the quinazoline scaffold with the propoxy group, but replace the benzothiazole with a different amine (like aniline) and change the tert-butyl sulfonyl to something else that maintains pharmacophore similarity without the forbidden CS(=O)(=O).",
+      "score": 0.8106385611748206
+    }
+  ],
+  "iterations": 50
+}

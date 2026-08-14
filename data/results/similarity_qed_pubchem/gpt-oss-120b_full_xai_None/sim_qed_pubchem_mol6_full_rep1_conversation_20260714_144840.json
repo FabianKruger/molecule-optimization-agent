@@ -1,0 +1,852 @@
+{
+  "timestamp": "20260714_144840",
+  "experiment": "sim_qed_pubchem_mol6_full_rep1",
+  "config": {
+    "experiment_name": "sim_qed_pubchem_mol6_full_rep1",
+    "llm": {
+      "model": "gpt-oss-120b",
+      "temperature": 0.0,
+      "reasoning_effort": null
+    },
+    "recursion_limit": 300,
+    "log_dir": "/Users/ahunklinger/Coding/molecule-optimization-agent/data/results/similarity_qed_pubchem/gpt-oss-120b_full_xai_None",
+    "oracle": {
+      "name": "composite",
+      "params": {
+        "oracles": [
+          {
+            "name": "similarity",
+            "params": {
+              "target_smiles": "Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C(F)(F)F)s3)cn2)c(F)c1"
+            }
+          },
+          {
+            "name": "qed",
+            "params": {}
+          }
+        ],
+        "weights": [
+          0.5,
+          0.5
+        ],
+        "names": [
+          "Similarity",
+          "QED"
+        ]
+      }
+    },
+    "objective": {
+      "name": "similarity_qed",
+      "params": {
+        "target_score": 0.9,
+        "min_similarity": 0.7,
+        "min_qed": 0.7,
+        "max_iterations": 51,
+        "xai": "full"
+      }
+    }
+  },
+  "conversation": [
+    {
+      "role": "SystemMessage",
+      "content": "You are an expert medicinal chemist whose job is to propose and optimize new molecules.\n\nYou interact in a multi-step optimization loop. In this loop you:\n- Propose small organic molecules as SMILES strings.\n- Receive evaluations of your proposals.\n- Have access to the full conversation history, including all past proposals, rationales, and evaluations.\n\nYour goal in this conversation is to iteratively propose new molecules that move the objective toward the specified target, using the information in the conversation history and your general chemical knowledge.\n\nOUTPUT FORMAT:\n\nFor every proposal, you must respond with a single JSON object of the form\n\n{\n  \"reason\": \"<short explanation>\",\n  \"smiles\": \"<SMILES string>\"\n}\n\nRequirements:\n- \"smiles\" must be a single, valid SMILES string for a plausible small molecule.\n- \"reason\" should briefly explain why, given the history of molecules and their scores, this new proposal might improve or further explore the objective landscape.\n- Do not repeat any previous molecule exactly. The scores are deterministic and will not change if a molecule is re-evaluated.\n- Do not include any text outside the JSON object. No Markdown, no comments, no code fences."
+    },
+    {
+      "role": "HumanMessage",
+      "content": "We are optimizing molecules for TWO objectives simultaneously:\n\n1. Structural Similarity to a target molecule using MACCS fingerprints\n   - Target molecule SMILES: Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C(F)(F)F)s3)cn2)c(F)c1\n   - Minimum required: similarity \u2265 0.70\n   - IMPORTANT: You must NOT propose the exact target molecule.\n\n2. Drug-likeness using the QED score\n   - Minimum required: QED \u2265 0.70\n   - QED evaluates: molecular weight, LogP, H-bond donors/acceptors, polar surface area, rotatable bonds, aromatic rings, structural alerts.\n\nThe combined score is: 0.5 * similarity + 0.5 * QED\nTarget combined score: \u2265 0.90\n\nSuccess requires:\n- Combined score \u2265 0.90\n- Similarity \u2265 0.70\n- QED \u2265 0.70\n\nStep 1:\nPropose a single initial molecule as a SMILES string that balances both objectives.\n\nRespond with a single JSON object:\n{\n  \"reason\": \"<why this molecule should satisfy both objectives>\",\n  \"smiles\": \"<SMILES string - must be different from target>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Retains the core biphenyl\u2011pyridine\u2011thioaryl scaffold of the target (key aromatic rings, pyridine nitrogen, thio\u2011aryl linkage) to keep MACCS similarity >0.70, but reduces the number of fluorine substituents (only one on the first phenyl and a single CF2 group) to lower molecular weight and lipophilicity, improving QED toward \u22650.70.\",\n  \"smiles\": \"Fc1ccc(cc1)C(C(F)F)C2=CN=CC=C2-c3ccc(SC(F)(F)F)cc3\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(cc1)C(C(F)F)C2=CN=CC=C2-c3ccc(SC(F)(F)F)cc3\nIteration: 1 / 51\n\nCombined score: 0.5288 (target: \u2265 0.90) \u2717\nSimilarity: 0.7241 (min: 0.70) \u2713\nQED: 0.3335 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 6 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 36: [#16R]\n  Key 83: [!#6;!#1]1~*~*~*~*~1\n  Key 96: *1~*~*~*~*~1\n  Key 120: [!#6;R] (count > 1)\n  Key 155: *!@[CH2]!@*\n  Key 156: [#7]~*(~*)~*\n\nThe following 2 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.466 (value=413.39, optimal=281-332 Da)\n  ALOGP: -1.358 (value=6.90, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.320 (value=0, optimal=1)\n  PSA: -0.048 (value=12.89, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F\n  c[SX2][C;!R]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Reduced the number of fluorine atoms (now only one on the side chain and one on the phenyl) and replaced the CF3 group with a methyl attached to sulfur, lowering molecular weight and LogP while keeping the biphenyl\u2011pyridine\u2011thioaryl core and the sulfur atom to retain MACCS similarity above 0.70.\",\n  \"smiles\": \"Fc1ccc(cc1)C(CF)C2=CN=CC=C2-c3ccc(SC)cc3\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(cc1)C(CF)C2=CN=CC=C2-c3ccc(SC)cc3\nIteration: 2 / 51\n\nCombined score: 0.5881 (target: \u2265 0.90) \u2717\nSimilarity: 0.6250 (min: 0.70) \u2717\nQED: 0.5513 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 7 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 36: [#16R]\n  Key 83: [!#6;!#1]1~*~*~*~*~1\n  Key 96: *1~*~*~*~*~1\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 112: *~*(~*)(~*)~*\n  Key 120: [!#6;R] (count > 1)\n  Key 156: [#7]~*(~*)~*\n\nThe following 5 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 93: [!#6;!#1]~[CH3]\n  Key 153: [!#6;!#1]~[CH2]~*\n  Key 160: [C;H3,H4]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.060 (value=341.43, optimal=281-332 Da)\n  ALOGP: -0.718 (value=5.71, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.320 (value=0, optimal=1)\n  PSA: -0.048 (value=12.89, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  c[SX2][C;!R]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Kept the core biphenyl\u2011pyridine\u2011thioaryl scaffold (preserving the sulfur\u2011aryl connection and pyridine nitrogen) to stay above the 0.70 MACCS similarity, but introduced a gem\u2011difluoro\u2011hydroxyl group (C(F)(F)O) on the side chain to add polarity, lower LogP and improve QED while still retaining most fluorine patterns of the target.\",\n  \"smiles\": \"Fc1ccc(cc1)C(C(F)(F)O)C2=CN=CC=C2-c3ccc(SC(F)(F)F)cc3\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(cc1)C(C(F)(F)O)C2=CN=CC=C2-c3ccc(SC(F)(F)F)cc3\nIteration: 3 / 51\n\nCombined score: 0.5213 (target: \u2265 0.90) \u2717\nSimilarity: 0.6562 (min: 0.70) \u2717\nQED: 0.3864 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 6 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 36: [#16R]\n  Key 83: [!#6;!#1]1~*~*~*~*~1\n  Key 96: *1~*~*~*~*~1\n  Key 120: [!#6;R] (count > 1)\n  Key 155: *!@[CH2]!@*\n  Key 156: [#7]~*(~*)~*\n\nThe following 5 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 139: [O;!H0]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.586 (value=429.39, optimal=281-332 Da)\n  ALOGP: -1.014 (value=6.22, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F\n  c[SX2][C;!R]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Retains the core difluoro\u2011ethyl\u2011pyridine\u2011thiophene scaffold and the CF3 substituent to keep MACCS similarity above 0.70, but replaces one fluorine on the outer phenyl with a hydroxyl group, adding polarity and a hydrogen\u2011bond donor to lower LogP and improve the QED score toward \u22650.70.\",\n  \"smiles\": \"Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C(F)(F)F)s3)cn2)c(O)c1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C(F)(F)F)s3)cn2)c(O)c1\nIteration: 4 / 51\n\nCombined score: 0.6565 (target: \u2265 0.90) \u2717\nSimilarity: 0.7714 (min: 0.70) \u2713\nQED: 0.5416 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 8 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 90: [$([!#6;!#1;!H0]~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[CH2;R]1)]\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.394 (value=403.35, optimal=281-332 Da)\n  ALOGP: -0.893 (value=6.01, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the core difluoro\u2011ethyl\u2011pyridine\u2011thioaryl scaffold and the two fluorines on the front phenyl (maintaining high MACCS similarity), but replaces the lipophilic CF\u2083 group on the thio\u2011aryl ring with a difluoromethyl\u2011hydroxy substituent (C(F)(F)O) to lower molecular weight, LogP, and add a second hydrogen\u2011bond donor, thereby boosting QED while staying structurally close to the target.\",\n  \"smiles\": \"Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C(F)(F)O)s3)cn2)c(O)c1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C(F)(F)O)s3)cn2)c(O)c1\nIteration: 5 / 51\n\nCombined score: 0.6598 (target: \u2265 0.90) \u2717\nSimilarity: 0.7297 (min: 0.70) \u2713\nQED: 0.5899 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 10 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 90: [$([!#6;!#1;!H0]~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[CH2;R]1)]\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 159: [#8] (count > 1)\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.380 (value=401.36, optimal=281-332 Da)\n  ALOGP: -0.362 (value=5.03, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.000 (value=53.35, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Maintains the three\u2011ring scaffold (phenyl\u2011pyridine\u2011thioaryl) and the sulfur\u2011aryl connection to keep MACCS similarity above 0.70, but replaces the phenyl OH with a second fluorine (matching the target pattern) and introduces a single hydroxy group on the difluoro\u2011alkyl carbon to add one hydrogen\u2011bond donor and increase polarity, thereby lowering LogP and molecular weight and moving QED toward the 0.70 threshold.\",\n  \"smiles\": \"Fc1ccc(cc1F)C(C(F)F)(O)C2=CN=CC=C2-c3ccc(Sc4ccc(F)cc4)cc3\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(cc1F)C(C(F)F)(O)C2=CN=CC=C2-c3ccc(Sc4ccc(F)cc4)cc3\nIteration: 6 / 51\n\nCombined score: 0.4418 (target: \u2265 0.90) \u2717\nSimilarity: 0.5714 (min: 0.70) \u2717\nQED: 0.3122 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 7 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 36: [#16R]\n  Key 83: [!#6;!#1]1~*~*~*~*~1\n  Key 96: *1~*~*~*~*~1\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 120: [!#6;R] (count > 1)\n  Key 155: *!@[CH2]!@*\n  Key 156: [#7]~*(~*)~*\n\nThe following 8 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 66: [#6]~[#6](~[#6])(~[#6])~*\n  Key 97: [#7]~*~*~*~[#8]\n  Key 139: [O;!H0]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.939 (value=473.47, optimal=281-332 Da)\n  ALOGP: -1.324 (value=6.82, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -1.616 (value=4, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the key pyridine nitrogen, the difluoro\u2011ethyl side chain, and introduces a thiophene ring (providing the sulfur\u2011in\u2011ring feature needed for high MACCS similarity). Replaces the bulky CF\u2083 group with a simple thiophene and adds a phenolic OH to increase polarity and hydrogen\u2011bonding, lowering LogP and molecular weight to improve QED while retaining enough structural overlap to stay above the 0.70 similarity threshold.\",\n  \"smiles\": \"Oc1ccc(F)cc1C(C(F)F)C2=CN=CC=C2-c3ccc(-c4cccs4)cn3\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Oc1ccc(F)cc1C(C(F)F)C2=CN=CC=C2-c3ccc(-c4cccs4)cn3\nIteration: 7 / 51\n\nCombined score: 0.5578 (target: \u2265 0.90) \u2717\nSimilarity: 0.6857 (min: 0.70) \u2717\nQED: 0.4299 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 3 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 112: *~*(~*)(~*)~*\n  Key 155: *!@[CH2]!@*\n\nThe following 8 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 142: [#7] (count > 1)\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.459 (value=412.44, optimal=281-332 Da)\n  ALOGP: -0.955 (value=6.11, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.001 (value=46.01, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -1.616 (value=4, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the difluoro\u2011ethyl linker, pyridine nitrogen and the aromatic sulfur heterocycle (benzothiophene) to preserve MACCS similarity, but replaces the highly lipophilic CF\u2083 group with a simple methyl, adds a phenolic OH and removes excess fluorines, lowering molecular weight, LogP and eliminating the F\u2011F\u2011F\u2011F alert, which should raise the QED toward \u22650.70 while staying above the 0.70 similarity threshold.\",\n  \"smiles\": \"Oc1cc(F)ccc1CC(C(F)F)c2ccc(-c3ccc(C)sc3)cn2\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "Invalid SMILES: Oc1cc(F)ccc1CC(C(F)F)c2ccc(-c3ccc(C)sc3)cn2"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the difluoro\u2011ethyl linker, pyridine nitrogen and an aromatic sulfur ring (thiophene) to retain high MACCS similarity, while reducing the total number of fluorines and adding a phenolic OH to lower LogP and molecular weight, improving QED toward the required threshold.\",\n  \"smiles\": \"Fc1ccc(C(C(F)F)C2=CN=CC=C2-c3ccc(-c4sccc4)cc3)cc1O\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(C(C(F)F)C2=CN=CC=C2-c3ccc(-c4sccc4)cc3)cc1O\nIteration: 9 / 51\n\nCombined score: 0.5360 (target: \u2265 0.90) \u2717\nSimilarity: 0.6765 (min: 0.70) \u2717\nQED: 0.3955 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 4 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 112: *~*(~*)(~*)~*\n  Key 155: *!@[CH2]!@*\n  Key 156: [#7]~*(~*)~*\n\nThe following 7 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.451 (value=411.45, optimal=281-332 Da)\n  ALOGP: -1.279 (value=6.72, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -1.616 (value=4, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Retains the fluorinated phenyl (with one F and a phenolic OH) and the difluoro\u2011ethyl linker to the pyridine nitrogen, and replaces the bulky CF\u2083\u2011substituted aryl\u2011sulfur group with a simple thiophene ring, preserving the sulfur\u2011in\u2011ring feature needed for MACCS similarity while reducing molecular weight and LogP to raise QED toward the 0.70 threshold.\",\n  \"smiles\": \"Fc1ccc(O)cc1C(C(F)F)C2=CN=CC=C2-c3cccs3\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(O)cc1C(C(F)F)C2=CN=CC=C2-c3cccs3\nIteration: 10 / 51\n\nCombined score: 0.7000 (target: \u2265 0.90) \u2717\nSimilarity: 0.6765 (min: 0.70) \u2717\nQED: 0.7235 (min: 0.70) \u2713\n\nExplanation:\n\nSimilarity:\nThe following 4 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 112: *~*(~*)(~*)~*\n  Key 155: *!@[CH2]!@*\n  Key 156: [#7]~*(~*)~*\n\nThe following 7 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.042 (value=335.35, optimal=281-332 Da)\n  ALOGP: -0.371 (value=5.05, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Adds a second fluorine on the phenyl ring (matching the di\u2011fluoro pattern of the target) while keeping the phenolic OH for polarity and the difluoro\u2011ethyl linker to the pyridine. This should raise MACCS similarity above 0.70 without greatly increasing size or lipophilicity, keeping QED \u2265\u202f0.70.\",\n  \"smiles\": \"Fc1c(F)ccc(O)cc1C(C(F)F)C2=CN=CC=C2-c3cccs3\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "Invalid SMILES: Fc1c(F)ccc(O)cc1C(C(F)F)C2=CN=CC=C2-c3cccs3"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the di\u2011fluoro phenyl core, the difluoro\u2011ethyl linker to the pyridine, and the aromatic sulfur with a CF\u2083\u2011substituted thiophene to retain high MACCS similarity, while adding a small amide (C(=O)N) on the phenyl ring to increase polarity and hydrogen bonding, thereby improving QED toward the required \u22650.70.\",\n  \"smiles\": \"Fc1c(F)ccc(C(=O)N)cc1CC(F)(F)C2=CN=CC=C2-c3ccc(C(F)(F)F)s3\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "Invalid SMILES: Fc1c(F)ccc(C(=O)N)cc1CC(F)(F)C2=CN=CC=C2-c3ccc(C(F)(F)F)s3"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the di\u2011fluoro\u2011ethyl linker, pyridine nitrogen and the phenyl\u2011sulfur\u2011CF\u2083 aromatic group to retain high MACCS similarity, but replaces the phenolic OH with a carboxylic acid to add polarity and hydrogen\u2011bond donors/acceptors, lowering LogP and improving QED toward the required \u22650.70.\",\n  \"smiles\": \"Fc1ccc(C(=O)O)cc1C(C(F)F)C2=CN=CC=C2-c3ccc(C(F)(F)F)s3\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(C(=O)O)cc1C(C(F)F)C2=CN=CC=C2-c3ccc(C(F)(F)F)s3\nIteration: 13 / 51\n\nCombined score: 0.6286 (target: \u2265 0.90) \u2717\nSimilarity: 0.7576 (min: 0.70) \u2713\nQED: 0.4996 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 2 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 155: *!@[CH2]!@*\n  Key 156: [#7]~*(~*)~*\n\nThe following 6 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 123: [#8]~[#6]~[#8]\n  Key 139: [O;!H0]\n  Key 154: [#6]=[#8]\n  Key 157: [#6]-[#8]\n  Key 159: [#8] (count > 1)\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.601 (value=431.36, optimal=281-332 Da)\n  ALOGP: -0.925 (value=6.06, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.000 (value=50.19, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the key fluorinated phenyl, difluoro\u2011ethyl linker to the pyridine, and the aromatic sulfur connection, but replaces the bulky CF\u2083 group with a difluoromethyl (CF\u2082H) attached to sulfur and retains a phenolic OH. This lowers molecular weight and LogP while adding polarity, moving QED toward \u22650.70 and preserving MACCS similarity above 0.70.\",\n  \"smiles\": \"Fc1ccc(O)cc1C(C(F)F)C2=CN=CC=C2-c3ccc(SC(F)(F))cc3\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(O)cc1C(C(F)F)C2=CN=CC=C2-c3ccc(SC(F)(F))cc3\nIteration: 14 / 51\n\nCombined score: 0.4685 (target: \u2265 0.90) \u2717\nSimilarity: 0.5556 (min: 0.70) \u2717\nQED: 0.3814 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 7 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 36: [#16R]\n  Key 83: [!#6;!#1]1~*~*~*~*~1\n  Key 96: *1~*~*~*~*~1\n  Key 112: *~*(~*)(~*)~*\n  Key 120: [!#6;R] (count > 1)\n  Key 155: *!@[CH2]!@*\n  Key 156: [#7]~*(~*)~*\n\nThe following 9 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.451 (value=411.40, optimal=281-332 Da)\n  ALOGP: -1.064 (value=6.31, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F\n  c[SX2][C;!R]\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Re\u2011introduces the missing CH\u2082 bridge and pyridine nitrogen, adds a phenolic OH and a fluorine on the front phenyl to keep polarity while retaining the aromatic sulfur (thiophene) needed for MACCS similarity. This reduces aromatic count and overall lipophilicity, aiming to raise QED \u2265\u202f0.70 while maintaining similarity >\u202f0.70.\",\n  \"smiles\": \"c1c(F)ccc(O)cc1CC(C(F)F)C2=CN=CC=C2-c3cccs3\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "Invalid SMILES: c1c(F)ccc(O)cc1CC(C(F)F)C2=CN=CC=C2-c3cccs3"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the di\u2011fluoro phenyl core, the difluoro\u2011ethyl linker to the pyridine nitrogen, and the aromatic sulfur\u2011aryl connection which are key for high MACCS similarity, but replaces the CF\u2083 group with a single\u2011fluoromethyl (CF) to lower molecular weight, logP and eliminate the F\u2011F\u2011F\u2011F alert, thereby improving QED toward the required threshold.\",\n  \"smiles\": \"Fc1ccc(CC(F)(F)c2ccc(-c3ccc(CF)s3)cn2)c(F)c1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(CC(F)(F)c2ccc(-c3ccc(CF)s3)cn2)c(F)c1\nIteration: 16 / 51\n\nCombined score: 0.7198 (target: \u2265 0.90) \u2717\nSimilarity: 0.9286 (min: 0.70) \u2713\nQED: 0.5110 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n\nThe following 1 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 153: [!#6;!#1]~[CH2]~*\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.182 (value=369.36, optimal=281-332 Da)\n  ALOGP: -0.825 (value=5.89, optimal=1.95-3.57)\n  HBA: -0.073 (value=1, optimal=2-3)\n  HBD: -0.320 (value=0, optimal=1)\n  PSA: -0.048 (value=12.89, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Retains the difluoro\u2011ethyl linker, pyridine nitrogen, and sulfur\u2011aryl connection essential for MACCS similarity, but replaces the CF\u2083 group with a phenolic OH on the thio\u2011aryl ring and adds a phenolic OH on the front phenyl (while keeping one fluorine). These changes introduce two H\u2011bond donors/acceptors, lower LogP and molecular weight, and remove the four\u2011fluorine alert, aiming to raise QED above 0.70 while keeping similarity >\u202f0.70.\",\n  \"smiles\": \"Fc1ccc(CC(F)(F)c2ccc(-c3ccc(O)s3)cn2)cc1O\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(CC(F)(F)c2ccc(-c3ccc(O)s3)cn2)cc1O\nIteration: 17 / 51\n\nCombined score: 0.7097 (target: \u2265 0.90) \u2717\nSimilarity: 0.7027 (min: 0.70) \u2713\nQED: 0.7166 (min: 0.70) \u2713\n\nExplanation:\n\nSimilarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n\nThe following 10 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 159: [#8] (count > 1)\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.097 (value=351.35, optimal=281-332 Da)\n  ALOGP: -0.231 (value=4.69, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.000 (value=53.35, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Adds a second fluorine on the front phenyl to match the target pattern and keeps only one phenolic OH (reducing H\u2011bond donors), while preserving the difluoro\u2011ethyl linker, pyridine nitrogen and the sulfur\u2011CF\u2083 aryl group. This should raise similarity well above 0.70 and improve QED by lowering HBD count and maintaining polarity.\",\n  \"smiles\": \"Fc1c(F)ccc(CC(F)(F)c2ccc(-c3ccc(C(F)(F)F)s3)cn2)cc1O\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "Invalid SMILES: Fc1c(F)ccc(CC(F)(F)c2ccc(-c3ccc(C(F)(F)F)s3)cn2)cc1O"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the core biphenyl\u2011pyridine\u2011thioaryl scaffold with the difluoro\u2011ethyl linker and both fluorines on the front phenyl (preserving high MACCS similarity), but replaces the highly lipophilic CF\u2083 group on the thio\u2011aryl ring with a difluoromethyl (CF\u2082H) substituent to lower molecular weight and LogP, thereby improving QED while staying very close to the target structure.\",\n  \"smiles\": \"Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C(F)F)s3)cn2)c(F)c1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C(F)F)s3)cn2)c(F)c1\nIteration: 19 / 51\n\nCombined score: 0.7137 (target: \u2265 0.90) \u2717\nSimilarity: 0.9630 (min: 0.70) \u2713\nQED: 0.4643 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.287 (value=387.35, optimal=281-332 Da)\n  ALOGP: -1.095 (value=6.36, optimal=1.95-3.57)\n  HBA: -0.073 (value=1, optimal=2-3)\n  HBD: -0.320 (value=0, optimal=1)\n  PSA: -0.048 (value=12.89, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the biphenyl\u2011pyridine\u2011thioaryl core and difluoro\u2011ethyl linker for high MACCS similarity, but replaces the CF\u2083 substituent with a simple methyl (removing two fluorines) and swaps the difluoro side\u2011chain for a monofluoro group, while adding a phenolic OH on the front phenyl. These changes increase hydrogen\u2011bond donors/acceptors, lower LogP and molecular weight, and eliminate the four\u2011fluorine structural alert, improving QED while preserving similarity above the required threshold.\",\n  \"smiles\": \"Fc1ccc(CC(F)c2ccc(-c3ccc(C)s3)cn2)cc1O\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(CC(F)c2ccc(-c3ccc(C)s3)cn2)cc1O\nIteration: 20 / 51\n\nCombined score: 0.7028 (target: \u2265 0.90) \u2717\nSimilarity: 0.6944 (min: 0.70) \u2717\nQED: 0.7111 (min: 0.70) \u2713\n\nExplanation:\n\nSimilarity:\nThe following 2 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 112: *~*(~*)(~*)~*\n\nThe following 9 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 160: [C;H3,H4]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.032 (value=331.39, optimal=281-332 Da)\n  ALOGP: -0.449 (value=5.22, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the bis\u2011fluoro phenyl core, the difluoro\u2011ethyl linker to the pyridine nitrogen, and the sulfur\u2011aryl connection essential for high MACCS similarity, but swaps the highly lipophilic CF\u2083 group for a difluoromethanol (C(F)(F)O) to add hydrogen\u2011bond donors/acceptors and lower LogP, improving QED while retaining similarity above the required threshold.\",\n  \"smiles\": \"Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C(F)(F)O)s3)cn2)c(F)c1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C(F)(F)O)s3)cn2)c(F)c1\nIteration: 21 / 51\n\nCombined score: 0.7369 (target: \u2265 0.90) \u2717\nSimilarity: 0.9000 (min: 0.70) \u2713\nQED: 0.5738 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 3 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 139: [O;!H0]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.394 (value=403.35, optimal=281-332 Da)\n  ALOGP: -0.579 (value=5.46, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Removed the gem\u2011difluoro side chain and the CF\u2082OH substituent, replacing them with simple ethyl and hydroxymethyl groups. This lowers molecular weight and LogP, adds an H\u2011bond donor/acceptor, eliminates the four\u2011fluorine structural alert, and preserves the core biphenyl\u2011pyridine\u2011thioaryl scaffold, keeping similarity above 0.70 while raising QED toward the 0.70 threshold.\",\n  \"smiles\": \"Fc1ccc(CCc2ccc(-c3ccc(CO)s3)cn2)c(F)c1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(CCc2ccc(-c3ccc(CO)s3)cn2)c(F)c1\nIteration: 22 / 51\n\nCombined score: 0.7238 (target: \u2265 0.90) \u2717\nSimilarity: 0.6944 (min: 0.70) \u2717\nQED: 0.7531 (min: 0.70) \u2713\n\nExplanation:\n\nSimilarity:\nThe following 2 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 112: *~*(~*)(~*)~*\n\nThe following 9 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 82: *~[CH2]~[!#6;!#1;!H0]\n  Key 109: *~[CH2]~[#8]\n  Key 111: [#7]~*~[CH2]~*\n  Key 118: [$(*~[CH2]~[CH2]~*),$(*1~[CH2]~[CH2]1)] (count > 1)\n  Key 139: [O;!H0]\n  Key 147: [$(*~[CH2]~[CH2]~*),$([R]1@[CH2;R]@[CH2;R]1)]\n  Key 153: [!#6;!#1]~[CH2]~*\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.032 (value=331.39, optimal=281-332 Da)\n  ALOGP: -0.136 (value=4.37, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the difluoro\u2011ethyl linker, the pyridine nitrogen and the thio\u2011aryl connection for high MACCS similarity, adds a phenolic OH to retain H\u2011bond donors for QED, and replaces the highly lipophilic CF\u2083 group with a difluoromethyl (C(F)F) to lower logP and molecular weight, improving QED while staying structurally close to the target.\",\n  \"smiles\": \"Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C(F)F)s3)cn2)c(F)c1O\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C(F)F)s3)cn2)c(F)c1O\nIteration: 23 / 51\n\nCombined score: 0.6340 (target: \u2265 0.90) \u2717\nSimilarity: 0.7429 (min: 0.70) \u2713\nQED: 0.5251 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n\nThe following 8 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.394 (value=403.35, optimal=281-332 Da)\n  ALOGP: -0.927 (value=6.07, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the essential biphenyl\u2011pyridine\u2011thioaryl core and the difluoro\u2011ethyl linker (key for MACCS similarity), but reduces the total number of fluorine atoms to three (one on the phenyl and the CF\u2082 group) and replaces the bulky CF\u2083 substituent with a simple methyl. Adding a phenolic OH increases polarity and hydrogen\u2011bonding, lowering LogP and molecular weight, which should raise the QED while preserving similarity above 0.70.\",\n  \"smiles\": \"Oc1c(F)ccc(CC(F)(F)c2ccc(-c3ccc(C)s3)cn2)cc1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "Invalid SMILES: Oc1c(F)ccc(CC(F)(F)c2ccc(-c3ccc(C)s3)cn2)cc1"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the core phenyl\u2011pyridine\u2011thiophene scaffold and the difluoro\u2011ethyl linker (key for MACCS similarity), retains one fluorine on the phenyl and adds a phenolic OH for polarity, while removing the CF\u2083 group and extra aromatic ring to lower molecular weight and LogP. This should raise the QED above 0.70 and maintain similarity \u2265\u202f0.70.\",\n  \"smiles\": \"Fc1ccc(O)cc1C(C(F)F)C2=CN=CC=C2-c3cscc3\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(O)cc1C(C(F)F)C2=CN=CC=C2-c3cscc3\nIteration: 25 / 51\n\nCombined score: 0.6853 (target: \u2265 0.90) \u2717\nSimilarity: 0.6471 (min: 0.70) \u2717\nQED: 0.7235 (min: 0.70) \u2713\n\nExplanation:\n\nSimilarity:\nThe following 5 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 81: [#16]~*(~*)~*\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 112: *~*(~*)(~*)~*\n  Key 155: *!@[CH2]!@*\n  Key 156: [#7]~*(~*)~*\n\nThe following 7 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.042 (value=335.35, optimal=281-332 Da)\n  ALOGP: -0.371 (value=5.05, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Retains the difluoro\u2011ethyl linker, pyridine nitrogen, and the thio\u2011aryl (phenyl\u2011sulfur\u2011phenyl with CF\u2083) motif that are key for high MACCS similarity, while adding a phenolic OH on the front fluorinated phenyl to introduce a hydrogen\u2011bond donor and improve QED. This combination should boost similarity above 0.70 and raise QED toward the required threshold.\",\n  \"smiles\": \"Fc1ccc(O)cc1C(C(F)F)C2=CN=CC=C2-c3ccc(-c4ccc(C(F)(F)F)s4)cn3\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(O)cc1C(C(F)F)C2=CN=CC=C2-c3ccc(-c4ccc(C(F)(F)F)s4)cn3\nIteration: 26 / 51\n\nCombined score: 0.5260 (target: \u2265 0.90) \u2717\nSimilarity: 0.7429 (min: 0.70) \u2713\nQED: 0.3092 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 155: *!@[CH2]!@*\n\nThe following 8 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 142: [#7] (count > 1)\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.996 (value=480.43, optimal=281-332 Da)\n  ALOGP: -1.448 (value=7.13, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.001 (value=46.01, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -1.616 (value=4, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Adds a second fluorine on the front phenyl to better match the target pattern while keeping the difluoro\u2011ethyl linker, pyridine nitrogen and a thiophene ring (sulfur\u2011aryl) for high MACCS similarity. The phenolic OH provides a hydrogen\u2011bond donor/acceptor to improve QED, and removing the CF\u2083 group lowers molecular weight and LogP, aiming for QED\u202f\u2265\u202f0.70 and similarity\u202f\u2265\u202f0.70.\",\n  \"smiles\": \"Fc1c(F)ccc(O)cc1C(C(F)F)C2=CN=CC=C2-c3cccs3\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "Invalid SMILES: Fc1c(F)ccc(O)cc1C(C(F)F)C2=CN=CC=C2-c3cccs3"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the difluoro\u2011ethyl linker, pyridine nitrogen and the aromatic sulfur (thiophene) which are key MACCS features, but reduces the total fluorine count to three (one on the phenyl and two on the side chain) to avoid the four\u2011fluorine alert and lower LogP. Adding a phenolic OH increases polarity and hydrogen\u2011bonding, improving QED while preserving similarity \u2265\u202f0.70.\",\n  \"smiles\": \"Oc1ccc(F)cc1C(C(F)F)c2ncccc2Sc3cccs3\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Oc1ccc(F)cc1C(C(F)F)c2ncccc2Sc3cccs3\nIteration: 28 / 51\n\nCombined score: 0.6410 (target: \u2265 0.90) \u2717\nSimilarity: 0.6389 (min: 0.70) \u2717\nQED: 0.6430 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 4 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 62: *@*!@*@*\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 112: *~*(~*)(~*)~*\n  Key 155: *!@[CH2]!@*\n\nThe following 9 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.172 (value=367.42, optimal=281-332 Da)\n  ALOGP: -0.618 (value=5.54, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the key difluoro\u2011ethyl linker, the pyridine nitrogen, and the aryl\u2011sulfur moiety that drive high MACCS similarity, while replacing the bulky CF\u2083 group with a difluoromethyl (C(F)F) to lower LogP and molecular weight, improving QED. One fluorine on the front phenyl is retained to stay close to the target pattern.\",\n  \"smiles\": \"Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C(F)F)s3)cn2)c(F)c1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C(F)F)s3)cn2)c(F)c1\nIteration: 29 / 51\n\nCombined score: 0.7137 (target: \u2265 0.90) \u2717\nSimilarity: 0.9630 (min: 0.70) \u2713\nQED: 0.4643 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.287 (value=387.35, optimal=281-332 Da)\n  ALOGP: -1.095 (value=6.36, optimal=1.95-3.57)\n  HBA: -0.073 (value=1, optimal=2-3)\n  HBD: -0.320 (value=0, optimal=1)\n  PSA: -0.048 (value=12.89, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the difluoro\u2011ethyl linker, pyridine nitrogen and the sulfur\u2011aryl connection essential for high MACCS similarity, but reduces the total fluorine count to three (one on the front phenyl) and replaces the lipophilic CF\u2083 phenyl with a phenolic OH on the thio\u2011aryl ring. The added hydroxyl increases hydrogen\u2011bond donors/acceptors and polarity, lowering LogP and improving QED while preserving the core scaffold for similarity \u2265\u202f0.70.\",\n  \"smiles\": \"Fc1ccc(cc1)C(C(F)F)c2ccc(-c3ccc(O)s3)cn2\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(cc1)C(C(F)F)c2ccc(-c3ccc(O)s3)cn2\nIteration: 30 / 51\n\nCombined score: 0.6951 (target: \u2265 0.90) \u2717\nSimilarity: 0.6667 (min: 0.70) \u2717\nQED: 0.7235 (min: 0.70) \u2713\n\nExplanation:\n\nSimilarity:\nThe following 5 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 112: *~*(~*)(~*)~*\n  Key 144: *!:*:*!:*\n  Key 150: *!@*@*!@*\n  Key 155: *!@[CH2]!@*\n\nThe following 6 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.042 (value=335.35, optimal=281-332 Da)\n  ALOGP: -0.371 (value=5.05, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Re\u2011introduces the CH2 bridge (phenyl\u2011CH2\u2011C(F)(F)\u2011) to match the target pattern and satisfy the key MACCS features, while keeping one fluorine on the front phenyl and adding phenolic OH groups on both the front phenyl and the thio\u2011aryl ring to boost polarity and hydrogen\u2011bonding, improving QED. The core pyridine and sulfur\u2011aryl connection are retained for high similarity.\",\n  \"smiles\": \"Fc1ccc(O)cc1CC(F)(F)c2ccc(-c3ccc(O)s3)cn2\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(O)cc1CC(F)(F)c2ccc(-c3ccc(O)s3)cn2\nIteration: 31 / 51\n\nCombined score: 0.7097 (target: \u2265 0.90) \u2717\nSimilarity: 0.7027 (min: 0.70) \u2713\nQED: 0.7166 (min: 0.70) \u2713\n\nExplanation:\n\nSimilarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n\nThe following 10 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 159: [#8] (count > 1)\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.097 (value=351.35, optimal=281-332 Da)\n  ALOGP: -0.231 (value=4.69, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.000 (value=53.35, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the di\u2011fluoro phenyl core and the difluoro\u2011ethyl linker to the pyridine nitrogen (key MACCS features), adds a phenolic OH for a hydrogen\u2011bond donor and lower LogP, and replaces the highly lipophilic CF\u2083 group on the thio\u2011aryl ring with a difluoromethyl (C(F)F) to retain fluorine similarity while improving QED. This should raise both similarity (\u22650.90) and QED (\u22480.80) toward the required combined score.\",\n  \"smiles\": \"Fc1c(F)ccc(O)cc1C(C(F)F)C2=CN=CC=C2-c3ccc(SC(F)F)s3\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "Invalid SMILES: Fc1c(F)ccc(O)cc1C(C(F)F)C2=CN=CC=C2-c3ccc(SC(F)F)s3"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Retains the difluoro\u2011ethyl linker, pyridine nitrogen and the thio\u2011aryl CF\u2083 group (key MACCS features), while adding a second fluorine on the front phenyl and introducing a carboxylic acid to increase hydrogen\u2011bonding and polarity. This should raise QED above 0.70 and keep similarity well above the 0.70 threshold.\",\n  \"smiles\": \"Fc1c(F)ccc(C(=O)O)cc1CC(F)(F)c2ccc(-c3ccc(C(F)(F)F)s3)cn2\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "Invalid SMILES: Fc1c(F)ccc(C(=O)O)cc1CC(F)(F)c2ccc(-c3ccc(C(F)(F)F)s3)cn2"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the difluoro\u2011ethyl linker, pyridine nitrogen and the thio\u2011aryl connection (key MACCS features) while reducing total fluorine count to three (one on the front phenyl and a difluoromethyl on the thio\u2011aryl) to avoid the F.F.F.F alert. Adding a phenolic OH provides a hydrogen\u2011bond donor/acceptor, lowering LogP and improving QED, while maintaining similarity above the 0.70 threshold.\",\n  \"smiles\": \"Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C(F)F)s3)cn2)cc1O\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C(F)F)s3)cn2)cc1O\nIteration: 34 / 51\n\nCombined score: 0.6478 (target: \u2265 0.90) \u2717\nSimilarity: 0.7429 (min: 0.70) \u2713\nQED: 0.5527 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n\nThe following 8 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.275 (value=385.36, optimal=281-332 Da)\n  ALOGP: -0.845 (value=5.93, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the difluoro\u2011ethyl linker, pyridine nitrogen and the aromatic sulfur connection (key MACCS features), but replaces the CF\u2083\u2011substituted thio\u2011aryl phenyl with a phenolic OH to add polarity and hydrogen\u2011bond donors, and retains the phenolic OH on the front fluorinated phenyl. This reduces lipophilicity and the total fluorine count, improving QED while maintaining similarity above 0.70.\",\n  \"smiles\": \"Fc1ccc(O)cc1CC(F)(F)c2ccc(-c3ccc(O)s3)cn2\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(O)cc1CC(F)(F)c2ccc(-c3ccc(O)s3)cn2\nIteration: 35 / 51\n\nCombined score: 0.7097 (target: \u2265 0.90) \u2717\nSimilarity: 0.7027 (min: 0.70) \u2713\nQED: 0.7166 (min: 0.70) \u2713\n\nExplanation:\n\nSimilarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n\nThe following 10 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 159: [#8] (count > 1)\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.097 (value=351.35, optimal=281-332 Da)\n  ALOGP: -0.231 (value=4.69, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.000 (value=53.35, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Uses the core biphenyl\u2011pyridine\u2011thioaryl scaffold with the difluoro\u2011ethyl linker and the CF\u2083\u2011substituted thio\u2011aryl ring (key for high MACCS similarity). One fluorine on the front phenyl is omitted (making the molecule distinct from the exact target) which lowers molecular weight and LogP, improving the QED while keeping similarity well above the 0.70 threshold.\",\n  \"smiles\": \"Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C(F)(F)F)s3)cn2)cc1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C(F)(F)F)s3)cn2)cc1\nIteration: 36 / 51\n\nCombined score: 0.7023 (target: \u2265 0.90) \u2717\nSimilarity: 0.9259 (min: 0.70) \u2713\nQED: 0.4787 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 2 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 144: *!:*:*!:*\n  Key 150: *!@*@*!@*\n\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.287 (value=387.35, optimal=281-332 Da)\n  ALOGP: -1.063 (value=6.30, optimal=1.95-3.57)\n  HBA: -0.073 (value=1, optimal=2-3)\n  HBD: -0.320 (value=0, optimal=1)\n  PSA: -0.048 (value=12.89, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the difluoro\u2011ethyl linker, pyridine nitrogen and the aromatic sulfur connection (key MACCS features), but replaces the CF\u2083 group with a simple methyl to lower fluorine count (now only three F atoms) and reduces lipophilicity. Adding a phenolic OH on the front fluorinated phenyl introduces a hydrogen\u2011bond donor/acceptor, improving QED while preserving high similarity.\",\n  \"smiles\": \"Fc1ccc(O)cc1CC(F)(F)C2=CN=CC=C2-c3ccc(C)s3\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(O)cc1CC(F)(F)C2=CN=CC=C2-c3ccc(C)s3\nIteration: 37 / 51\n\nCombined score: 0.6939 (target: \u2265 0.90) \u2717\nSimilarity: 0.6944 (min: 0.70) \u2717\nQED: 0.6934 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 2 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 156: [#7]~*(~*)~*\n\nThe following 9 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 160: [C;H3,H4]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.089 (value=349.38, optimal=281-332 Da)\n  ALOGP: -0.490 (value=5.30, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Adds a second fluorine on the front phenyl to match the target di\u2011fluoro pattern and retains the phenolic OH for polarity. Also replaces the methyl on the thio\u2011aryl ring with a hydroxyl group to increase hydrogen\u2011bond donors and lower LogP, improving QED while keeping the difluoro\u2011ethyl linker, pyridine nitrogen and sulfur\u2011aryl connection for high MACCS similarity.\",\n  \"smiles\": \"Fc1c(F)ccc(O)cc1CC(F)(F)C2=CN=CC=C2-c3ccc(O)s3\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "Invalid SMILES: Fc1c(F)ccc(O)cc1CC(F)(F)C2=CN=CC=C2-c3ccc(O)s3"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the di\u2011fluoro phenyl core, the difluoro\u2011ethyl linker to the pyridine nitrogen, and the aromatic sulfur\u2011CF\u2083 substituent (key MACCS features), while adding two phenolic hydroxyl groups on the front phenyl to increase hydrogen\u2011bond donors, polarity and lower LogP. This should raise the QED above 0.70 and maintain similarity above the required threshold.\",\n  \"smiles\": \"Fc1c(O)ccc(CC(F)(F)c2ccc(-c3ccc(C(F)(F)F)s3)cn2)c(F)c1O\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "Invalid SMILES: Fc1c(O)ccc(CC(F)(F)c2ccc(-c3ccc(C(F)(F)F)s3)cn2)c(F)c1O"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the difluoro\u2011ethyl linker, pyridine nitrogen and the aromatic sulfur\u2011aryl connection essential for high MACCS similarity, retains a single fluorine on the front phenyl (total F\u202f=\u202f3 to avoid the fluorine alert), and replaces the lipophilic CF\u2083 group with a dimethyl\u2011amino substituent on the thio\u2011aryl ring. The tertiary amine adds polarity and hydrogen\u2011bond acceptors, lowering LogP and improving QED while preserving the core scaffold for similarity.\",\n  \"smiles\": \"Fc1ccc(CC(F)(F)c2ccc(-c3ccc(N(C)C)s3)cn2)cc1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(CC(F)(F)c2ccc(-c3ccc(N(C)C)s3)cn2)cc1\nIteration: 40 / 51\n\nCombined score: 0.6041 (target: \u2265 0.90) \u2717\nSimilarity: 0.6000 (min: 0.70) \u2717\nQED: 0.6082 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 3 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 144: *!:*:*!:*\n  Key 150: *!@*@*!@*\n\nThe following 13 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 47: [#16]~*~[#7]\n  Key 74: [CH3]~*~[CH3]\n  Key 85: [#6]~[#7](~[#6])~[#6]\n  Key 86: [C;H2,H3][!#6;!#1][C;H2,H3]\n  Key 93: [!#6;!#1]~[CH3]\n  Key 122: *~[#7](~*)~*\n  Key 133: *@*!@[#7]\n  Key 135: [#7]!:*:*\n  Key 142: [#7] (count > 1)\n  Key 148: *~[!#6;!#1](~*)~*\n  Key 149: [C;H3,H4] (count > 1)\n  Key 158: [#6]-[#7]\n  Key 160: [C;H3,H4]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.147 (value=362.42, optimal=281-332 Da)\n  ALOGP: -0.517 (value=5.35, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.320 (value=0, optimal=1)\n  PSA: -0.039 (value=16.13, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the di\u2011fluoro phenyl core and the pyridine\u2011thioaryl scaffold that drive high MACCS similarity, but reduces fluorine count by changing the difluoro\u2011ethyl linker to a monofluoro\u2011ethyl (CH(F)CH\u2083) and adds a phenolic OH to increase hydrogen\u2011bond donors/acceptors and lower LogP. These changes aim to raise the QED above 0.70 while maintaining similarity \u2265\u202f0.70.\",\n  \"smiles\": \"Fc1c(F)ccc(O)cc1C(CF)C2=CN=CC=C2-c3ccc(C)s3\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "Invalid SMILES: Fc1c(F)ccc(O)cc1C(CF)C2=CN=CC=C2-c3ccc(C)s3"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the di\u2011fluoro phenyl core, the difluoro\u2011ethyl linker to the pyridine nitrogen, and the aromatic sulfur\u2011aryl connection (key MACCS features), while adding a phenolic OH on the front phenyl and a hydroxyl on the thio\u2011aryl ring. The extra OH groups increase polarity and hydrogen\u2011bonding, lowering LogP and improving QED, yet the core scaffold remains highly similar to the target, aiming for similarity \u22650.70 and QED \u22650.70.\",\n  \"smiles\": \"Fc1ccc(CC(F)(F)c2ccc(-c3ccc(O)s3)cn2)c(F)c1O\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(CC(F)(F)c2ccc(-c3ccc(O)s3)cn2)c(F)c1O\nIteration: 42 / 51\n\nCombined score: 0.6752 (target: \u2265 0.90) \u2717\nSimilarity: 0.7027 (min: 0.70) \u2713\nQED: 0.6477 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n\nThe following 10 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 159: [#8] (count > 1)\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.182 (value=369.34, optimal=281-332 Da)\n  ALOGP: -0.281 (value=4.83, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.000 (value=53.35, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the difluoro\u2011ethyl linker, pyridine nitrogen and the aromatic sulfur\u2011aryl connection (key MACCS features), retains a phenolic OH for polarity, and reduces the total fluorine count to three (one on the front phenyl and the CF\u2082 group) to eliminate the four\u2011fluorine alert and lower LogP, thereby improving QED while maintaining similarity above 0.70.\",\n  \"smiles\": \"Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C)s3)cn2)cc1O\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C)s3)cn2)cc1O\nIteration: 43 / 51\n\nCombined score: 0.7078 (target: \u2265 0.90) \u2717\nSimilarity: 0.7222 (min: 0.70) \u2713\nQED: 0.6934 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n\nThe following 9 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 160: [C;H3,H4]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.089 (value=349.38, optimal=281-332 Da)\n  ALOGP: -0.490 (value=5.30, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Adds a hydroxyl group on the thio\u2011aryl phenyl to increase hydrogen\u2011bond donors and polarity, lowering LogP and improving QED above 0.70 while retaining the difluoro\u2011ethyl linker, pyridine nitrogen and the fluorinated phenyl core to keep similarity above the 0.70 threshold.\",\n  \"smiles\": \"Fc1ccc(CC(F)(F)c2ccc(-c3ccc(O)s3)cn2)cc1O\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(CC(F)(F)c2ccc(-c3ccc(O)s3)cn2)cc1O\nIteration: 44 / 51\n\nCombined score: 0.7097 (target: \u2265 0.90) \u2717\nSimilarity: 0.7027 (min: 0.70) \u2713\nQED: 0.7166 (min: 0.70) \u2713\n\nExplanation:\n\nSimilarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n\nThe following 10 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 159: [#8] (count > 1)\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.097 (value=351.35, optimal=281-332 Da)\n  ALOGP: -0.231 (value=4.69, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.000 (value=53.35, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the di\u2011fluoro phenyl core, the difluoro\u2011ethyl linker to the pyridine nitrogen, and the sulfur\u2011aryl connection that drive high MACCS similarity, but replaces the highly lipophilic CF\u2083 group with a nitrile (C#N) to lower molecular weight, reduce log\u2011P and add a hydrogen\u2011bond acceptor, thereby improving QED while maintaining similarity above the 0.70 threshold.\",\n  \"smiles\": \"Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C#N)s3)cn2)cc1\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C#N)s3)cn2)cc1\nIteration: 45 / 51\n\nCombined score: 0.7417 (target: \u2265 0.90) \u2717\nSimilarity: 0.8276 (min: 0.70) \u2713\nQED: 0.6557 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 3 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 144: *!:*:*!:*\n  Key 150: *!@*@*!@*\n\nThe following 2 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 41: [#6]#[#7]\n  Key 142: [#7] (count > 1)\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.071 (value=344.36, optimal=281-332 Da)\n  ALOGP: -0.419 (value=5.16, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.320 (value=0, optimal=1)\n  PSA: -0.005 (value=36.68, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Adds a phenolic OH to the front fluorinated phenyl (while keeping the two fluorines) to increase hydrogen\u2011bond donors, polarity and PSA, thereby raising QED above 0.70, while preserving the difluoro\u2011ethyl linker, pyridine nitrogen and thio\u2011aryl nitrile scaffold that give high MACCS similarity.\",\n  \"smiles\": \"Fc1c(F)ccc(O)cc1CC(F)(F)c2ccc(-c3ccc(C#N)s3)cn2\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "Invalid SMILES: Fc1c(F)ccc(O)cc1CC(F)(F)c2ccc(-c3ccc(C#N)s3)cn2"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Adds a phenolic hydroxyl on the front fluorinated phenyl to increase hydrogen\u2011bond donors, polarity and PSA, lowering LogP and improving QED above 0.70, while keeping the difluoro\u2011ethyl linker, pyridine nitrogen, sulfur\u2011aryl nitrile core that provide high MACCS similarity.\",\n  \"smiles\": \"Fc1ccc(O)cc1CC(F)(F)c2ccc(-c3ccc(C#N)s3)cn2\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Fc1ccc(O)cc1CC(F)(F)c2ccc(-c3ccc(C#N)s3)cn2\nIteration: 47 / 51\n\nCombined score: 0.7127 (target: \u2265 0.90) \u2717\nSimilarity: 0.7027 (min: 0.70) \u2713\nQED: 0.7227 (min: 0.70) \u2713\n\nExplanation:\n\nSimilarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n\nThe following 10 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 41: [#6]#[#7]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 142: [#7] (count > 1)\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.137 (value=360.36, optimal=281-332 Da)\n  ALOGP: -0.291 (value=4.86, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.000 (value=56.91, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Re\u2011introduces the two fluorines on the front phenyl to match the target pattern and adds a small amide (C(=O)NH2) on that ring to increase hydrogen\u2011bond donors/acceptors and polarity, which raises the QED. The difluoro\u2011ethyl side chain is simplified to an ethyl linker (reducing MW and LogP) while preserving the pyridine nitrogen and the aromatic sulfur\u2011CF\u2083 moiety that are key for MACCS similarity. This balance aims to push both similarity and QED toward the required combined score.\",\n  \"smiles\": \"Fc1c(F)ccc(C(=O)N)cc1CCc2ccc(-c3ccc(C(F)(F)F)s3)cn2\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "Invalid SMILES: Fc1c(F)ccc(C(=O)N)cc1CCc2ccc(-c3ccc(C(F)(F)F)s3)cn2"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Introduces a nitrogen attached to the difluoro\u2011ethyl carbon (C(N)F) to satisfy the missing hetero\u2011branched pattern, adds a phenolic OH on the fluorinated phenyl for polarity, and replaces the bulky CF\u2083\u2011phenyl\u2011thio group with a simple thiophene ring to lower molecular weight and LogP. These changes keep the di\u2011fluoro phenyl core, pyridine nitrogen and aromatic sulfur, boosting similarity above 0.70 while improving QED toward the required 0.70+.\",\n  \"smiles\": \"Fc1ccc(CC(N)Fc2ccc(-c3sccc3)cn2)c(F)c1O\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "Invalid SMILES: Fc1ccc(CC(N)Fc2ccc(-c3sccc3)cn2)c(F)c1O"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the essential pyridine\u2011thioaryl scaffold with the CF\u2083\u2011substituted thio\u2011aryl ring (key for high MACCS similarity) while removing the fluorinated side chain to avoid the four\u2011fluorine alert. Replaces the difluoro\u2011ethyl linker with a simple ethyl bridge and adds a phenolic OH on the front phenyl to increase polarity and hydrogen\u2011bond donors, thereby improving QED above 0.70 and maintaining similarity \u2265\u202f0.70.\",\n  \"smiles\": \"Oc1ccc(cc1)CCc2ccc(-c3ccc(C(F)(F)F)s3)cn2\"\n}"
+    },
+    {
+      "role": "HumanMessage",
+      "content": "SMILES: Oc1ccc(cc1)CCc2ccc(-c3ccc(C(F)(F)F)s3)cn2\nIteration: 50 / 51\n\nCombined score: 0.6700 (target: \u2265 0.90) \u2717\nSimilarity: 0.6486 (min: 0.70) \u2717\nQED: 0.6914 (min: 0.70) \u2717\n\nExplanation:\n\nSimilarity:\nThe following 3 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 87: [F,Cl,Br,I]!@*@*\n  Key 144: *!:*:*!:*\n  Key 150: *!@*@*!@*\n\nThe following 10 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 111: [#7]~*~[CH2]~*\n  Key 113: [#8]!:*:*\n  Key 118: [$(*~[CH2]~[CH2]~*),$(*1~[CH2]~[CH2]1)] (count > 1)\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 147: [$(*~[CH2]~[CH2]~*),$([R]1@[CH2;R]@[CH2;R]1)]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.089 (value=349.38, optimal=281-332 Da)\n  ALOGP: -0.501 (value=5.32, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)\n\nRespond with JSON only:\n{\n  \"reason\": \"<what you changed and why>\",\n  \"smiles\": \"<new SMILES>\"\n}"
+    },
+    {
+      "role": "AIMessage",
+      "content": "{\n  \"reason\": \"Keeps the two fluorines on the front phenyl and the aromatic sulfur\u2011containing benzothiophene core (key MACCS features), but reduces total fluorine count to three by using a single\u2011fluoro side chain and removes the CF\u2083 group. Adding a phenolic OH on the benzothiophene lowers LogP and raises hydrogen\u2011bond donors, improving QED while preserving high structural similarity.\",\n  \"smiles\": \"Fc1ccc(cc1F)CC(F)c2ncccc2-c3ccc2c(c3)sc(c2)O\"\n}"
+    }
+  ],
+  "trace": [
+    {
+      "iteration": 1,
+      "smiles": "Fc1ccc(cc1)C(C(F)F)C2=CN=CC=C2-c3ccc(SC(F)(F)F)cc3",
+      "reason": "Retains the core biphenyl\u2011pyridine\u2011thioaryl scaffold of the target (key aromatic rings, pyridine nitrogen, thio\u2011aryl linkage) to keep MACCS similarity >0.70, but reduces the number of fluorine substituents (only one on the first phenyl and a single CF2 group) to lower molecular weight and lipophilicity, improving QED toward \u22650.70.",
+      "score": 0.528799277659856,
+      "explanation": "Similarity:\nThe following 6 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 36: [#16R]\n  Key 83: [!#6;!#1]1~*~*~*~*~1\n  Key 96: *1~*~*~*~*~1\n  Key 120: [!#6;R] (count > 1)\n  Key 155: *!@[CH2]!@*\n  Key 156: [#7]~*(~*)~*\n\nThe following 2 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.466 (value=413.39, optimal=281-332 Da)\n  ALOGP: -1.358 (value=6.90, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.320 (value=0, optimal=1)\n  PSA: -0.048 (value=12.89, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F\n  c[SX2][C;!R]",
+      "scores": {
+        "Similarity": 0.7241379310344828,
+        "QED": 0.33346062428522916
+      }
+    },
+    {
+      "iteration": 2,
+      "smiles": "Fc1ccc(cc1)C(CF)C2=CN=CC=C2-c3ccc(SC)cc3",
+      "reason": "Reduced the number of fluorine atoms (now only one on the side chain and one on the phenyl) and replaced the CF3 group with a methyl attached to sulfur, lowering molecular weight and LogP while keeping the biphenyl\u2011pyridine\u2011thioaryl core and the sulfur atom to retain MACCS similarity above 0.70.",
+      "score": 0.5881276266086788,
+      "explanation": "Similarity:\nThe following 7 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 36: [#16R]\n  Key 83: [!#6;!#1]1~*~*~*~*~1\n  Key 96: *1~*~*~*~*~1\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 112: *~*(~*)(~*)~*\n  Key 120: [!#6;R] (count > 1)\n  Key 156: [#7]~*(~*)~*\n\nThe following 5 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 93: [!#6;!#1]~[CH3]\n  Key 153: [!#6;!#1]~[CH2]~*\n  Key 160: [C;H3,H4]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.060 (value=341.43, optimal=281-332 Da)\n  ALOGP: -0.718 (value=5.71, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.320 (value=0, optimal=1)\n  PSA: -0.048 (value=12.89, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  c[SX2][C;!R]",
+      "scores": {
+        "Similarity": 0.625,
+        "QED": 0.5512552532173577
+      }
+    },
+    {
+      "iteration": 3,
+      "smiles": "Fc1ccc(cc1)C(C(F)(F)O)C2=CN=CC=C2-c3ccc(SC(F)(F)F)cc3",
+      "reason": "Kept the core biphenyl\u2011pyridine\u2011thioaryl scaffold (preserving the sulfur\u2011aryl connection and pyridine nitrogen) to stay above the 0.70 MACCS similarity, but introduced a gem\u2011difluoro\u2011hydroxyl group (C(F)(F)O) on the side chain to add polarity, lower LogP and improve QED while still retaining most fluorine patterns of the target.",
+      "score": 0.5213079633225502,
+      "explanation": "Similarity:\nThe following 6 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 36: [#16R]\n  Key 83: [!#6;!#1]1~*~*~*~*~1\n  Key 96: *1~*~*~*~*~1\n  Key 120: [!#6;R] (count > 1)\n  Key 155: *!@[CH2]!@*\n  Key 156: [#7]~*(~*)~*\n\nThe following 5 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 139: [O;!H0]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.586 (value=429.39, optimal=281-332 Da)\n  ALOGP: -1.014 (value=6.22, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F\n  c[SX2][C;!R]",
+      "scores": {
+        "Similarity": 0.65625,
+        "QED": 0.38636592664510055
+      }
+    },
+    {
+      "iteration": 4,
+      "smiles": "Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C(F)(F)F)s3)cn2)c(O)c1",
+      "reason": "Retains the core difluoro\u2011ethyl\u2011pyridine\u2011thiophene scaffold and the CF3 substituent to keep MACCS similarity above 0.70, but replaces one fluorine on the outer phenyl with a hydroxyl group, adding polarity and a hydrogen\u2011bond donor to lower LogP and improve the QED score toward \u22650.70.",
+      "score": 0.6565139158509192,
+      "explanation": "Similarity:\nThe following 8 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 90: [$([!#6;!#1;!H0]~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[CH2;R]1)]\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.394 (value=403.35, optimal=281-332 Da)\n  ALOGP: -0.893 (value=6.01, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F",
+      "scores": {
+        "Similarity": 0.7714285714285715,
+        "QED": 0.5415992602732669
+      }
+    },
+    {
+      "iteration": 5,
+      "smiles": "Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C(F)(F)O)s3)cn2)c(O)c1",
+      "reason": "Keeps the core difluoro\u2011ethyl\u2011pyridine\u2011thioaryl scaffold and the two fluorines on the front phenyl (maintaining high MACCS similarity), but replaces the lipophilic CF\u2083 group on the thio\u2011aryl ring with a difluoromethyl\u2011hydroxy substituent (C(F)(F)O) to lower molecular weight, LogP, and add a second hydrogen\u2011bond donor, thereby boosting QED while staying structurally close to the target.",
+      "score": 0.6597910566386872,
+      "explanation": "Similarity:\nThe following 10 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 90: [$([!#6;!#1;!H0]~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[CH2;R]1)]\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 159: [#8] (count > 1)\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.380 (value=401.36, optimal=281-332 Da)\n  ALOGP: -0.362 (value=5.03, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.000 (value=53.35, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F",
+      "scores": {
+        "Similarity": 0.7297297297297297,
+        "QED": 0.5898523835476447
+      }
+    },
+    {
+      "iteration": 6,
+      "smiles": "Fc1ccc(cc1F)C(C(F)F)(O)C2=CN=CC=C2-c3ccc(Sc4ccc(F)cc4)cc3",
+      "reason": "Maintains the three\u2011ring scaffold (phenyl\u2011pyridine\u2011thioaryl) and the sulfur\u2011aryl connection to keep MACCS similarity above 0.70, but replaces the phenyl OH with a second fluorine (matching the target pattern) and introduces a single hydroxy group on the difluoro\u2011alkyl carbon to add one hydrogen\u2011bond donor and increase polarity, thereby lowering LogP and molecular weight and moving QED toward the 0.70 threshold.",
+      "score": 0.4418021558300131,
+      "explanation": "Similarity:\nThe following 7 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 36: [#16R]\n  Key 83: [!#6;!#1]1~*~*~*~*~1\n  Key 96: *1~*~*~*~*~1\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 120: [!#6;R] (count > 1)\n  Key 155: *!@[CH2]!@*\n  Key 156: [#7]~*(~*)~*\n\nThe following 8 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 66: [#6]~[#6](~[#6])(~[#6])~*\n  Key 97: [#7]~*~*~*~[#8]\n  Key 139: [O;!H0]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.939 (value=473.47, optimal=281-332 Da)\n  ALOGP: -1.324 (value=6.82, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -1.616 (value=4, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F",
+      "scores": {
+        "Similarity": 0.5714285714285714,
+        "QED": 0.3121757402314548
+      }
+    },
+    {
+      "iteration": 7,
+      "smiles": "Oc1ccc(F)cc1C(C(F)F)C2=CN=CC=C2-c3ccc(-c4cccs4)cn3",
+      "reason": "Keeps the key pyridine nitrogen, the difluoro\u2011ethyl side chain, and introduces a thiophene ring (providing the sulfur\u2011in\u2011ring feature needed for high MACCS similarity). Replaces the bulky CF\u2083 group with a simple thiophene and adds a phenolic OH to increase polarity and hydrogen\u2011bonding, lowering LogP and molecular weight to improve QED while retaining enough structural overlap to stay above the 0.70 similarity threshold.",
+      "score": 0.5578196612781344,
+      "explanation": "Similarity:\nThe following 3 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 112: *~*(~*)(~*)~*\n  Key 155: *!@[CH2]!@*\n\nThe following 8 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 142: [#7] (count > 1)\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.459 (value=412.44, optimal=281-332 Da)\n  ALOGP: -0.955 (value=6.11, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.001 (value=46.01, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -1.616 (value=4, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)",
+      "scores": {
+        "Similarity": 0.6857142857142857,
+        "QED": 0.4299250368419832
+      }
+    },
+    {
+      "iteration": 9,
+      "smiles": "Fc1ccc(C(C(F)F)C2=CN=CC=C2-c3ccc(-c4sccc4)cc3)cc1O",
+      "reason": "Keeps the difluoro\u2011ethyl linker, pyridine nitrogen and an aromatic sulfur ring (thiophene) to retain high MACCS similarity, while reducing the total number of fluorines and adding a phenolic OH to lower LogP and molecular weight, improving QED toward the required threshold.",
+      "score": 0.5359680766476265,
+      "explanation": "Similarity:\nThe following 4 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 112: *~*(~*)(~*)~*\n  Key 155: *!@[CH2]!@*\n  Key 156: [#7]~*(~*)~*\n\nThe following 7 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.451 (value=411.45, optimal=281-332 Da)\n  ALOGP: -1.279 (value=6.72, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -1.616 (value=4, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)",
+      "scores": {
+        "Similarity": 0.6764705882352942,
+        "QED": 0.39546556505995883
+      }
+    },
+    {
+      "iteration": 10,
+      "smiles": "Fc1ccc(O)cc1C(C(F)F)C2=CN=CC=C2-c3cccs3",
+      "reason": "Retains the fluorinated phenyl (with one F and a phenolic OH) and the difluoro\u2011ethyl linker to the pyridine nitrogen, and replaces the bulky CF\u2083\u2011substituted aryl\u2011sulfur group with a simple thiophene ring, preserving the sulfur\u2011in\u2011ring feature needed for MACCS similarity while reducing molecular weight and LogP to raise QED toward the 0.70 threshold.",
+      "score": 0.6999617460129728,
+      "explanation": "Similarity:\nThe following 4 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 112: *~*(~*)(~*)~*\n  Key 155: *!@[CH2]!@*\n  Key 156: [#7]~*(~*)~*\n\nThe following 7 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.042 (value=335.35, optimal=281-332 Da)\n  ALOGP: -0.371 (value=5.05, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)",
+      "scores": {
+        "Similarity": 0.6764705882352942,
+        "QED": 0.7234529037906515
+      }
+    },
+    {
+      "iteration": 13,
+      "smiles": "Fc1ccc(C(=O)O)cc1C(C(F)F)C2=CN=CC=C2-c3ccc(C(F)(F)F)s3",
+      "reason": "Keeps the di\u2011fluoro\u2011ethyl linker, pyridine nitrogen and the phenyl\u2011sulfur\u2011CF\u2083 aromatic group to retain high MACCS similarity, but replaces the phenolic OH with a carboxylic acid to add polarity and hydrogen\u2011bond donors/acceptors, lowering LogP and improving QED toward the required \u22650.70.",
+      "score": 0.6286054192659016,
+      "explanation": "Similarity:\nThe following 2 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 155: *!@[CH2]!@*\n  Key 156: [#7]~*(~*)~*\n\nThe following 6 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 123: [#8]~[#6]~[#8]\n  Key 139: [O;!H0]\n  Key 154: [#6]=[#8]\n  Key 157: [#6]-[#8]\n  Key 159: [#8] (count > 1)\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.601 (value=431.36, optimal=281-332 Da)\n  ALOGP: -0.925 (value=6.06, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.000 (value=50.19, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F",
+      "scores": {
+        "Similarity": 0.7575757575757576,
+        "QED": 0.49963508095604575
+      }
+    },
+    {
+      "iteration": 14,
+      "smiles": "Fc1ccc(O)cc1C(C(F)F)C2=CN=CC=C2-c3ccc(SC(F)(F))cc3",
+      "reason": "Keeps the key fluorinated phenyl, difluoro\u2011ethyl linker to the pyridine, and the aromatic sulfur connection, but replaces the bulky CF\u2083 group with a difluoromethyl (CF\u2082H) attached to sulfur and retains a phenolic OH. This lowers molecular weight and LogP while adding polarity, moving QED toward \u22650.70 and preserving MACCS similarity above 0.70.",
+      "score": 0.4685010335821798,
+      "explanation": "Similarity:\nThe following 7 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 36: [#16R]\n  Key 83: [!#6;!#1]1~*~*~*~*~1\n  Key 96: *1~*~*~*~*~1\n  Key 112: *~*(~*)(~*)~*\n  Key 120: [!#6;R] (count > 1)\n  Key 155: *!@[CH2]!@*\n  Key 156: [#7]~*(~*)~*\n\nThe following 9 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.451 (value=411.40, optimal=281-332 Da)\n  ALOGP: -1.064 (value=6.31, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.243 (value=6, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -1.350 (value=2, optimal=0)\n\n2 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F\n  c[SX2][C;!R]",
+      "scores": {
+        "Similarity": 0.5555555555555556,
+        "QED": 0.38144651160880405
+      }
+    },
+    {
+      "iteration": 16,
+      "smiles": "Fc1ccc(CC(F)(F)c2ccc(-c3ccc(CF)s3)cn2)c(F)c1",
+      "reason": "Keeps the di\u2011fluoro phenyl core, the difluoro\u2011ethyl linker to the pyridine nitrogen, and the aromatic sulfur\u2011aryl connection which are key for high MACCS similarity, but replaces the CF\u2083 group with a single\u2011fluoromethyl (CF) to lower molecular weight, logP and eliminate the F\u2011F\u2011F\u2011F alert, thereby improving QED toward the required threshold.",
+      "score": 0.7197798507414799,
+      "explanation": "Similarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n\nThe following 1 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 153: [!#6;!#1]~[CH2]~*\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.182 (value=369.36, optimal=281-332 Da)\n  ALOGP: -0.825 (value=5.89, optimal=1.95-3.57)\n  HBA: -0.073 (value=1, optimal=2-3)\n  HBD: -0.320 (value=0, optimal=1)\n  PSA: -0.048 (value=12.89, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F",
+      "scores": {
+        "Similarity": 0.9285714285714286,
+        "QED": 0.5109882729115311
+      }
+    },
+    {
+      "iteration": 17,
+      "smiles": "Fc1ccc(CC(F)(F)c2ccc(-c3ccc(O)s3)cn2)cc1O",
+      "reason": "Retains the difluoro\u2011ethyl linker, pyridine nitrogen, and sulfur\u2011aryl connection essential for MACCS similarity, but replaces the CF\u2083 group with a phenolic OH on the thio\u2011aryl ring and adds a phenolic OH on the front phenyl (while keeping one fluorine). These changes introduce two H\u2011bond donors/acceptors, lower LogP and molecular weight, and remove the four\u2011fluorine alert, aiming to raise QED above 0.70 while keeping similarity >\u202f0.70.",
+      "score": 0.7096608721346271,
+      "explanation": "Similarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n\nThe following 10 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 159: [#8] (count > 1)\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.097 (value=351.35, optimal=281-332 Da)\n  ALOGP: -0.231 (value=4.69, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.000 (value=53.35, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)",
+      "scores": {
+        "Similarity": 0.7027027027027027,
+        "QED": 0.7166190415665514
+      }
+    },
+    {
+      "iteration": 19,
+      "smiles": "Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C(F)F)s3)cn2)c(F)c1",
+      "reason": "Keeps the core biphenyl\u2011pyridine\u2011thioaryl scaffold with the difluoro\u2011ethyl linker and both fluorines on the front phenyl (preserving high MACCS similarity), but replaces the highly lipophilic CF\u2083 group on the thio\u2011aryl ring with a difluoromethyl (CF\u2082H) substituent to lower molecular weight and LogP, thereby improving QED while staying very close to the target structure.",
+      "score": 0.7136552155360785,
+      "explanation": "Similarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.287 (value=387.35, optimal=281-332 Da)\n  ALOGP: -1.095 (value=6.36, optimal=1.95-3.57)\n  HBA: -0.073 (value=1, optimal=2-3)\n  HBD: -0.320 (value=0, optimal=1)\n  PSA: -0.048 (value=12.89, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F",
+      "scores": {
+        "Similarity": 0.9629629629629629,
+        "QED": 0.4643474681091941
+      }
+    },
+    {
+      "iteration": 20,
+      "smiles": "Fc1ccc(CC(F)c2ccc(-c3ccc(C)s3)cn2)cc1O",
+      "reason": "Keeps the biphenyl\u2011pyridine\u2011thioaryl core and difluoro\u2011ethyl linker for high MACCS similarity, but replaces the CF\u2083 substituent with a simple methyl (removing two fluorines) and swaps the difluoro side\u2011chain for a monofluoro group, while adding a phenolic OH on the front phenyl. These changes increase hydrogen\u2011bond donors/acceptors, lower LogP and molecular weight, and eliminate the four\u2011fluorine structural alert, improving QED while preserving similarity above the required threshold.",
+      "score": 0.7027814455007215,
+      "explanation": "Similarity:\nThe following 2 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 112: *~*(~*)(~*)~*\n\nThe following 9 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 160: [C;H3,H4]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.032 (value=331.39, optimal=281-332 Da)\n  ALOGP: -0.449 (value=5.22, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)",
+      "scores": {
+        "Similarity": 0.6944444444444444,
+        "QED": 0.7111184465569986
+      }
+    },
+    {
+      "iteration": 21,
+      "smiles": "Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C(F)(F)O)s3)cn2)c(F)c1",
+      "reason": "Keeps the bis\u2011fluoro phenyl core, the difluoro\u2011ethyl linker to the pyridine nitrogen, and the sulfur\u2011aryl connection essential for high MACCS similarity, but swaps the highly lipophilic CF\u2083 group for a difluoromethanol (C(F)(F)O) to add hydrogen\u2011bond donors/acceptors and lower LogP, improving QED while retaining similarity above the required threshold.",
+      "score": 0.7369153762707028,
+      "explanation": "Similarity:\nThe following 3 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 139: [O;!H0]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.394 (value=403.35, optimal=281-332 Da)\n  ALOGP: -0.579 (value=5.46, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F",
+      "scores": {
+        "Similarity": 0.9,
+        "QED": 0.5738307525414055
+      }
+    },
+    {
+      "iteration": 22,
+      "smiles": "Fc1ccc(CCc2ccc(-c3ccc(CO)s3)cn2)c(F)c1",
+      "reason": "Removed the gem\u2011difluoro side chain and the CF\u2082OH substituent, replacing them with simple ethyl and hydroxymethyl groups. This lowers molecular weight and LogP, adds an H\u2011bond donor/acceptor, eliminates the four\u2011fluorine structural alert, and preserves the core biphenyl\u2011pyridine\u2011thioaryl scaffold, keeping similarity above 0.70 while raising QED toward the 0.70 threshold.",
+      "score": 0.7237911016263732,
+      "explanation": "Similarity:\nThe following 2 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 112: *~*(~*)(~*)~*\n\nThe following 9 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 82: *~[CH2]~[!#6;!#1;!H0]\n  Key 109: *~[CH2]~[#8]\n  Key 111: [#7]~*~[CH2]~*\n  Key 118: [$(*~[CH2]~[CH2]~*),$(*1~[CH2]~[CH2]1)] (count > 1)\n  Key 139: [O;!H0]\n  Key 147: [$(*~[CH2]~[CH2]~*),$([R]1@[CH2;R]@[CH2;R]1)]\n  Key 153: [!#6;!#1]~[CH2]~*\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.032 (value=331.39, optimal=281-332 Da)\n  ALOGP: -0.136 (value=4.37, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)",
+      "scores": {
+        "Similarity": 0.6944444444444444,
+        "QED": 0.7531377588083018
+      }
+    },
+    {
+      "iteration": 23,
+      "smiles": "Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C(F)F)s3)cn2)c(F)c1O",
+      "reason": "Keeps the difluoro\u2011ethyl linker, the pyridine nitrogen and the thio\u2011aryl connection for high MACCS similarity, adds a phenolic OH to retain H\u2011bond donors for QED, and replaces the highly lipophilic CF\u2083 group with a difluoromethyl (C(F)F) to lower logP and molecular weight, improving QED while staying structurally close to the target.",
+      "score": 0.633966133436185,
+      "explanation": "Similarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n\nThe following 8 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.394 (value=403.35, optimal=281-332 Da)\n  ALOGP: -0.927 (value=6.07, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F",
+      "scores": {
+        "Similarity": 0.7428571428571429,
+        "QED": 0.525075124015227
+      }
+    },
+    {
+      "iteration": 25,
+      "smiles": "Fc1ccc(O)cc1C(C(F)F)C2=CN=CC=C2-c3cscc3",
+      "reason": "Keeps the core phenyl\u2011pyridine\u2011thiophene scaffold and the difluoro\u2011ethyl linker (key for MACCS similarity), retains one fluorine on the phenyl and adds a phenolic OH for polarity, while removing the CF\u2083 group and extra aromatic ring to lower molecular weight and LogP. This should raise the QED above 0.70 and maintain similarity \u2265\u202f0.70.",
+      "score": 0.6852558636600317,
+      "explanation": "Similarity:\nThe following 5 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 81: [#16]~*(~*)~*\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 112: *~*(~*)(~*)~*\n  Key 155: *!@[CH2]!@*\n  Key 156: [#7]~*(~*)~*\n\nThe following 7 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.042 (value=335.35, optimal=281-332 Da)\n  ALOGP: -0.371 (value=5.05, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)",
+      "scores": {
+        "Similarity": 0.6470588235294118,
+        "QED": 0.7234529037906515
+      }
+    },
+    {
+      "iteration": 26,
+      "smiles": "Fc1ccc(O)cc1C(C(F)F)C2=CN=CC=C2-c3ccc(-c4ccc(C(F)(F)F)s4)cn3",
+      "reason": "Retains the difluoro\u2011ethyl linker, pyridine nitrogen, and the thio\u2011aryl (phenyl\u2011sulfur\u2011phenyl with CF\u2083) motif that are key for high MACCS similarity, while adding a phenolic OH on the front fluorinated phenyl to introduce a hydrogen\u2011bond donor and improve QED. This combination should boost similarity above 0.70 and raise QED toward the required threshold.",
+      "score": 0.5260218419489702,
+      "explanation": "Similarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 155: *!@[CH2]!@*\n\nThe following 8 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 142: [#7] (count > 1)\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.996 (value=480.43, optimal=281-332 Da)\n  ALOGP: -1.448 (value=7.13, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.001 (value=46.01, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -1.616 (value=4, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F",
+      "scores": {
+        "Similarity": 0.7428571428571429,
+        "QED": 0.30918654104079757
+      }
+    },
+    {
+      "iteration": 28,
+      "smiles": "Oc1ccc(F)cc1C(C(F)F)c2ncccc2Sc3cccs3",
+      "reason": "Keeps the difluoro\u2011ethyl linker, pyridine nitrogen and the aromatic sulfur (thiophene) which are key MACCS features, but reduces the total fluorine count to three (one on the phenyl and two on the side chain) to avoid the four\u2011fluorine alert and lower LogP. Adding a phenolic OH increases polarity and hydrogen\u2011bonding, improving QED while preserving similarity \u2265\u202f0.70.",
+      "score": 0.6409582161998806,
+      "explanation": "Similarity:\nThe following 4 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 62: *@*!@*@*\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 112: *~*(~*)(~*)~*\n  Key 155: *!@[CH2]!@*\n\nThe following 9 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 59: [#16]!:*:*\n  Key 64: *@*!@[#16]\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.172 (value=367.42, optimal=281-332 Da)\n  ALOGP: -0.618 (value=5.54, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)",
+      "scores": {
+        "Similarity": 0.6388888888888888,
+        "QED": 0.6430275435108722
+      }
+    },
+    {
+      "iteration": 29,
+      "smiles": "Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C(F)F)s3)cn2)c(F)c1",
+      "reason": "Keeps the key difluoro\u2011ethyl linker, the pyridine nitrogen, and the aryl\u2011sulfur moiety that drive high MACCS similarity, while replacing the bulky CF\u2083 group with a difluoromethyl (C(F)F) to lower LogP and molecular weight, improving QED. One fluorine on the front phenyl is retained to stay close to the target pattern.",
+      "score": 0.7136552155360785,
+      "explanation": "Similarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.287 (value=387.35, optimal=281-332 Da)\n  ALOGP: -1.095 (value=6.36, optimal=1.95-3.57)\n  HBA: -0.073 (value=1, optimal=2-3)\n  HBD: -0.320 (value=0, optimal=1)\n  PSA: -0.048 (value=12.89, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F",
+      "scores": {
+        "Similarity": 0.9629629629629629,
+        "QED": 0.4643474681091941
+      }
+    },
+    {
+      "iteration": 30,
+      "smiles": "Fc1ccc(cc1)C(C(F)F)c2ccc(-c3ccc(O)s3)cn2",
+      "reason": "Keeps the difluoro\u2011ethyl linker, pyridine nitrogen and the sulfur\u2011aryl connection essential for high MACCS similarity, but reduces the total fluorine count to three (one on the front phenyl) and replaces the lipophilic CF\u2083 phenyl with a phenolic OH on the thio\u2011aryl ring. The added hydroxyl increases hydrogen\u2011bond donors/acceptors and polarity, lowering LogP and improving QED while preserving the core scaffold for similarity \u2265\u202f0.70.",
+      "score": 0.6950597852286591,
+      "explanation": "Similarity:\nThe following 5 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 112: *~*(~*)(~*)~*\n  Key 144: *!:*:*!:*\n  Key 150: *!@*@*!@*\n  Key 155: *!@[CH2]!@*\n\nThe following 6 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.042 (value=335.35, optimal=281-332 Da)\n  ALOGP: -0.371 (value=5.05, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)",
+      "scores": {
+        "Similarity": 0.6666666666666666,
+        "QED": 0.7234529037906514
+      }
+    },
+    {
+      "iteration": 31,
+      "smiles": "Fc1ccc(O)cc1CC(F)(F)c2ccc(-c3ccc(O)s3)cn2",
+      "reason": "Re\u2011introduces the CH2 bridge (phenyl\u2011CH2\u2011C(F)(F)\u2011) to match the target pattern and satisfy the key MACCS features, while keeping one fluorine on the front phenyl and adding phenolic OH groups on both the front phenyl and the thio\u2011aryl ring to boost polarity and hydrogen\u2011bonding, improving QED. The core pyridine and sulfur\u2011aryl connection are retained for high similarity.",
+      "score": 0.7096608721346271,
+      "explanation": "Similarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n\nThe following 10 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 159: [#8] (count > 1)\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.097 (value=351.35, optimal=281-332 Da)\n  ALOGP: -0.231 (value=4.69, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.000 (value=53.35, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)",
+      "scores": {
+        "Similarity": 0.7027027027027027,
+        "QED": 0.7166190415665515
+      }
+    },
+    {
+      "iteration": 34,
+      "smiles": "Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C(F)F)s3)cn2)cc1O",
+      "reason": "Keeps the difluoro\u2011ethyl linker, pyridine nitrogen and the thio\u2011aryl connection (key MACCS features) while reducing total fluorine count to three (one on the front phenyl and a difluoromethyl on the thio\u2011aryl) to avoid the F.F.F.F alert. Adding a phenolic OH provides a hydrogen\u2011bond donor/acceptor, lowering LogP and improving QED, while maintaining similarity above the 0.70 threshold.",
+      "score": 0.6477578002228122,
+      "explanation": "Similarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n\nThe following 8 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.275 (value=385.36, optimal=281-332 Da)\n  ALOGP: -0.845 (value=5.93, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F",
+      "scores": {
+        "Similarity": 0.7428571428571429,
+        "QED": 0.5526584575884813
+      }
+    },
+    {
+      "iteration": 35,
+      "smiles": "Fc1ccc(O)cc1CC(F)(F)c2ccc(-c3ccc(O)s3)cn2",
+      "reason": "Keeps the difluoro\u2011ethyl linker, pyridine nitrogen and the aromatic sulfur connection (key MACCS features), but replaces the CF\u2083\u2011substituted thio\u2011aryl phenyl with a phenolic OH to add polarity and hydrogen\u2011bond donors, and retains the phenolic OH on the front fluorinated phenyl. This reduces lipophilicity and the total fluorine count, improving QED while maintaining similarity above 0.70.",
+      "score": 0.7096608721346271,
+      "explanation": "Similarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n\nThe following 10 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 159: [#8] (count > 1)\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.097 (value=351.35, optimal=281-332 Da)\n  ALOGP: -0.231 (value=4.69, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.000 (value=53.35, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)",
+      "scores": {
+        "Similarity": 0.7027027027027027,
+        "QED": 0.7166190415665515
+      }
+    },
+    {
+      "iteration": 36,
+      "smiles": "Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C(F)(F)F)s3)cn2)cc1",
+      "reason": "Uses the core biphenyl\u2011pyridine\u2011thioaryl scaffold with the difluoro\u2011ethyl linker and the CF\u2083\u2011substituted thio\u2011aryl ring (key for high MACCS similarity). One fluorine on the front phenyl is omitted (making the molecule distinct from the exact target) which lowers molecular weight and LogP, improving the QED while keeping similarity well above the 0.70 threshold.",
+      "score": 0.7023344619515666,
+      "explanation": "Similarity:\nThe following 2 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 144: *!:*:*!:*\n  Key 150: *!@*@*!@*\n\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.287 (value=387.35, optimal=281-332 Da)\n  ALOGP: -1.063 (value=6.30, optimal=1.95-3.57)\n  HBA: -0.073 (value=1, optimal=2-3)\n  HBD: -0.320 (value=0, optimal=1)\n  PSA: -0.048 (value=12.89, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F",
+      "scores": {
+        "Similarity": 0.9259259259259259,
+        "QED": 0.47874299797720726
+      }
+    },
+    {
+      "iteration": 37,
+      "smiles": "Fc1ccc(O)cc1CC(F)(F)C2=CN=CC=C2-c3ccc(C)s3",
+      "reason": "Keeps the difluoro\u2011ethyl linker, pyridine nitrogen and the aromatic sulfur connection (key MACCS features), but replaces the CF\u2083 group with a simple methyl to lower fluorine count (now only three F atoms) and reduces lipophilicity. Adding a phenolic OH on the front fluorinated phenyl introduces a hydrogen\u2011bond donor/acceptor, improving QED while preserving high similarity.",
+      "score": 0.6939405230678626,
+      "explanation": "Similarity:\nThe following 2 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 156: [#7]~*(~*)~*\n\nThe following 9 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 160: [C;H3,H4]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.089 (value=349.38, optimal=281-332 Da)\n  ALOGP: -0.490 (value=5.30, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)",
+      "scores": {
+        "Similarity": 0.6944444444444444,
+        "QED": 0.6934366016912806
+      }
+    },
+    {
+      "iteration": 40,
+      "smiles": "Fc1ccc(CC(F)(F)c2ccc(-c3ccc(N(C)C)s3)cn2)cc1",
+      "reason": "Keeps the difluoro\u2011ethyl linker, pyridine nitrogen and the aromatic sulfur\u2011aryl connection essential for high MACCS similarity, retains a single fluorine on the front phenyl (total F\u202f=\u202f3 to avoid the fluorine alert), and replaces the lipophilic CF\u2083 group with a dimethyl\u2011amino substituent on the thio\u2011aryl ring. The tertiary amine adds polarity and hydrogen\u2011bond acceptors, lowering LogP and improving QED while preserving the core scaffold for similarity.",
+      "score": 0.604093232662027,
+      "explanation": "Similarity:\nThe following 3 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 144: *!:*:*!:*\n  Key 150: *!@*@*!@*\n\nThe following 13 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 47: [#16]~*~[#7]\n  Key 74: [CH3]~*~[CH3]\n  Key 85: [#6]~[#7](~[#6])~[#6]\n  Key 86: [C;H2,H3][!#6;!#1][C;H2,H3]\n  Key 93: [!#6;!#1]~[CH3]\n  Key 122: *~[#7](~*)~*\n  Key 133: *@*!@[#7]\n  Key 135: [#7]!:*:*\n  Key 142: [#7] (count > 1)\n  Key 148: *~[!#6;!#1](~*)~*\n  Key 149: [C;H3,H4] (count > 1)\n  Key 158: [#6]-[#7]\n  Key 160: [C;H3,H4]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.147 (value=362.42, optimal=281-332 Da)\n  ALOGP: -0.517 (value=5.35, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.320 (value=0, optimal=1)\n  PSA: -0.039 (value=16.13, optimal=40-69 \u0172)\n  ROTB: -0.107 (value=5, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)",
+      "scores": {
+        "Similarity": 0.6,
+        "QED": 0.608186465324054
+      }
+    },
+    {
+      "iteration": 42,
+      "smiles": "Fc1ccc(CC(F)(F)c2ccc(-c3ccc(O)s3)cn2)c(F)c1O",
+      "reason": "Keeps the di\u2011fluoro phenyl core, the difluoro\u2011ethyl linker to the pyridine nitrogen, and the aromatic sulfur\u2011aryl connection (key MACCS features), while adding a phenolic OH on the front phenyl and a hydroxyl on the thio\u2011aryl ring. The extra OH groups increase polarity and hydrogen\u2011bonding, lowering LogP and improving QED, yet the core scaffold remains highly similar to the target, aiming for similarity \u22650.70 and QED \u22650.70.",
+      "score": 0.6751804383525104,
+      "explanation": "Similarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n\nThe following 10 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 159: [#8] (count > 1)\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.182 (value=369.34, optimal=281-332 Da)\n  ALOGP: -0.281 (value=4.83, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.000 (value=53.35, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.424 (value=1, optimal=0)\n\n1 structural alert(s) triggered. SMARTS patterns of alerts:\n  F.F.F.F",
+      "scores": {
+        "Similarity": 0.7027027027027027,
+        "QED": 0.6476581740023181
+      }
+    },
+    {
+      "iteration": 43,
+      "smiles": "Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C)s3)cn2)cc1O",
+      "reason": "Keeps the difluoro\u2011ethyl linker, pyridine nitrogen and the aromatic sulfur\u2011aryl connection (key MACCS features), retains a phenolic OH for polarity, and reduces the total fluorine count to three (one on the front phenyl and the CF\u2082 group) to eliminate the four\u2011fluorine alert and lower LogP, thereby improving QED while maintaining similarity above 0.70.",
+      "score": 0.7078294119567513,
+      "explanation": "Similarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n\nThe following 9 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 160: [C;H3,H4]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.089 (value=349.38, optimal=281-332 Da)\n  ALOGP: -0.490 (value=5.30, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)",
+      "scores": {
+        "Similarity": 0.7222222222222222,
+        "QED": 0.6934366016912804
+      }
+    },
+    {
+      "iteration": 44,
+      "smiles": "Fc1ccc(CC(F)(F)c2ccc(-c3ccc(O)s3)cn2)cc1O",
+      "reason": "Adds a hydroxyl group on the thio\u2011aryl phenyl to increase hydrogen\u2011bond donors and polarity, lowering LogP and improving QED above 0.70 while retaining the difluoro\u2011ethyl linker, pyridine nitrogen and the fluorinated phenyl core to keep similarity above the 0.70 threshold.",
+      "score": 0.7096608721346271,
+      "explanation": "Similarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n\nThe following 10 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 131: [!#6;!#1;!H0] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 159: [#8] (count > 1)\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.097 (value=351.35, optimal=281-332 Da)\n  ALOGP: -0.231 (value=4.69, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.142 (value=2, optimal=1)\n  PSA: -0.000 (value=53.35, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)",
+      "scores": {
+        "Similarity": 0.7027027027027027,
+        "QED": 0.7166190415665514
+      }
+    },
+    {
+      "iteration": 45,
+      "smiles": "Fc1ccc(CC(F)(F)c2ccc(-c3ccc(C#N)s3)cn2)cc1",
+      "reason": "Keeps the di\u2011fluoro phenyl core, the difluoro\u2011ethyl linker to the pyridine nitrogen, and the sulfur\u2011aryl connection that drive high MACCS similarity, but replaces the highly lipophilic CF\u2083 group with a nitrile (C#N) to lower molecular weight, reduce log\u2011P and add a hydrogen\u2011bond acceptor, thereby improving QED while maintaining similarity above the 0.70 threshold.",
+      "score": 0.7416567567730643,
+      "explanation": "Similarity:\nThe following 3 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n  Key 144: *!:*:*!:*\n  Key 150: *!@*@*!@*\n\nThe following 2 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 41: [#6]#[#7]\n  Key 142: [#7] (count > 1)\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.071 (value=344.36, optimal=281-332 Da)\n  ALOGP: -0.419 (value=5.16, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.320 (value=0, optimal=1)\n  PSA: -0.005 (value=36.68, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)",
+      "scores": {
+        "Similarity": 0.8275862068965517,
+        "QED": 0.6557273066495769
+      }
+    },
+    {
+      "iteration": 47,
+      "smiles": "Fc1ccc(O)cc1CC(F)(F)c2ccc(-c3ccc(C#N)s3)cn2",
+      "reason": "Adds a phenolic hydroxyl on the front fluorinated phenyl to increase hydrogen\u2011bond donors, polarity and PSA, lowering LogP and improving QED above 0.70, while keeping the difluoro\u2011ethyl linker, pyridine nitrogen, sulfur\u2011aryl nitrile core that provide high MACCS similarity.",
+      "score": 0.7127200502734614,
+      "explanation": "Similarity:\nThe following 1 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 106: [!#6;!#1]~*(~[!#6;!#1])~[!#6;!#1]\n\nThe following 10 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 41: [#6]#[#7]\n  Key 91: [$([!#6;!#1;!H0]~*~*~*~[CH2]~*),$([!#6;!#1;!H0;R]1@[R]@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~[R]1@[R]@[R]@[CH2;R]1),$([!#6;!#1;!H0]~*~[R]1@[R]@[CH2;R]1)]\n  Key 113: [#8]!:*:*\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 142: [#7] (count > 1)\n  Key 143: *@*!@[#8]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.137 (value=360.36, optimal=281-332 Da)\n  ALOGP: -0.291 (value=4.86, optimal=1.95-3.57)\n  HBA: -0.001 (value=3, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.000 (value=56.91, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)",
+      "scores": {
+        "Similarity": 0.7027027027027027,
+        "QED": 0.7227373978442201
+      }
+    },
+    {
+      "iteration": 50,
+      "smiles": "Oc1ccc(cc1)CCc2ccc(-c3ccc(C(F)(F)F)s3)cn2",
+      "reason": "Keeps the essential pyridine\u2011thioaryl scaffold with the CF\u2083\u2011substituted thio\u2011aryl ring (key for high MACCS similarity) while removing the fluorinated side chain to avoid the four\u2011fluorine alert. Replaces the difluoro\u2011ethyl linker with a simple ethyl bridge and adds a phenolic OH on the front phenyl to increase polarity and hydrogen\u2011bond donors, thereby improving QED above 0.70 and maintaining similarity \u2265\u202f0.70.",
+      "score": 0.6700398378735246,
+      "explanation": "Similarity:\nThe following 3 features are present in TARGET but not in QUERY (reducing similarity):\n  Key 87: [F,Cl,Br,I]!@*@*\n  Key 144: *!:*:*!:*\n  Key 150: *!@*@*!@*\n\nThe following 10 features are present in QUERY but not in TARGET (reducing similarity):\n  Key 111: [#7]~*~[CH2]~*\n  Key 113: [#8]!:*:*\n  Key 118: [$(*~[CH2]~[CH2]~*),$(*1~[CH2]~[CH2]1)] (count > 1)\n  Key 127: *@*!@[#8] (count > 1)\n  Key 139: [O;!H0]\n  Key 143: *@*!@[#8]\n  Key 147: [$(*~[CH2]~[CH2]~*),$([R]1@[CH2;R]@[CH2;R]1)]\n  Key 152: [#8]~[#6](~[#6])~[#6]\n  Key 157: [#6]-[#8]\n  Key 164: [#8]\n\nQED:\nWeighted log contributions (closer to 0 = better, negative values hurt score):\n\n  MW: -0.089 (value=349.38, optimal=281-332 Da)\n  ALOGP: -0.501 (value=5.32, optimal=1.95-3.57)\n  HBA: -0.004 (value=2, optimal=2-3)\n  HBD: -0.008 (value=1, optimal=1)\n  PSA: -0.008 (value=33.12, optimal=40-69 \u0172)\n  ROTB: -0.020 (value=4, optimal=2-4)\n  AROM: -0.653 (value=3, optimal=1-2)\n  ALERTS: -0.163 (value=0, optimal=0)",
+      "scores": {
+        "Similarity": 0.6486486486486487,
+        "QED": 0.6914310270984005
+      }
+    }
+  ],
+  "iterations": 51,
+  "summary": "**Summary of the multi\u2011objective molecular optimization**\n\nThe campaign aimed to simultaneously maximise structural similarity to a fluorinated biphenyl\u2011pyridine\u2011thioaryl reference (MACCS similarity\u202f\u2265\u202f0.70) and drug\u2011likeness (QED\u202f\u2265\u202f0.70), with a combined target score of\u202f\u2265\u202f0.90.\n\n| Iteration | Key structural modifications | Similarity | QED | Combined score |\n|-----------|------------------------------|------------|------|----------------|\n| 1 | Retained the full scaffold but reduced fluorine count (one phenyl F, one CF\u2082) | 0.724 | 0.333 | 0.529 |\n| 2\u20114 | Progressive removal of fluorine atoms and replacement of CF\u2083 by methyl or hydroxyl groups; introduced phenolic OH | Similarity fell to 0.625\u20110.771, QED rose modestly to 0.542 | \u2264\u202f0.589 |\n| 5\u20117 | Added hydroxy substituents on both aromatic rings; kept difluoro\u2011ethyl side chain | Similarity 0.570\u20110.686, QED 0.313\u20110.430 | \u2264\u202f0.558 |\n| 10 | Introduced a phenolic OH and replaced the CF\u2083\u2011aryl\u2011S moiety with a simple thiophene; QED crossed 0.70 (0.723) while similarity remained 0.676 (combined\u202f0.700) |\n| 13\u201114 | Explored carboxylic acid and difluoromethyl\u2011S substituents; QED increased to \u22480.50 but similarity stayed high (>0.55) |\n| 16\u201119 | Swapped CF\u2083 for fluoromethyl or difluoromethyl groups; similarity >0.90 in some cases, but QED stayed below 0.55 |\n| 20\u201122 | Replaced CF\u2083 with methyl or ethyl groups and added phenolic OH; similarity \u22480.69\u20110.70, QED reached 0.71\u20110.75 (combined \u22480.704\u20110.724) |\n| 25\u201130 | Simplified the thio\u2011aryl partner to thiophene, retained difluoro\u2011ethyl linker and phenolic OH; similarity dropped to 0.64\u20110.67, QED \u22480.72 (combined \u22480.685\u20110.695) |\n| 34\u201136 | Added OH on both phenyl rings while keeping difluoro\u2011ethyl side chain; similarity \u22480.70\u20110.74, QED \u22480.64\u20110.71 (combined\u202f\u22480.648\u20110.703) |\n| 40\u201145 | Introduced a nitrile on the thio\u2011aryl ring or dimethyl\u2011amine to increase polarity; similarity 0.60\u20110.83, QED 0.61\u20110.72 (combined up to\u202f0.742) |\n| 47 | Combined phenolic OH on the fluorinated phenyl with a nitrile\u2011substituted thio\u2011aryl; similarity\u202f\u2248\u202f0.70, QED\u202f\u2248\u202f0.72 (combined\u202f\u2248\u202f0.713) |\n| 50 | Removed the difluoro\u2011ethyl linker, kept the CF\u2083\u2011thio\u2011aryl, added a phenolic OH; similarity\u202f\u2248\u202f0.65, QED\u202f\u2248\u202f0.69 (combined\u202f\u2248\u202f0.670) |\n\n**Overall trends**\n\n1. **Fluorine reduction** \u2013 Systematically decreasing the number of fluorine atoms (removing CF\u2083, replacing it with methyl, difluoromethyl, nitrile, or amine) lowered log\u202fP and molecular weight, improving QED but often at the cost of similarity.\n2. **Hydrogen\u2011bond donors/acceptors** \u2013 Introduction of phenolic OH, carboxylic acid, or nitrile groups added polarity, raising QED values above the 0.70 threshold in later iterations.\n3. **Core preservation** \u2013 Maintaining the three\u2011ring scaffold (fluorinated phenyl\u2011pyridine\u2011thioaryl) and the pyridine nitrogen was essential for keeping similarity \u2265\u202f0.70 throughout the campaign.\n4. **Score balance** \u2013 The best combined scores were achieved when the scaffold remained largely intact (similarity\u202f\u2248\u202f0.70\u20110.73) while polarity\u2011enhancing groups (OH, CO\u2082H, nitrile) raised QED to \u2248\u202f0.72\u20110.75. The highest combined score observed was **0.742** (iteration\u202f45, similarity\u202f0.828, QED\u202f0.656). No molecule reached the target combined score of\u202f\u2265\u202f0.90; the trade\u2011off between preserving similarity and improving QED limited further progress."
+}

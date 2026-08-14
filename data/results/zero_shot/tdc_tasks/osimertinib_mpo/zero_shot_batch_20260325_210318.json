@@ -1,0 +1,340 @@
+{
+  "timestamp": "20260325_210318",
+  "experiment": "zero_shot_batch_osimertinib_mpo",
+  "config": {
+    "llm": {
+      "model": "claude-opus-4.5",
+      "temperature": 0.1
+    },
+    "objective": {
+      "name": "tdc_tasks",
+      "params": {
+        "max_iterations": 50
+      }
+    },
+    "oracle": {
+      "name": "tdc_tasks",
+      "params": {
+        "oracle_name": "osimertinib_mpo"
+      }
+    },
+    "generation_mode": "batch"
+  },
+  "conversation": [
+    {
+      "role": "SystemMessage",
+      "content": "You are an expert medicinal chemist whose job is to propose diverse, plausible small organic molecules.\n\nOUTPUT FORMAT:\n- Respond with exactly one JSON array.\n- The array must contain exactly N objects (N is provided in the user instruction).\n- Each object must have this shape:\n  {\n\t\"reason\": \"<short explanation>\",\n\t\"smiles\": \"<SMILES string>\"\n  }\n\nRequirements:\n- All \"smiles\" values must be distinct within the array.\n- Each \"smiles\" should be a single valid SMILES for a plausible small molecule.\n- Do not include any text outside the JSON array.\n- No Markdown, no comments, no code fences."
+    },
+    {
+      "role": "HumanMessage",
+      "content": "Osimertinib MPO: score is the geometric mean of 4 terms (each in [0,1]):\n  score = gmean([sim_v1, sim_v2, tpsa_term, logp_term])\n\nReference molecule (Osimertinib) SMILES:\n  COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34 \n\nTerms:\n  sim_v1  = clip(Tanimoto(FCFP4(test), FCFP4(ref)), t=0.8)\n  sim_v2  = min_gauss(Tanimoto(ECFP6(test), ECFP6(ref)); mu=0.85, sigma=0.1)\n  tpsa_term = max_gauss(TPSA(test); mu=100, sigma=10)\n  logp_term = min_gauss(MolLogP(test); mu=1, sigma=1)\n\nModifiers:\n  clip(x,t) = 1 if x>=t else x/t\n  min_gauss(x;mu,s) = 1 if x<=mu else exp(-0.5*((x-mu)/s)^2)\n  max_gauss(x;mu,s) = 1 if x>=mu else exp(-0.5*((x-mu)/s)^2)\n\nObjective:\n- Generate exactly 50 different candidate molecules in one response.\n\n- the molecules should maximize the Osimertinib MPO score (0\u20131; higher is better).\nTask:\nPropose a single initial molecule as a SMILES string that you think will have a high MPO score by:\n- being similar to Osimertinib under BOTH similarity terms (FCFP4 similarity clipped at 0.8, and ECFP6 similarity favored up to ~0.85),\n- having TPSA in the high-preferred region (max-Gaussian with target around 100), and\n- having logP in the low-preferred region (min-Gaussian with target around 1).\n\nReturn a JSON array with exactly 50 objects, each containing keys \"reason\" and \"smiles\".\nAll SMILES must be unique within the array."
+    },
+    {
+      "role": "AIMessage",
+      "content": "```json\n[\n  {\n    \"reason\": \"Close analog of osimertinib with methyl acrylamide replaced by acrylamide to reduce logP while maintaining core structure\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cnc4ccccc34\"\n  },\n  {\n    \"reason\": \"Replace indole N-methyl with NH to increase TPSA and reduce logP\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3c[nH]c4ccccc34\"\n  },\n  {\n    \"reason\": \"Add hydroxyl group to dimethylamino chain to increase TPSA and reduce logP\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)CO)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34\"\n  },\n  {\n    \"reason\": \"Replace one N-methyl with NH in the diamine chain for better TPSA\",\n    \"smiles\": \"COc1cc(N(C)CCNC)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34\"\n  },\n  {\n    \"reason\": \"Shorten the diamine chain to reduce logP while maintaining similarity\",\n    \"smiles\": \"COc1cc(N(C)CN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34\"\n  },\n  {\n    \"reason\": \"Replace methoxy with hydroxyl to increase TPSA and reduce logP\",\n    \"smiles\": \"Oc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34\"\n  },\n  {\n    \"reason\": \"Add fluorine to indole ring to modulate properties while maintaining similarity\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccc(F)cc34\"\n  },\n  {\n    \"reason\": \"Replace acrylamide with propiolamide for different warhead\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C#C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34\"\n  },\n  {\n    \"reason\": \"Introduce morpholine instead of dimethylamine to increase TPSA\",\n    \"smiles\": \"COc1cc(N2CCOCC2)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34\"\n  },\n  {\n    \"reason\": \"Replace terminal dimethylamino with piperazine for better TPSA\",\n    \"smiles\": \"COc1cc(N(C)CCN2CCNCC2)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34\"\n  },\n  {\n    \"reason\": \"Add hydroxymethyl to indole nitrogen to increase polarity\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(CO)c4ccccc34\"\n  },\n  {\n    \"reason\": \"Replace one methyl on aniline nitrogen with hydrogen\",\n    \"smiles\": \"COc1cc(NCCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34\"\n  },\n  {\n    \"reason\": \"Introduce pyrrole instead of indole to reduce molecular weight and logP\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cc[nH]c3\"\n  },\n  {\n    \"reason\": \"Add amino group to pyrimidine ring for increased TPSA\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nc(N)cc(n2)c3cn(C)c4ccccc34\"\n  },\n  {\n    \"reason\": \"Replace indole with benzimidazole for different heterocycle\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3nc4ccccc4[nH]3\"\n  },\n  {\n    \"reason\": \"Introduce ethanol substituent on terminal amine\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)CCO)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34\"\n  },\n  {\n    \"reason\": \"Replace methoxy with ethoxy for slight property modulation\",\n    \"smiles\": \"CCOc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34\"\n  },\n  {\n    \"reason\": \"Add fluorine to aniline ring for metabolic stability\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)c(F)c1Nc2nccc(n2)c3cn(C)c4ccccc34\"\n  },\n  {\n    \"reason\": \"Replace dimethylaminoethyl with methylpiperazinyl\",\n    \"smiles\": \"COc1cc(N2CCN(C)CC2)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34\"\n  },\n  {\n    \"reason\": \"Introduce azaindole instead of indole for increased TPSA\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ncccc34\"\n  },\n  {\n    \"reason\": \"Replace acrylamide with crotonamide\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C=CC)cc1Nc2nccc(n2)c3cn(C)c4ccccc34\"\n  },\n  {\n    \"reason\": \"Add cyano group to indole for increased TPSA\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccc(C#N)cc34\"\n  },\n  {\n    \"reason\": \"Replace terminal NMe2 with azetidine\",\n    \"smiles\": \"COc1cc(N(C)CCN2CCC2)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34\"\n  },\n  {\n    \"reason\": \"Introduce imidazole instead of indole\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cnc[nH]3\"\n  },\n  {\n    \"reason\": \"Add methyl sulfonyl to increase TPSA\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccc(S(C)(=O)=O)cc34\"\n  },\n  {\n    \"reason\": \"Replace pyrimidine with triazine for increased TPSA\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2ncnc(n2)c3cn(C)c4ccccc34\"\n  },\n  {\n    \"reason\": \"Introduce hydroxyl on the ethylene chain\",\n    \"smiles\": \"COc1cc(N(C)C(O)CN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34\"\n  },\n  {\n    \"reason\": \"Replace indole with pyrazole for reduced logP\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cnn(C)c3\"\n  },\n  {\n    \"reason\": \"Add carboxamide to indole for increased TPSA\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccc(C(N)=O)cc34\"\n  },\n  {\n    \"reason\": \"Replace one N-methyl with ethyl for property modulation\",\n    \"smiles\": \"COc1cc(N(C)CCN(CC)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34\"\n  },\n  {\n    \"reason\": \"Introduce 7-azaindole for increased TPSA\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cnc4cccnc34\"\n  },\n  {\n    \"reason\": \"Replace methoxy with methylamino for increased TPSA\",\n    \"smiles\": \"CNc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34\"\n  },\n  {\n    \"reason\": \"Add fluorine to pyrimidine ring\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nc(F)cc(n2)c3cn(C)c4ccccc34\"\n  },\n  {\n    \"reason\": \"Replace terminal dimethylamino with pyrrolidine\",\n    \"smiles\": \"COc1cc(N(C)CCN2CCCC2)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34\"\n  },\n  {\n    \"reason\": \"Introduce oxetane on terminal amine for reduced logP\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C2COC2)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34\"\n  },\n  {\n    \"reason\": \"Replace indole N-methyl with ethyl\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(CC)c4ccccc34\"\n  },\n  {\n    \"reason\": \"Add methyl to acrylamide double bond\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C(C)=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34\"\n  },\n  {\n    \"reason\": \"Introduce 5-fluoroindole\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4cc(F)ccc34\"\n  },\n  {\n    \"reason\": \"Replace diamine chain with aminoethanol\",\n    \"smiles\": \"COc1cc(N(C)CCO)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34\"\n  },\n  {\n    \"reason\": \"Add chlorine to indole for property modulation\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccc(Cl)cc34\"\n  },\n  {\n    \"reason\": \"Replace pyrimidine with pyridine\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2cccc(n2)c3cn(C)c4ccccc34\"\n  },\n  {\n    \"reason\": \"Introduce 4-azaindole\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccncc34\"\n  },\n  {\n    \"reason\": \"Add methoxy to indole ring\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccc(OC)cc34\"\n  },\n  {\n    \"reason\": \"Replace acrylamide with methacrylamide\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C(=C)C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34\"\n  },\n  {\n    \"reason\": \"Introduce thiophene instead of indole\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3ccsc3\"\n  },\n  {\n    \"reason\": \"Add hydroxyl to indole ring for increased TPSA\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccc(O)cc34\"\n  },\n  {\n    \"reason\": \"Replace terminal NMe2 with NHMe\",\n    \"smiles\": \"COc1cc(N(C)CCNC)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34\"\n  },\n  {\n    \"reason\": \"Introduce 6-azaindole\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4cnccc34\"\n  },\n  {\n    \"reason\": \"Add trifluoromethyl to pyrimidine\",\n    \"smiles\": \"COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nc(C(F)(F)F)cc(n2)c3cn(C)c4ccccc34\"\n  },\n  {\n    \"reason\": \"Replace methoxy with difluoromethoxy\",\n    \"smiles\": \"FC(F)Oc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34\"\n  }\n]\n```"
+    }
+  ],
+  "trace": [
+    {
+      "iteration": 1,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cnc4ccccc34",
+      "reason": "Close analog of osimertinib with methyl acrylamide replaced by acrylamide to reduce logP while maintaining core structure",
+      "score": 0.0
+    },
+    {
+      "iteration": 2,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3c[nH]c4ccccc34",
+      "reason": "Replace indole N-methyl with NH to increase TPSA and reduce logP",
+      "score": 0.21569602157681111
+    },
+    {
+      "iteration": 3,
+      "smiles": "COc1cc(N(C)CCN(C)CO)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34",
+      "reason": "Add hydroxyl group to dimethylamino chain to increase TPSA and reduce logP",
+      "score": 0.36504965349471064
+    },
+    {
+      "iteration": 4,
+      "smiles": "COc1cc(N(C)CCNC)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34",
+      "reason": "Replace one N-methyl with NH in the diamine chain for better TPSA",
+      "score": 0.2805633535958667
+    },
+    {
+      "iteration": 5,
+      "smiles": "COc1cc(N(C)CN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34",
+      "reason": "Shorten the diamine chain to reduce logP while maintaining similarity",
+      "score": 0.18244450071239396
+    },
+    {
+      "iteration": 6,
+      "smiles": "Oc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34",
+      "reason": "Replace methoxy with hydroxyl to increase TPSA and reduce logP",
+      "score": 0.27580149170223905
+    },
+    {
+      "iteration": 7,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccc(F)cc34",
+      "reason": "Add fluorine to indole ring to modulate properties while maintaining similarity",
+      "score": 0.15597461236131774
+    },
+    {
+      "iteration": 8,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C#C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34",
+      "reason": "Replace acrylamide with propiolamide for different warhead",
+      "score": 0.27617121814725126
+    },
+    {
+      "iteration": 9,
+      "smiles": "COc1cc(N2CCOCC2)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34",
+      "reason": "Introduce morpholine instead of dimethylamine to increase TPSA",
+      "score": 0.23367950364145815
+    },
+    {
+      "iteration": 10,
+      "smiles": "COc1cc(N(C)CCN2CCNCC2)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34",
+      "reason": "Replace terminal dimethylamino with piperazine for better TPSA",
+      "score": 0.36133240855628646
+    },
+    {
+      "iteration": 11,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(CO)c4ccccc34",
+      "reason": "Add hydroxymethyl to indole nitrogen to increase polarity",
+      "score": 0.3437987420495798
+    },
+    {
+      "iteration": 12,
+      "smiles": "COc1cc(NCCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34",
+      "reason": "Replace one methyl on aniline nitrogen with hydrogen",
+      "score": 0.21538389579236003
+    },
+    {
+      "iteration": 13,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cc[nH]c3",
+      "reason": "Introduce pyrrole instead of indole to reduce molecular weight and logP",
+      "score": 0.48738997409484164
+    },
+    {
+      "iteration": 14,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nc(N)cc(n2)c3cn(C)c4ccccc34",
+      "reason": "Add amino group to pyrimidine ring for increased TPSA",
+      "score": 0.3026863978619382
+    },
+    {
+      "iteration": 15,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3nc4ccccc4[nH]3",
+      "reason": "Replace indole with benzimidazole for different heterocycle",
+      "score": 0.34824355881250624
+    },
+    {
+      "iteration": 16,
+      "smiles": "COc1cc(N(C)CCN(C)CCO)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34",
+      "reason": "Introduce ethanol substituent on terminal amine",
+      "score": 0.35655619876756006
+    },
+    {
+      "iteration": 17,
+      "smiles": "CCOc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34",
+      "reason": "Replace methoxy with ethoxy for slight property modulation",
+      "score": 0.12225374478232824
+    },
+    {
+      "iteration": 18,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)c(F)c1Nc2nccc(n2)c3cn(C)c4ccccc34",
+      "reason": "Add fluorine to aniline ring for metabolic stability",
+      "score": 0.15597461236131763
+    },
+    {
+      "iteration": 19,
+      "smiles": "COc1cc(N2CCN(C)CC2)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34",
+      "reason": "Replace dimethylaminoethyl with methylpiperazinyl",
+      "score": 0.21755536045789045
+    },
+    {
+      "iteration": 20,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ncccc34",
+      "reason": "Introduce azaindole instead of indole for increased TPSA",
+      "score": 0.34828544889078894
+    },
+    {
+      "iteration": 21,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C=CC)cc1Nc2nccc(n2)c3cn(C)c4ccccc34",
+      "reason": "Replace acrylamide with crotonamide",
+      "score": 0.12225374478232813
+    },
+    {
+      "iteration": 22,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccc(C#N)cc34",
+      "reason": "Add cyano group to indole for increased TPSA",
+      "score": 0.2394762878792217
+    },
+    {
+      "iteration": 23,
+      "smiles": "COc1cc(N(C)CCN2CCC2)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34",
+      "reason": "Replace terminal NMe2 with azetidine",
+      "score": 0.1552643274289254
+    },
+    {
+      "iteration": 24,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cnc[nH]3",
+      "reason": "Introduce imidazole instead of indole",
+      "score": 0.658983118833409
+    },
+    {
+      "iteration": 25,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccc(S(C)(=O)=O)cc34",
+      "reason": "Add methyl sulfonyl to increase TPSA",
+      "score": 0.3461390828116558
+    },
+    {
+      "iteration": 26,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2ncnc(n2)c3cn(C)c4ccccc34",
+      "reason": "Replace pyrimidine with triazine for increased TPSA",
+      "score": 0.3482854488907887
+    },
+    {
+      "iteration": 27,
+      "smiles": "COc1cc(N(C)C(O)CN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34",
+      "reason": "Introduce hydroxyl on the ethylene chain",
+      "score": 0.36793852551449463
+    },
+    {
+      "iteration": 28,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cnn(C)c3",
+      "reason": "Replace indole with pyrazole for reduced logP",
+      "score": 0.6670677027126013
+    },
+    {
+      "iteration": 29,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccc(C(N)=O)cc34",
+      "reason": "Add carboxamide to indole for increased TPSA",
+      "score": 0.427131025621597
+    },
+    {
+      "iteration": 30,
+      "smiles": "COc1cc(N(C)CCN(CC)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34",
+      "reason": "Replace one N-methyl with ethyl for property modulation",
+      "score": 0.12104639106144466
+    },
+    {
+      "iteration": 31,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cnc4cccnc34",
+      "reason": "Introduce 7-azaindole for increased TPSA",
+      "score": 0.0
+    },
+    {
+      "iteration": 32,
+      "smiles": "CNc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34",
+      "reason": "Replace methoxy with methylamino for increased TPSA",
+      "score": 0.1853664362943633
+    },
+    {
+      "iteration": 33,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nc(F)cc(n2)c3cn(C)c4ccccc34",
+      "reason": "Add fluorine to pyrimidine ring",
+      "score": 0.15597461236131774
+    },
+    {
+      "iteration": 34,
+      "smiles": "COc1cc(N(C)CCN2CCCC2)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34",
+      "reason": "Replace terminal dimethylamino with pyrrolidine",
+      "score": 0.10667215447252083
+    },
+    {
+      "iteration": 35,
+      "smiles": "COc1cc(N(C)CCN(C)C2COC2)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34",
+      "reason": "Introduce oxetane on terminal amine for reduced logP",
+      "score": 0.2574894115288799
+    },
+    {
+      "iteration": 36,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(CC)c4ccccc34",
+      "reason": "Replace indole N-methyl with ethyl",
+      "score": 0.11231365999064499
+    },
+    {
+      "iteration": 37,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C(C)=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34",
+      "reason": "Add methyl to acrylamide double bond",
+      "score": 0.12308185880244826
+    },
+    {
+      "iteration": 38,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4cc(F)ccc34",
+      "reason": "Introduce 5-fluoroindole",
+      "score": 0.15597461236131774
+    },
+    {
+      "iteration": 39,
+      "smiles": "COc1cc(N(C)CCO)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34",
+      "reason": "Replace diamine chain with aminoethanol",
+      "score": 0.33920889401044263
+    },
+    {
+      "iteration": 40,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccc(Cl)cc34",
+      "reason": "Add chlorine to indole for property modulation",
+      "score": 0.0943935622179442
+    },
+    {
+      "iteration": 41,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2cccc(n2)c3cn(C)c4ccccc34",
+      "reason": "Replace pyrimidine with pyridine",
+      "score": 0.05398268780626921
+    },
+    {
+      "iteration": 42,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccncc34",
+      "reason": "Introduce 4-azaindole",
+      "score": 0.34828544889078894
+    },
+    {
+      "iteration": 43,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccc(OC)cc34",
+      "reason": "Add methoxy to indole ring",
+      "score": 0.2100619440696594
+    },
+    {
+      "iteration": 44,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C(=C)C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34",
+      "reason": "Replace acrylamide with methacrylamide",
+      "score": 0.12308185880244826
+    },
+    {
+      "iteration": 45,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3ccsc3",
+      "reason": "Introduce thiophene instead of indole",
+      "score": 0.20598353706415826
+    },
+    {
+      "iteration": 46,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccc(O)cc34",
+      "reason": "Add hydroxyl to indole ring for increased TPSA",
+      "score": 0.27462475373765544
+    },
+    {
+      "iteration": 47,
+      "smiles": "COc1cc(N(C)CCNC)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34",
+      "reason": "Replace terminal NMe2 with NHMe",
+      "score": 0.2805633535958667
+    },
+    {
+      "iteration": 48,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4cnccc34",
+      "reason": "Introduce 6-azaindole",
+      "score": 0.3482854488907887
+    },
+    {
+      "iteration": 49,
+      "smiles": "COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nc(C(F)(F)F)cc(n2)c3cn(C)c4ccccc34",
+      "reason": "Add trifluoromethyl to pyrimidine",
+      "score": 0.0634641328291759
+    },
+    {
+      "iteration": 50,
+      "smiles": "FC(F)Oc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc2nccc(n2)c3cn(C)c4ccccc34",
+      "reason": "Replace methoxy with difluoromethoxy",
+      "score": 0.10049282269534103
+    }
+  ],
+  "iterations": 50
+}
