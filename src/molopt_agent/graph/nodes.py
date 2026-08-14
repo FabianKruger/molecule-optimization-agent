@@ -1,12 +1,15 @@
 import json
 import logging
+import os
 import random
 import time
+from datetime import datetime, timezone
+from typing import Any
 
 import httpcore
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-from openai import APIConnectionError, RateLimitError
+from openai import APIConnectionError, APIStatusError, RateLimitError
 from rdkit import Chem
 
 from ..objectives.base import Objective
@@ -15,13 +18,129 @@ from ..state import WorkflowState
 logger = logging.getLogger(__name__)
 
 
+def _truncate_text(value: str, max_len: int = 800) -> str:
+    if len(value) <= max_len:
+        return value
+    return value[:max_len] + " ...[truncated]"
+
+
+def _message_preview(messages: Any, max_items: int = 5) -> list[dict[str, Any]]:
+    previews: list[dict[str, Any]] = []
+    if not isinstance(messages, list):
+        return previews
+
+    for msg in messages[-max_items:]:
+        role = getattr(msg, "type", msg.__class__.__name__)
+        content = getattr(msg, "content", "")
+
+        if isinstance(content, str):
+            content_text = content
+        else:
+            content_text = str(content)
+
+        previews.append(
+            {
+                "role": role,
+                "content_len": len(content_text),
+                "content_preview": _truncate_text(content_text, 300),
+            }
+        )
+
+    return previews
+
+
+def _serialize_error_body(body: Any) -> Any:
+    if body is None:
+        return None
+    try:
+        json.dumps(body)
+        return body
+    except TypeError:
+        return str(body)
+
+
+def _message_content_is_blank(content: Any) -> bool:
+    if isinstance(content, str):
+        return content.strip() == ""
+
+    if isinstance(content, list):
+        # For list-structured content, treat as blank only if all text fragments are blank.
+        saw_text = False
+        for item in content:
+            if isinstance(item, dict) and item.get("type") == "text":
+                saw_text = True
+                if str(item.get("text", "")).strip() != "":
+                    return False
+        return saw_text
+
+    return False
+
+
+def _sanitize_messages(messages: Any) -> Any:
+    if not isinstance(messages, list):
+        return messages
+    return [m for m in messages if not _message_content_is_blank(getattr(m, "content", None))]
+
+
+def _is_blank_content_gateway_error(error: APIStatusError) -> bool:
+    text = str(_serialize_error_body(getattr(error, "body", None)))
+    return (
+        "content': ''" in text
+        or 'content": ""' in text
+        or ("text field" in text and "blank" in text)
+    )
+
+
+def _write_api_error_log(
+    error: APIStatusError,
+    messages: Any,
+    attempt: int,
+    max_attempts: int,
+) -> str:
+    os.makedirs("run_logs", exist_ok=True)
+    log_path = os.path.join("run_logs", "gateway_api_errors.jsonl")
+
+    response_text = ""
+    try:
+        response_text = error.response.text
+    except Exception:
+        response_text = "<unavailable>"
+
+    event = {
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "attempt": attempt + 1,
+        "max_attempts": max_attempts,
+        "status_code": error.status_code,
+        "request_id": getattr(error, "request_id", None),
+        "request_method": error.request.method,
+        "request_url": str(error.request.url),
+        "error_message": str(error),
+        "error_body": _serialize_error_body(getattr(error, "body", None)),
+        "response_text": response_text,
+        "message_count": len(messages) if isinstance(messages, list) else None,
+        "message_preview": _message_preview(messages),
+    }
+
+    with open(log_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(event, ensure_ascii=True) + "\n")
+
+    return log_path
+
+
 def rate_limit_sensible_llm_call(llm: ChatOpenAI, message, max_attempts=3):
     delay = 60  # sensible default for hard limits
     conn_delay = 0.5
 
     for attempt in range(max_attempts):
         try:
-            return llm.invoke(message)
+            sanitized_messages = _sanitize_messages(message)
+            if isinstance(message, list) and isinstance(sanitized_messages, list):
+                removed = len(message) - len(sanitized_messages)
+                if removed > 0:
+                    logger.warning(
+                        "Removed %s blank messages before LLM invoke", removed
+                    )
+            return llm.invoke(sanitized_messages)
 
         except RateLimitError:
             if attempt == max_attempts - 1:
@@ -45,6 +164,32 @@ def rate_limit_sensible_llm_call(llm: ChatOpenAI, message, max_attempts=3):
                 )
             time.sleep(wait)
             conn_delay = min(conn_delay * 2, 15.0)
+
+        except APIStatusError as e:
+            log_path = _write_api_error_log(
+                error=e,
+                messages=message,
+                attempt=attempt,
+                max_attempts=max_attempts,
+            )
+            if e.status_code == 400 and _is_blank_content_gateway_error(e):
+                if attempt < max_attempts - 1:
+                    wait = min(2 ** attempt, 15)
+                    logger.warning(
+                        "Encountered provider 400 due to blank content handling; retrying in %ss (attempt %s/%s)",
+                        wait,
+                        attempt + 1,
+                        max_attempts,
+                    )
+                    time.sleep(wait)
+                    continue
+            logger.error(
+                "LLM API status error %s (request_id=%s). Full payload written to %s",
+                e.status_code,
+                getattr(e, "request_id", None),
+                log_path,
+            )
+            raise
 
 
 def make_generation_node(objective: Objective, llm: ChatOpenAI, system_prompt: str):
