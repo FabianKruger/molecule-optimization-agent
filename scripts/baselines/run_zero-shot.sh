@@ -48,27 +48,23 @@ NUMBER_OF_MOLECULES=50
 LLM_MODEL="claude-opus-4.5"
 
 # LLM temperature
-TEMPERATURE=1
+TEMPERATURE=0.1
 
 # Number of repetitions per oracle
-NUM_REPETITIONS=3
+NUM_REPETITIONS=2
 
 # Zero-shot generation mode (batch or independent)
 MODE="batch"
 
-# run all standard TDC tasks
-# for run_idx in $(seq 1 "$NUM_REPETITIONS"); do
-#     pixi run python scripts/baselines/zero-shot-generation.py \
-#         --n-molecules "$NUMBER_OF_MOLECULES" \
-#         --model "$LLM_MODEL" \
-#         --temperature "$TEMPERATURE" \
-#         --tasks "${ORACLE_NAMES[@]}" \
-#         --mode "$MODE"
-# done
-
 PROMPT_STYLE=(
-    "task"
+    #"task"
     "generic"
+)
+
+BOLTZ2_TASKS=(
+    "boltz2_mgyp"
+    #"boltz2_sars_cov2"
+    #"boltz2_trib2"
 )
     
 for prompt_style in "${PROMPT_STYLE[@]}"; do
@@ -83,11 +79,31 @@ for prompt_style in "${PROMPT_STYLE[@]}"; do
         #     --prompt-style "$prompt_style"
 
         # run similarity_qed_quercetin task
+        #pixi run python scripts/baselines/zero-shot-generation.py \
+        #    --n-molecules "$NUMBER_OF_MOLECULES" \
+        #    --model "$LLM_MODEL" \
+        #    --temperature "$TEMPERATURE" \
+        #    --tasks "similarity_qed_quercetin" \
+        #    --mode "$MODE" \
+        #    --prompt-style "$prompt_style"
+
+        #for boltz2_task in "${BOLTZ2_TASKS[@]}"; do
+        # run boltz2 tasks
+        #    pixi run python zero-shot-generation.py \
+        #        --n-molecules "$NUMBER_OF_MOLECULES" \
+        #        --model "$LLM_MODEL" \
+        #        --temperature "$TEMPERATURE" \
+        #        --tasks "$boltz2_task" \
+        #        --mode "$MODE" \
+        #        --prompt-style "$prompt_style"
+        #done
+
+    # run all standard TDC tasks
         pixi run python scripts/baselines/zero-shot-generation.py \
             --n-molecules "$NUMBER_OF_MOLECULES" \
             --model "$LLM_MODEL" \
             --temperature "$TEMPERATURE" \
-            --tasks "similarity_qed_quercetin" \
+            --tasks "${ORACLE_NAMES[@]}" \
             --mode "$MODE" \
             --prompt-style "$prompt_style"
     done
