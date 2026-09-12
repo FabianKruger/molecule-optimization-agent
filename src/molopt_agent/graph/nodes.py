@@ -4,19 +4,18 @@ import os
 import random
 import time
 from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import httpcore
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
-from openai import APIConnectionError, APIStatusError, RateLimitError
-from rdkit import Chem
 
 from ..objectives.base import Objective
 from ..state import WorkflowState
+from .parsing import extract_json_object, parse_node, validation_node  # noqa: F401
+
+if TYPE_CHECKING:
+    from langchain_openai import ChatOpenAI
 
 logger = logging.getLogger(__name__)
-
 
 def _truncate_text(value: str, max_len: int = 800) -> str:
     if len(value) <= max_len:
@@ -82,7 +81,7 @@ def _sanitize_messages(messages: Any) -> Any:
     return [m for m in messages if not _message_content_is_blank(getattr(m, "content", None))]
 
 
-def _is_blank_content_gateway_error(error: APIStatusError) -> bool:
+def _is_blank_content_gateway_error(error: Any) -> bool:
     text = str(_serialize_error_body(getattr(error, "body", None)))
     return (
         "content': ''" in text
@@ -92,7 +91,7 @@ def _is_blank_content_gateway_error(error: APIStatusError) -> bool:
 
 
 def _write_api_error_log(
-    error: APIStatusError,
+    error: Any,
     messages: Any,
     attempt: int,
     max_attempts: int,
@@ -127,7 +126,10 @@ def _write_api_error_log(
     return log_path
 
 
-def rate_limit_sensible_llm_call(llm: ChatOpenAI, message, max_attempts=3):
+def rate_limit_sensible_llm_call(llm: "ChatOpenAI", message, max_attempts=3):
+    import httpcore
+    from openai import APIConnectionError, APIStatusError, RateLimitError
+
     delay = 60  # sensible default for hard limits
     conn_delay = 0.5
 
@@ -192,7 +194,7 @@ def rate_limit_sensible_llm_call(llm: ChatOpenAI, message, max_attempts=3):
             raise
 
 
-def make_generation_node(objective: Objective, llm: ChatOpenAI, system_prompt: str):
+def make_generation_node(objective: Objective, llm: "ChatOpenAI", system_prompt: str):
     def generation_node(state: WorkflowState) -> WorkflowState:
         iteration = state["iteration_count"] + 1  # +1 because we increment at the end
         logger.info(f"=== Starting Iteration {iteration} ===")
@@ -239,49 +241,6 @@ def make_generation_node(objective: Objective, llm: ChatOpenAI, system_prompt: s
         return state
 
     return generation_node
-
-
-def parse_node(state: WorkflowState) -> WorkflowState:
-    iteration = state["iteration_count"]
-    raw = state["raw_model_output"]
-    try:
-        parsed = json.loads(raw)
-        state["current_smiles"] = parsed["smiles"]
-        state["current_reason"] = parsed["reason"]
-        state["is_valid"] = True
-        state["validation_error"] = ""
-        logger.info(f"Iteration {iteration}: Parsed SMILES: {state['current_smiles']}")
-    except Exception as e:
-        state["current_smiles"] = ""
-        state["current_reason"] = ""
-        state["is_valid"] = False
-        state["validation_error"] = (
-            "Invalid JSON. Provide proper JSON with fields 'smiles' and 'reason'."
-        )
-        logger.error(
-            f"Iteration {iteration}: Failed to parse JSON from LLM output: {e}"
-        )
-    return state
-
-
-def validation_node(state: WorkflowState) -> WorkflowState:
-    iteration = state["iteration_count"]
-    smiles = state["current_smiles"]
-    try:
-        mol = Chem.MolFromSmiles(smiles)
-        if mol is None:
-            state["is_valid"] = False
-            state["validation_error"] = f"Invalid SMILES: {smiles}"
-            logger.error(f"Iteration {iteration}: Invalid SMILES string: {smiles}")
-        else:
-            state["is_valid"] = True
-            state["validation_error"] = ""
-            logger.info(f"Iteration {iteration}: SMILES validated successfully")
-    except Exception as e:
-        state["is_valid"] = False
-        state["validation_error"] = f"Validation error: {str(e)}"
-        logger.error(f"Iteration {iteration}: SMILES validation error: {e}")
-    return state
 
 
 def make_prediction_node(objective: Objective):
@@ -335,7 +294,7 @@ def make_prediction_node(objective: Objective):
     return prediction_node
 
 
-def make_final_response_node(llm: ChatOpenAI, xai_mode: str | None = None):
+def make_final_response_node(llm: "ChatOpenAI", xai_mode: str | None = None):
     def final_response_node(state: WorkflowState) -> WorkflowState:
         # Extract the objective description from the first human message
         objective_context = (
