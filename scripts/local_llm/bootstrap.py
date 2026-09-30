@@ -34,7 +34,14 @@ from download import (
     stop_process_group,
     wait_for_health,
 )
-from profiles import Profile, ProfileError, resolve_profile
+from profiles import (
+    DeviceAssignmentError,
+    Profile,
+    ProfileError,
+    assigned_process_devices,
+    resolve_profile,
+    visible_devices_for,
+)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -145,13 +152,16 @@ def molopt_command(config_path: Path) -> list[str]:
 def molopt_env(profile: Profile, port: int) -> dict[str, str]:
     """Environment for the ``molopt`` child only.
 
-    Boltz-2 inherits this mapping. ``CUDA_VISIBLE_DEVICES`` is the profile's
-    Boltz GPU and is not written into the parent environment.
-    ``OPENAI_BASE_URL`` is the local ``/v1`` URL. An ``OPENAI_API_KEY`` that
-    is already set is left as it is; an unset key becomes ``local``.
+    Boltz-2 inherits this mapping. ``CUDA_VISIBLE_DEVICES`` is the Boltz
+    slot in the list ``srun`` set on the parent, and that value is not
+    written back to the parent. ``OPENAI_BASE_URL`` is the local ``/v1``
+    URL. An ``OPENAI_API_KEY`` that is already set is left as it is; an
+    unset key becomes ``local``.
     """
     env = os.environ.copy()
-    env["CUDA_VISIBLE_DEVICES"] = profile.boltz_cuda_visible_devices
+    env["CUDA_VISIBLE_DEVICES"] = visible_devices_for(
+        profile, (profile.boltz_gpu,), role="Boltz"
+    )
     env["OPENAI_BASE_URL"] = f"http://127.0.0.1:{port}/v1"
     if env.get("OPENAI_API_KEY") in (None, ""):
         env["OPENAI_API_KEY"] = "local"
@@ -203,8 +213,14 @@ def bootstrap(
     health timeout, and on signals. When the experiment ran, the exit code
     is ``molopt``'s status.
     """
+    try:
+        vllm_devices, boltz_device = assigned_process_devices(profile)
+    except DeviceAssignmentError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
     print(
         f"bootstrap: {profile.model_id} on 127.0.0.1:{port}, "
+        f"vLLM on {vllm_devices}, Boltz on {boltz_device}, "
         f"timeout {profile.health_timeout_s:.0f}s"
     )
     try:
@@ -244,7 +260,7 @@ def bootstrap(
 
         print(
             f"vLLM healthy: {profile.model_id}; "
-            f"starting molopt (Boltz GPU {profile.boltz_gpu})"
+            f"starting molopt (Boltz on {boltz_device})"
         )
         try:
             molopt_proc = subprocess.Popen(

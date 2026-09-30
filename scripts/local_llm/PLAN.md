@@ -8,10 +8,12 @@ The harness is not modified. Experiment YAMLs stay as committed. You set `llm.mo
 
 `--profile` overrides `MOLOPT_LLM_PROFILE`. If neither is set, the script exits. There is no default profile.
 
-| Profile | Hugging Face id and `llm.model` | vLLM GPUs | Boltz GPU | Context |
+| Profile | Hugging Face id and `llm.model` | vLLM slots | Boltz slot | Context |
 | --- | --- | --- | --- | --- |
 | `qwen3-32b` | `Qwen/Qwen3-32B-FP8` | `0` | `1` | 32768 (native). No YaRN. |
 | `deepseek-v3.2` | `deepseek-ai/DeepSeek-V3.2` | `0,1,2,3` | `4` | 131072. Requests past that fail. |
+
+Slots are positions in the `CUDA_VISIBLE_DEVICES` list `srun` set, in that order. Slot 0 is the first assigned GPU. `qwen3-32b` needs two assigned GPUs. `deepseek-v3.2` needs five. Further ids in the list stay unused.
 
 One module owns this table (`scripts/local_llm/profiles.py`). The download script and the bootstrap script both import it.
 
@@ -22,8 +24,8 @@ DeepSeek serve flags (tensor parallel 4, FP8, FlashInfer MoE) are filled in when
 - `--weights-dir` is required and must be an absolute path. It is `HF_HOME`. If the path is inside `$HOME`, exit. Do not download onto NFS home.
 - vLLM listens on `127.0.0.1` only. Default port `8000` (`--port` overrides).
 - Request logging stays off. Prompts must not land in the vLLM log.
-- The parent process does not export `CUDA_VISIBLE_DEVICES`. Each child gets its own value.
-- Boltz-2 inherits the environment of the `molopt` process. That process gets only the profile's Boltz GPU.
+- The parent reads `CUDA_VISIBLE_DEVICES` and does not rewrite it. Each child gets only its own ids from that list.
+- Boltz-2 inherits the environment of the `molopt` process. That process gets only the Boltz slot.
 - `OPENAI_BASE_URL` is set to the local `/v1` URL for the `molopt` process. If `OPENAI_API_KEY` is unset, set it to `local`. The harness refuses to start without a key. Do not clear a key that is already set.
 - Teardown kills the vLLM process group on success, on `molopt` failure, on health timeout, and on signals. The script's exit code is the experiment's exit code when the experiment ran. If vLLM dies first, stop `molopt` and exit non-zero.
 

@@ -17,7 +17,9 @@ class Profile:
     """One local model and the GPUs and health budget later sessions use.
 
     ``model_id`` is the Hugging Face repository id and the ``llm.model``
-    value. ``vllm_gpus`` and ``boltz_gpu`` are CUDA device indices.
+    value. ``vllm_gpus`` and ``boltz_gpu`` are slots in the
+    ``CUDA_VISIBLE_DEVICES`` list ``srun`` set, in that order. Slot 0 is the
+    first assigned GPU, whichever physical id that is.
     """
 
     name: str
@@ -26,14 +28,6 @@ class Profile:
     boltz_gpu: int
     context_length: int
     health_timeout: timedelta
-
-    @property
-    def vllm_cuda_visible_devices(self) -> str:
-        return ",".join(str(gpu) for gpu in self.vllm_gpus)
-
-    @property
-    def boltz_cuda_visible_devices(self) -> str:
-        return str(self.boltz_gpu)
 
     @property
     def health_timeout_s(self) -> float:
@@ -64,6 +58,60 @@ PROFILES: dict[str, Profile] = {
 
 class ProfileError(Exception):
     """The profile was missing or is not in the table."""
+
+
+class DeviceAssignmentError(Exception):
+    """``CUDA_VISIBLE_DEVICES`` cannot fill this profile's GPU slots."""
+
+
+def parse_visible_devices(raw: str | None) -> tuple[str, ...]:
+    """Device ids from ``CUDA_VISIBLE_DEVICES``, in the order ``srun`` listed them.
+
+    An unset or empty value is an error. The ids are copied onto each child
+    as written; they are not rewritten into ``0,1,2...``.
+    """
+    if raw is None or raw.strip() == "":
+        raise DeviceAssignmentError(
+            "CUDA_VISIBLE_DEVICES is unset. Run under srun so it lists "
+            "the assigned GPUs."
+        )
+    devices = tuple(part.strip() for part in raw.split(","))
+    if any(device == "" for device in devices):
+        raise DeviceAssignmentError(
+            f"CUDA_VISIBLE_DEVICES has an empty entry: {raw!r}"
+        )
+    if len(set(devices)) != len(devices):
+        raise DeviceAssignmentError(
+            f"CUDA_VISIBLE_DEVICES lists a GPU more than once: {raw!r}"
+        )
+    return devices
+
+
+def visible_devices_for(
+    profile: Profile, slots: tuple[int, ...], *, role: str
+) -> str:
+    """Return the ``CUDA_VISIBLE_DEVICES`` value for ``slots``.
+
+    Reads the variable from the current process and does not modify it.
+    """
+    visible = parse_visible_devices(os.environ.get("CUDA_VISIBLE_DEVICES"))
+    if any(slot < 0 or slot >= len(visible) for slot in slots):
+        needed = max(slots) + 1
+        slot_list = ",".join(str(slot) for slot in slots)
+        listed = ",".join(visible)
+        raise DeviceAssignmentError(
+            f"{profile.name} assigns {role} to CUDA_VISIBLE_DEVICES "
+            f"slot(s) {slot_list} ({needed} assigned GPUs required). "
+            f"The variable lists {len(visible)}: {listed}"
+        )
+    return ",".join(visible[slot] for slot in slots)
+
+
+def assigned_process_devices(profile: Profile) -> tuple[str, str]:
+    """``(vllm devices, boltz device)`` taken from ``CUDA_VISIBLE_DEVICES``."""
+    boltz = visible_devices_for(profile, (profile.boltz_gpu,), role="Boltz")
+    vllm = visible_devices_for(profile, profile.vllm_gpus, role="vLLM")
+    return vllm, boltz
 
 
 def resolve_profile(cli_profile: str | None) -> Profile:

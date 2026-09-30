@@ -26,7 +26,13 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from profiles import Profile, ProfileError, resolve_profile
+from profiles import (
+    DeviceAssignmentError,
+    Profile,
+    ProfileError,
+    resolve_profile,
+    visible_devices_for,
+)
 
 DEFAULT_PORT = 8000
 POLL_INTERVAL_S = 2.0
@@ -309,13 +315,16 @@ def vllm_child_env(
 ) -> dict[str, str]:
     """Environment for the vLLM child only.
 
-    ``CUDA_VISIBLE_DEVICES`` and ``VLLM_CACHE_ROOT`` are set on this mapping.
-    The caller must not write them into ``os.environ``. ``VLLM_CACHE_ROOT``
+    ``CUDA_VISIBLE_DEVICES`` is this profile's vLLM slots in the list
+    ``srun`` set on the parent. ``VLLM_CACHE_ROOT`` is the cache directory.
+    Neither value is written back to ``os.environ``. ``VLLM_CACHE_ROOT``
     replaces an inherited ``~/.cache/vllm`` so the torch.compile cache does
     not land on NFS home.
     """
     env = huggingface_env(weights_dir)
-    env["CUDA_VISIBLE_DEVICES"] = profile.vllm_cuda_visible_devices
+    env["CUDA_VISIBLE_DEVICES"] = visible_devices_for(
+        profile, profile.vllm_gpus, role="vLLM"
+    )
     env["VLLM_CACHE_ROOT"] = str(cache_dir)
     _without_cluster_cuda(env)
     return env
@@ -404,9 +413,14 @@ def load_check(
     Exit non-zero on timeout or if the server exits first. The server's
     process group is killed on every path, including signals.
     """
+    try:
+        vllm_devices = visible_devices_for(profile, profile.vllm_gpus, role="vLLM")
+    except DeviceAssignmentError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
     print(
         f"load check: {profile.model_id} on 127.0.0.1:{port}, "
-        f"timeout {profile.health_timeout_s:.0f}s"
+        f"GPUs {vllm_devices}, timeout {profile.health_timeout_s:.0f}s"
     )
     try:
         proc = start_vllm(profile, weights_dir, port, cache_dir)
