@@ -10,7 +10,8 @@ A snapshot that is already complete is left in place and this script exits 0.
 vLLM and does not need GPUs. With it, this script does not download: it starts
 ``vllm serve`` for that profile on the profile's GPUs against the weights
 directory, polls ``/health`` up to the profile's health timeout, then stops
-the server.
+the server. The server's compile cache is ``VLLM_CACHE_ROOT``, taken from
+``--cache-dir`` or ``MOLOPT_LLM_CACHE_DIR``. There is no default.
 """
 
 from __future__ import annotations
@@ -66,6 +67,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--cache-dir",
+        default=None,
+        help=(
+            "Absolute directory for vLLM's cache, including torch.compile. "
+            "Set as VLLM_CACHE_ROOT on the server child. Must not be inside "
+            "$HOME. Overrides MOLOPT_LLM_CACHE_DIR. Required with "
+            "--load-check. There is no default. Ignored without --load-check."
+        ),
+    )
+    parser.add_argument(
         "--port",
         type=int,
         default=DEFAULT_PORT,
@@ -77,8 +88,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def resolve_weights_dir(raw: str, *, source: str) -> Path:
-    """Return the absolute directory to use as ``HF_HOME``.
+def resolve_outside_home(raw: str, *, source: str) -> Path:
+    """Return an absolute directory that is not inside ``$HOME``.
 
     Relative paths are rejected. A path is inside ``$HOME`` when its
     normalized location is that directory or a descendant, including a path
@@ -112,7 +123,28 @@ def resolve_weights_setting(cli_value: str | None) -> Path:
             raise ValueError("set --weights-dir or MOLOPT_LLM_WEIGHTS_DIR")
         raw = env.strip()
         source = "MOLOPT_LLM_WEIGHTS_DIR"
-    return resolve_weights_dir(raw, source=source)
+    return resolve_outside_home(raw, source=source)
+
+
+def resolve_cache_setting(cli_value: str | None) -> Path:
+    """``--cache-dir`` wins over ``MOLOPT_LLM_CACHE_DIR``.
+
+    If neither is set, raise ``ValueError``. There is no default. The load
+    check sets this path as ``VLLM_CACHE_ROOT`` on the vLLM child. vLLM then
+    puts its torch.compile cache in ``<dir>/torch_compile_cache``.
+    """
+    if cli_value is not None:
+        raw = cli_value.strip()
+        if raw == "":
+            raise ValueError("--cache-dir is empty")
+        source = "--cache-dir"
+    else:
+        env = os.environ.get("MOLOPT_LLM_CACHE_DIR")
+        if env is None or env.strip() == "":
+            raise ValueError("set --cache-dir or MOLOPT_LLM_CACHE_DIR")
+        raw = env.strip()
+        source = "MOLOPT_LLM_CACHE_DIR"
+    return resolve_outside_home(raw, source=source)
 
 
 def repo_root() -> Path:
@@ -224,14 +256,19 @@ def _without_cluster_cuda(env: dict[str, str]) -> None:
     env["VLLM_MOE_USE_DEEP_GEMM"] = "0"
 
 
-def vllm_child_env(weights_dir: Path, profile: Profile) -> dict[str, str]:
+def vllm_child_env(
+    weights_dir: Path, profile: Profile, cache_dir: Path
+) -> dict[str, str]:
     """Environment for the vLLM child only.
 
-    ``CUDA_VISIBLE_DEVICES`` is set on this mapping. The caller must not
-    write it into ``os.environ``.
+    ``CUDA_VISIBLE_DEVICES`` and ``VLLM_CACHE_ROOT`` are set on this mapping.
+    The caller must not write them into ``os.environ``. ``VLLM_CACHE_ROOT``
+    replaces an inherited ``~/.cache/vllm`` so the torch.compile cache does
+    not land on NFS home.
     """
     env = huggingface_env(weights_dir)
     env["CUDA_VISIBLE_DEVICES"] = profile.vllm_cuda_visible_devices
+    env["VLLM_CACHE_ROOT"] = str(cache_dir)
     _without_cluster_cuda(env)
     return env
 
@@ -310,14 +347,16 @@ def stop_process_group(proc: subprocess.Popen[bytes]) -> None:
         _signal_group(proc.pid, signal.SIGKILL)
 
 
-def load_check(profile: Profile, weights_dir: Path, port: int) -> int:
+def load_check(
+    profile: Profile, weights_dir: Path, port: int, cache_dir: Path
+) -> int:
     """Start ``vllm serve``, wait for ``/health``, then stop it.
 
     Exit 0 when ``/health`` returns 200 within the profile's health timeout.
     Exit non-zero on timeout or if the server exits first. The server's
     process group is killed on every path, including signals.
     """
-    env = vllm_child_env(weights_dir, profile)
+    env = vllm_child_env(weights_dir, profile, cache_dir)
     command = vllm_serve_command(
         profile.model_id,
         port=port,
@@ -393,13 +432,26 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     if args.load_check:
+        try:
+            cache_dir = resolve_cache_setting(args.cache_dir)
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
         if not weights_dir.is_dir():
             print(
                 f"error: weights directory does not exist: {weights_dir}",
                 file=sys.stderr,
             )
             return 1
-        return load_check(profile, weights_dir, args.port)
+        try:
+            cache_dir.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            print(
+                f"error: cannot create cache directory {cache_dir}: {exc}",
+                file=sys.stderr,
+            )
+            return 1
+        return load_check(profile, weights_dir, args.port, cache_dir)
 
     try:
         weights_dir.mkdir(parents=True, exist_ok=True)
