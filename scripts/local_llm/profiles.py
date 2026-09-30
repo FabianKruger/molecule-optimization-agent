@@ -1,8 +1,8 @@
 """Local LLM profiles.
 
 This module is the only profile table. The download script and the bootstrap
-script import it. vLLM serve flags are not stored here; the bootstrap session
-fills those in from the vLLM 0.30 recipe for the checkpoint.
+script import it. vLLM serve flags for a checkpoint live on the serve command
+(``vllm_serve_command``), not in this table.
 """
 
 from __future__ import annotations

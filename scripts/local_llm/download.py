@@ -200,11 +200,39 @@ def download_snapshot(model_id: str, weights_dir: Path) -> int:
     return completed.returncode
 
 
-def vllm_serve_command(model_id: str, *, port: int, context_length: int) -> list[str]:
-    """``vllm serve`` for a load check.
+def profile_serve_args(profile: Profile) -> list[str]:
+    """Checkpoint-specific ``vllm serve`` flags from the vLLM 0.30 recipe.
 
-    Request logging stays off (``--no-enable-log-requests``). Tensor-parallel,
-    FP8, and FlashInfer flags are intentionally absent; session 3 adds those.
+    ``qwen3-32b`` is a dense FP8 model on one GPU. vLLM's defaults (tensor
+    parallel 1, quantization read from the snapshot) are the whole recipe.
+
+    ``deepseek-v3.2`` is ``deepseek-ai/DeepSeek-V3.2``. That snapshot's
+    ``quantization_config.quant_method`` is ``fp8`` with 128×128 block
+    scales. vLLM 0.30 serves it with ``--quantization fp8`` and tensor
+    parallel equal to the profile's GPU count (4). On Blackwell (SM100,
+    including B300) the FP8 MoE kernel that accepts those block scales is
+    FlashInfer TRT-LLM, selected with ``--moe-backend flashinfer_trtllm``.
+    FlashInfer CUTLASS block-FP8 is Hopper-only in that release.
+    ``VLLM_USE_FLASHINFER_MOE_FP8`` is not a vLLM 0.30 variable.
+    """
+    if profile.name != "deepseek-v3.2":
+        return []
+    return [
+        "--tensor-parallel-size",
+        str(len(profile.vllm_gpus)),
+        "--quantization",
+        "fp8",
+        "--moe-backend",
+        "flashinfer_trtllm",
+    ]
+
+
+def vllm_serve_command(profile: Profile, *, port: int) -> list[str]:
+    """``vllm serve`` for this profile.
+
+    Listens on localhost only. Request logging stays off
+    (``--no-enable-log-requests``). DeepSeek adds tensor-parallel, FP8, and
+    FlashInfer MoE flags; see ``profile_serve_args``.
     """
     return [
         "pixi",
@@ -213,15 +241,35 @@ def vllm_serve_command(model_id: str, *, port: int, context_length: int) -> list
         "vllm",
         "vllm",
         "serve",
-        model_id,
+        profile.model_id,
         "--host",
         "127.0.0.1",
         "--port",
         str(port),
         "--max-model-len",
-        str(context_length),
+        str(profile.context_length),
         "--no-enable-log-requests",
+        *profile_serve_args(profile),
     ]
+
+
+def start_vllm(
+    profile: Profile, weights_dir: Path, port: int, cache_dir: Path
+) -> subprocess.Popen[bytes]:
+    """Start the vLLM child in its own session.
+
+    The environment is ``vllm_child_env``: the profile's GPUs, ``HF_HOME``
+    at the weights directory, ``VLLM_CACHE_ROOT`` at the cache directory,
+    DeepGEMM off, and the cluster ``nvcc`` removed. Raises
+    ``FileNotFoundError`` when ``pixi`` is not on ``PATH``.
+    """
+    return subprocess.Popen(
+        vllm_serve_command(profile, port=port),
+        cwd=repo_root(),
+        env=vllm_child_env(weights_dir, profile, cache_dir),
+        stdin=subprocess.DEVNULL,
+        start_new_session=True,
+    )
 
 
 def _is_cluster_cuda_path(entry: str) -> bool:
@@ -237,9 +285,9 @@ def _without_cluster_cuda(env: dict[str, str]) -> None:
     ``/software/cuda/bin/nvcc`` is a site wrapper. With no module version
     selected it exits 255 and prints ``No version string specified``.
     DeepGEMM's JIT runs that ``nvcc`` while preparing FP8 weights. This
-    pixi environment ships wheels only and has no toolkit, so the child
-    uses the prebuilt CUTLASS block-FP8 kernel instead, and does not see
-    the wrapper on ``PATH`` or via ``CUDA_HOME``.
+    pixi environment ships wheels only and has no toolkit, so DeepGEMM
+    stays off. The child does not see the wrapper on ``PATH`` or via
+    ``CUDA_HOME``.
     """
     path = env.get("PATH")
     if path:
@@ -356,24 +404,12 @@ def load_check(
     Exit non-zero on timeout or if the server exits first. The server's
     process group is killed on every path, including signals.
     """
-    env = vllm_child_env(weights_dir, profile, cache_dir)
-    command = vllm_serve_command(
-        profile.model_id,
-        port=port,
-        context_length=profile.context_length,
-    )
     print(
         f"load check: {profile.model_id} on 127.0.0.1:{port}, "
         f"timeout {profile.health_timeout_s:.0f}s"
     )
     try:
-        proc = subprocess.Popen(
-            command,
-            cwd=repo_root(),
-            env=env,
-            stdin=subprocess.DEVNULL,
-            start_new_session=True,
-        )
+        proc = start_vllm(profile, weights_dir, port, cache_dir)
     except FileNotFoundError:
         print("error: pixi not found on PATH", file=sys.stderr)
         return 127
