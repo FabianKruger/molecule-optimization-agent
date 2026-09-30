@@ -192,6 +192,38 @@ def vllm_serve_command(model_id: str, *, port: int, context_length: int) -> list
     ]
 
 
+def _is_cluster_cuda_path(entry: str) -> bool:
+    """True for the site CUDA module tree (``/software/cuda`` and below)."""
+    normalized = os.path.normpath(entry)
+    root = "/software/cuda"
+    return normalized == root or normalized.startswith(root + os.sep)
+
+
+def _without_cluster_cuda(env: dict[str, str]) -> None:
+    """Keep the cluster CUDA toolchain out of a vLLM child.
+
+    ``/software/cuda/bin/nvcc`` is a site wrapper. With no module version
+    selected it exits 255 and prints ``No version string specified``.
+    DeepGEMM's JIT runs that ``nvcc`` while preparing FP8 weights. This
+    pixi environment ships wheels only and has no toolkit, so the child
+    uses the prebuilt CUTLASS block-FP8 kernel instead, and does not see
+    the wrapper on ``PATH`` or via ``CUDA_HOME``.
+    """
+    path = env.get("PATH")
+    if path:
+        env["PATH"] = os.pathsep.join(
+            entry
+            for entry in path.split(os.pathsep)
+            if entry and not _is_cluster_cuda_path(entry)
+        )
+    for key in ("CUDA_HOME", "CUDA_PATH", "CUDA_ROOT"):
+        value = env.get(key)
+        if value and _is_cluster_cuda_path(value):
+            del env[key]
+    env["VLLM_USE_DEEP_GEMM"] = "0"
+    env["VLLM_MOE_USE_DEEP_GEMM"] = "0"
+
+
 def vllm_child_env(weights_dir: Path, profile: Profile) -> dict[str, str]:
     """Environment for the vLLM child only.
 
@@ -200,6 +232,7 @@ def vllm_child_env(weights_dir: Path, profile: Profile) -> dict[str, str]:
     """
     env = huggingface_env(weights_dir)
     env["CUDA_VISIBLE_DEVICES"] = profile.vllm_cuda_visible_devices
+    _without_cluster_cuda(env)
     return env
 
 
