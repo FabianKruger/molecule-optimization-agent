@@ -11,8 +11,6 @@ from sklearn.metrics import pairwise_distances
 
 from molopt_agent.oracles.base import OracleResult
 
-from .base import OracleResult
-
 logger = logging.getLogger(__name__)
 
 INPUT_TEMPLATE = """version: 1

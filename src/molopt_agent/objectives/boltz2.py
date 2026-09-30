@@ -1,5 +1,4 @@
 import json
-from typing import Optional
 
 from ..oracles.base import Oracle, OracleResult
 from ..state import WorkflowState
