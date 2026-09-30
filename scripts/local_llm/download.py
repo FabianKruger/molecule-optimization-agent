@@ -209,8 +209,11 @@ def download_snapshot(model_id: str, weights_dir: Path) -> int:
 def profile_serve_args(profile: Profile) -> list[str]:
     """Checkpoint-specific ``vllm serve`` flags from the vLLM 0.30 recipe.
 
-    ``qwen3-32b`` is a dense FP8 model on one GPU. vLLM's defaults (tensor
-    parallel 1, quantization read from the snapshot) are the whole recipe.
+    ``qwen3-32b`` is a dense FP8 model on one GPU. Qwen3 thinking is enabled
+    by default, which would put ``<think>`` text next to the JSON that the
+    harness parses strictly. The reasoning parser is enabled and thinking is
+    disabled in the server's default chat-template arguments so OpenAI
+    ``message.content`` contains only the requested answer.
 
     ``deepseek-v3.2`` is ``deepseek-ai/DeepSeek-V3.2``. That snapshot's
     ``quantization_config.quant_method`` is ``fp8`` with 128×128 block
@@ -221,24 +224,32 @@ def profile_serve_args(profile: Profile) -> list[str]:
     FlashInfer CUTLASS block-FP8 is Hopper-only in that release.
     ``VLLM_USE_FLASHINFER_MOE_FP8`` is not a vLLM 0.30 variable.
     """
-    if profile.name != "deepseek-v3.2":
-        return []
-    return [
-        "--tensor-parallel-size",
-        str(len(profile.vllm_gpus)),
-        "--quantization",
-        "fp8",
-        "--moe-backend",
-        "flashinfer_trtllm",
-    ]
+    if profile.name == "qwen3-32b":
+        return [
+            "--reasoning-parser",
+            "qwen3",
+            "--default-chat-template-kwargs",
+            '{"enable_thinking": false}',
+        ]
+    if profile.name == "deepseek-v3.2":
+        return [
+            "--tensor-parallel-size",
+            str(len(profile.vllm_gpus)),
+            "--quantization",
+            "fp8",
+            "--moe-backend",
+            "flashinfer_trtllm",
+        ]
+    return []
 
 
 def vllm_serve_command(profile: Profile, *, port: int) -> list[str]:
     """``vllm serve`` for this profile.
 
     Listens on localhost only. Request logging stays off
-    (``--no-enable-log-requests``). DeepSeek adds tensor-parallel, FP8, and
-    FlashInfer MoE flags; see ``profile_serve_args``.
+    (``--no-enable-log-requests``). Qwen adds non-thinking response handling;
+    DeepSeek adds tensor-parallel, FP8, and FlashInfer MoE flags. See
+    ``profile_serve_args``.
     """
     return [
         "pixi",
