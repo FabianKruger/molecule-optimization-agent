@@ -194,7 +194,7 @@ export function JobPage() {
       <section className="panel">
         <h2>Steps</h2>
         {job.iterations.length === 0 ? (
-          <p className="muted">No scored steps yet.</p>
+          <p className="muted">No steps yet.</p>
         ) : (
           <div className="table-wrap">
             <table>
@@ -224,7 +224,9 @@ export function JobPage() {
                         {step.iteration}
                         {isBest ? ' ★' : ''}
                       </td>
-                      <td title={step.smiles}>{shortenSmiles(step.smiles)}</td>
+                      <td title={step.error ?? step.smiles}>
+                        {step.smiles ? shortenSmiles(step.smiles) : '—'}
+                      </td>
                       <td>{formatScore(step.score)}</td>
                     </tr>
                   )

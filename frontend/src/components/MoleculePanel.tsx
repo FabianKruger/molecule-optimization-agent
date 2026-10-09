@@ -37,11 +37,13 @@ export function MoleculePanel({
     <section className="panel">
       <h2>{title}</h2>
       <div className="molecule">
-        <img
-          src={structureUrl(jobId, iteration.iteration)}
-          alt={`Structure for iteration ${iteration.iteration}`}
-          className="structure"
-        />
+        {iteration.error ? null : (
+          <img
+            src={structureUrl(jobId, iteration.iteration)}
+            alt={`Structure for iteration ${iteration.iteration}`}
+            className="structure"
+          />
+        )}
         <div className="molecule-meta">
           <p>
             <strong>Iteration</strong> {iteration.iteration}
@@ -50,8 +52,13 @@ export function MoleculePanel({
             <strong>Score</strong> {formatScore(iteration.score)}
           </p>
           <p className="smiles">
-            <strong>SMILES</strong> {iteration.smiles}
+            <strong>SMILES</strong> {iteration.smiles || '—'}
           </p>
+          {iteration.error ? (
+            <p className="error">
+              <strong>Not scored</strong> {iteration.error}
+            </p>
+          ) : null}
           {showScores && scores && Object.keys(scores).length > 0 ? (
             <ul className="score-list">
               {Object.entries(scores).map(([name, value]) => (

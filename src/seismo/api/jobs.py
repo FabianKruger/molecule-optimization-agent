@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import threading
 import uuid
@@ -86,37 +87,70 @@ def default_stream(
             yield ("state", chunk)
 
 
+def _finite_or_none(value: Any) -> float | None:
+    if value is None:
+        return None
+    number = float(value)
+    return number if math.isfinite(number) else None
+
+
 def _iteration_payload(entry: dict[str, Any]) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "iteration": entry["iteration"],
         "smiles": entry["smiles"],
         "reason": entry.get("reason", ""),
-        "score": entry["score"],
+        "score": _finite_or_none(entry["score"]),
         "explanation": entry.get("explanation") or "",
     }
     scores = entry.get("scores")
     if scores:
-        payload["scores"] = scores
+        payload["scores"] = {
+            name: _finite_or_none(value) for name, value in scores.items()
+        }
     return payload
+
+
+def _rejected_step(state: dict[str, Any]) -> dict[str, Any] | None:
+    """A generated step that never reached the oracle (bad JSON or invalid SMILES)."""
+    error = state.get("validation_error") or ""
+    iteration = state.get("iteration_count") or 0
+    if not error or iteration < 1:
+        return None
+    return {
+        "iteration": iteration,
+        "smiles": state.get("current_smiles") or "",
+        "reason": state.get("current_reason") or "",
+        "score": None,
+        "explanation": "",
+        "error": error,
+    }
+
+
+def _merge_steps(
+    scored: list[dict[str, Any]], rejected: dict[int, dict[str, Any]]
+) -> list[dict[str, Any]]:
+    by_iteration = {**rejected, **{step["iteration"]: step for step in scored}}
+    return [by_iteration[n] for n in sorted(by_iteration)]
 
 
 def _compute_best(
     iterations: list[dict[str, Any]], *, higher_is_better: bool
 ) -> dict[str, Any] | None:
-    if not iterations:
-        return None
     best = None
     for step in iterations:
+        if step["score"] is None:
+            continue
         if best is None:
             best = step
             continue
         if higher_is_better:
             if step["score"] > best["score"]:
                 best = step
-        else:
-            if step["score"] < best["score"]:
-                best = step
-    assert best is not None
+            else:
+                if step["score"] < best["score"]:
+                    best = step
+    if best is None:
+        return None
     return {
         "iteration": best["iteration"],
         "smiles": best["smiles"],
@@ -319,7 +353,8 @@ class JobManager:
         cfg: ExperimentConfig,
     ) -> None:
         try:
-            last_trace_len = 0
+            published_steps = 0
+            rejected: dict[int, dict[str, Any]] = {}
             final_state: dict[str, Any] | None = None
             cancelled = False
             for kind, payload in self._stream_fn(objective, cfg, cfg.recursion_limit):
@@ -330,9 +365,15 @@ class JobManager:
                     self._update_job(job_id, phase=payload)
                 elif kind == "state":
                     final_state = payload
-                    trace = payload.get("trace") or []
-                    if len(trace) > last_trace_len:
-                        iterations = [_iteration_payload(entry) for entry in trace]
+                    step = _rejected_step(payload)
+                    if step is not None:
+                        rejected.setdefault(step["iteration"], step)
+                    scored = [
+                        _iteration_payload(entry)
+                        for entry in payload.get("trace") or []
+                    ]
+                    iterations = _merge_steps(scored, rejected)
+                    if len(iterations) > published_steps:
                         best = _compute_best(
                             iterations, higher_is_better=preset.higher_is_better
                         )
@@ -342,7 +383,7 @@ class JobManager:
                             iterations_completed=len(iterations),
                             best=best,
                         )
-                        last_trace_len = len(trace)
+                        published_steps = len(iterations)
 
             if cancelled or self._cancel_requested_for(job_id):
                 self._update_job(

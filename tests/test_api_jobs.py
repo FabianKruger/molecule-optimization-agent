@@ -225,6 +225,82 @@ def test_job_lifecycle_with_fake_stream(jobs_root: Path, api_key: None) -> None:
         assert listed[0]["best_score"] == 0.42
 
 
+def _unscored_steps_stream(
+    objective: Objective, cfg: ExperimentConfig, recursion_limit: int
+) -> Iterator[StreamEvent]:
+    del objective, cfg, recursion_limit
+    nan_step = {
+        "iteration": 2,
+        "smiles": ASPIRIN,
+        "reason": "oracle fails",
+        "score": float("nan"),
+        "explanation": "",
+        "scores": {"Affinity": float("nan"), "QED": 0.5},
+    }
+    valid_step = {
+        "iteration": 3,
+        "smiles": "CCO",
+        "reason": "ethanol",
+        "score": 0.3,
+        "explanation": "",
+    }
+    yield (
+        "state",
+        {
+            "trace": [],
+            "iteration_count": 1,
+            "current_smiles": "C1CC",
+            "current_reason": "broken ring",
+            "validation_error": "Invalid SMILES: C1CC",
+        },
+    )
+    yield ("state", {"trace": [], "iteration_count": 2, "validation_error": ""})
+    yield (
+        "state",
+        {"trace": [nan_step], "iteration_count": 2, "validation_error": ""},
+    )
+    yield (
+        "state",
+        {
+            "trace": [nan_step, valid_step],
+            "iteration_count": 3,
+            "validation_error": "",
+            "final_response": "done",
+        },
+    )
+
+
+def test_unscored_steps_stay_in_trajectory(jobs_root: Path, api_key: None) -> None:
+    del api_key
+    app = create_app(jobs_root=jobs_root, stream_fn=_unscored_steps_stream)
+    with TestClient(app) as client:
+        created = client.post(
+            "/api/jobs",
+            json={"preset_id": "qed", "params": {"max_iterations": 3}},
+        )
+        job_id = created.json()["id"]
+        for _ in range(50):
+            response = client.get(f"/api/jobs/{job_id}")
+            assert response.status_code == 200
+            detail = response.json()
+            if detail["status"] != "running":
+                break
+            time.sleep(0.05)
+
+    assert detail["status"] == "succeeded"
+    assert detail["iterations_completed"] == 3
+    rejected, nan_scored, valid = detail["iterations"]
+    assert rejected["iteration"] == 1
+    assert rejected["score"] is None
+    assert rejected["smiles"] == "C1CC"
+    assert rejected["error"] == "Invalid SMILES: C1CC"
+    assert nan_scored["iteration"] == 2
+    assert nan_scored["score"] is None
+    assert nan_scored["scores"] == {"Affinity": None, "QED": 0.5}
+    assert valid["iteration"] == 3
+    assert detail["best"] == {"iteration": 3, "smiles": "CCO", "score": 0.3}
+
+
 def test_cancel_running_job_frees_slot(jobs_root: Path, api_key: None) -> None:
     del api_key
     gate = threading.Event()

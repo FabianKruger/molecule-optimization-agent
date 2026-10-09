@@ -51,9 +51,10 @@ export type JobIteration = {
   iteration: number
   smiles: string
   reason: string
-  score: number
-  scores?: Record<string, number>
+  score: number | null
+  scores?: Record<string, number | null>
   explanation: string
+  error?: string
 }
 
 export type JobDetail = JobSummary & {
