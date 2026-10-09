@@ -171,6 +171,7 @@ class JobManager:
         self._lock = threading.Lock()
         self._running_id: str | None = None
         self._thread: threading.Thread | None = None
+        self._cancel_requested: set[str] = set()
 
     def mark_interrupted_jobs(self) -> None:
         for path in self.root.glob("*/job.json"):
@@ -273,6 +274,20 @@ class JobManager:
             thread.start()
             return job_id
 
+    def cancel_job(self, job_id: str) -> None:
+        """Ask the runner to stop after the current stream event."""
+        with self._lock:
+            job = self.load_job(job_id)
+            if job is None:
+                raise HTTPException(status_code=404, detail="Job not found")
+            if job.get("status") != "running":
+                raise _CancelConflict(job_id)
+            self._cancel_requested.add(job_id)
+
+    def _cancel_requested_for(self, job_id: str) -> bool:
+        with self._lock:
+            return job_id in self._cancel_requested
+
     def _find_running_on_disk(self) -> str | None:
         for path in self.root.glob("*/job.json"):
             try:
@@ -303,7 +318,11 @@ class JobManager:
         try:
             last_trace_len = 0
             final_state: dict[str, Any] | None = None
+            cancelled = False
             for kind, payload in self._stream_fn(objective, cfg, cfg.recursion_limit):
+                if self._cancel_requested_for(job_id):
+                    cancelled = True
+                    break
                 if kind == "phase":
                     self._update_job(job_id, phase=payload)
                 elif kind == "state":
@@ -322,14 +341,24 @@ class JobManager:
                         )
                         last_trace_len = len(trace)
 
-            summary = None if final_state is None else final_state.get("final_response")
-            self._update_job(
-                job_id,
-                status="succeeded",
-                phase=None,
-                summary=summary or None,
-                error=None,
-            )
+            if cancelled or self._cancel_requested_for(job_id):
+                self._update_job(
+                    job_id,
+                    status="cancelled",
+                    phase=None,
+                    error=None,
+                )
+            else:
+                summary = (
+                    None if final_state is None else final_state.get("final_response")
+                )
+                self._update_job(
+                    job_id,
+                    status="succeeded",
+                    phase=None,
+                    summary=summary or None,
+                    error=None,
+                )
         except Exception as exc:  # noqa: BLE001 - surface any worker failure
             self._update_job(
                 job_id,
@@ -342,12 +371,19 @@ class JobManager:
                 if self._running_id == job_id:
                     self._running_id = None
                 self._thread = None
+                self._cancel_requested.discard(job_id)
 
 
 class _JobConflict(Exception):
     def __init__(self, running_job_id: str) -> None:
         self.running_job_id = running_job_id
         super().__init__(running_job_id)
+
+
+class _CancelConflict(Exception):
+    def __init__(self, job_id: str) -> None:
+        self.job_id = job_id
+        super().__init__(job_id)
 
 
 class CreateJobBody(BaseModel):
@@ -395,6 +431,18 @@ def create_jobs_router() -> APIRouter:
         if job is None:
             raise HTTPException(status_code=404, detail="Job not found")
         return _detail_view(job)
+
+    @router.post("/api/jobs/{job_id}/cancel")
+    def cancel_job(job_id: str, request: Request) -> JSONResponse:
+        manager = _job_manager(request)
+        try:
+            manager.cancel_job(job_id)
+        except _CancelConflict:
+            return JSONResponse(
+                status_code=409,
+                content={"detail": "Only a running job can be cancelled"},
+            )
+        return JSONResponse(status_code=200, content={"id": job_id})
 
     @router.get("/api/jobs/{job_id}/iterations/{n}/structure")
     def get_structure(job_id: str, n: int, request: Request) -> Response:

@@ -97,6 +97,12 @@ export async function createJob(
   })
 }
 
+export async function cancelJob(id: string): Promise<CreateJobResponse> {
+  return request<CreateJobResponse>(`/api/jobs/${id}/cancel`, {
+    method: 'POST',
+  })
+}
+
 export function structureUrl(jobId: string, iteration: number): string {
   return `/api/jobs/${jobId}/iterations/${iteration}/structure`
 }

@@ -25,7 +25,7 @@ export type Preset = {
   fields: PresetField[]
 }
 
-export type JobStatus = 'running' | 'succeeded' | 'failed'
+export type JobStatus = 'running' | 'succeeded' | 'failed' | 'cancelled'
 export type JobPhase = 'generating' | 'scoring' | 'summarizing' | null
 
 export type JobSummary = {

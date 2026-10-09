@@ -171,6 +171,55 @@ def test_job_lifecycle_with_fake_stream(jobs_root: Path, api_key: None) -> None:
         assert listed[0]["best_score"] == 0.42
 
 
+def test_cancel_running_job_frees_slot(jobs_root: Path, api_key: None) -> None:
+    del api_key
+    gate = threading.Event()
+    app = create_app(jobs_root=jobs_root, stream_fn=_fake_stream_factory(gate))
+
+    with TestClient(app) as client:
+        created = client.post(
+            "/api/jobs",
+            json={"preset_id": "qed", "params": {"max_iterations": 3}},
+        )
+        assert created.status_code == 201
+        job_id = created.json()["id"]
+
+        detail = None
+        for _ in range(50):
+            detail = client.get(f"/api/jobs/{job_id}").json()
+            if detail["status"] == "running":
+                break
+            time.sleep(0.05)
+        assert detail is not None
+        assert detail["status"] == "running"
+
+        cancelled = client.post(f"/api/jobs/{job_id}/cancel")
+        assert cancelled.status_code == 200
+        assert cancelled.json()["id"] == job_id
+
+        # Unblock the fake stream so the runner can notice cancel between steps.
+        gate.set()
+        for _ in range(50):
+            detail = client.get(f"/api/jobs/{job_id}").json()
+            if detail["status"] != "running":
+                break
+            time.sleep(0.05)
+        assert detail["status"] == "cancelled"
+        assert detail["phase"] is None
+        assert detail["error"] is None
+        assert (jobs_root / job_id / "job.json").is_file()
+
+        not_running = client.post(f"/api/jobs/{job_id}/cancel")
+        assert not_running.status_code == 409
+
+        again = client.post(
+            "/api/jobs",
+            json={"preset_id": "qed", "params": {"max_iterations": 3}},
+        )
+        assert again.status_code == 201
+        assert again.json()["id"] != job_id
+
+
 def test_bad_target_smiles_is_400(jobs_root: Path, api_key: None) -> None:
     del api_key
     app = create_app(

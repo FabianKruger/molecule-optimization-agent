@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { fetchJob } from '../api'
+import { cancelJob, fetchJob } from '../api'
 import { MoleculePanel } from '../components/MoleculePanel'
 import { ScoreChart } from '../components/ScoreChart'
 import { formatScore, shortenSmiles } from '../format'
@@ -20,7 +20,23 @@ export function JobPage() {
   const { id = '' } = useParams()
   const [job, setJob] = useState<JobDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [cancelError, setCancelError] = useState<string | null>(null)
+  const [cancelling, setCancelling] = useState(false)
   const [selectedIteration, setSelectedIteration] = useState<number | null>(null)
+
+  async function onCancel() {
+    if (!id || cancelling) {
+      return
+    }
+    setCancelling(true)
+    setCancelError(null)
+    try {
+      await cancelJob(id)
+    } catch (err) {
+      setCancelError(err instanceof Error ? err.message : 'Failed to cancel job')
+      setCancelling(false)
+    }
+  }
 
   useEffect(() => {
     if (!id) {
@@ -38,6 +54,9 @@ export function JobPage() {
         }
         setJob(detail)
         setError(null)
+        if (detail.status !== 'running') {
+          setCancelling(false)
+        }
         setSelectedIteration((current) => {
           if (current != null) {
             const stillPresent = detail.iterations.some(
@@ -117,6 +136,21 @@ export function JobPage() {
         <p>
           <span className={`status status-${job.status}`}>{statusLine}</span>
         </p>
+        {job.status === 'running' ? (
+          <p>
+            <button type="button" onClick={() => void onCancel()} disabled={cancelling}>
+              {cancelling ? 'Cancelling…' : 'Cancel run'}
+            </button>
+          </p>
+        ) : null}
+        {cancelError ? (
+          <p className="error" role="alert">
+            {cancelError}
+          </p>
+        ) : null}
+        {job.status === 'cancelled' ? (
+          <p className="muted">This run was cancelled.</p>
+        ) : null}
         {job.status === 'failed' && job.error ? (
           <p className="error" role="alert">
             {job.error}
