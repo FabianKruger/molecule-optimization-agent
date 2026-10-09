@@ -92,6 +92,16 @@ The UI runs at `http://127.0.0.1:7860` and supports:
 
 You can provide feedback after each optimization round to guide the agent toward desired molecular properties.
 
+### FastAPI (web PoC)
+
+Start the FastAPI process that serves `/api/health` and, when present, the built React app from `frontend/dist`:
+
+```bash
+pixi run seismo-api
+```
+
+The API listens on `http://127.0.0.1:8000`. Pass `--port` (or `-p`) to use another port. The Gradio UI (`pixi run seismo-ui`) is unchanged and still available on port 7860.
+
 ## Reproducing Paper Results
 
 All experiments from the paper can be reproduced using the shell scripts in the `scripts/` folder. Each script contains configurable hyperparameters at the top of the file.
@@ -189,7 +199,8 @@ molecule-optimization-agent/
 │   ├── graph/              # LangGraph workflow (nodes, routing, builder)
 │   ├── oracles/            # Scoring functions (QED, similarity, IC50, etc.)
 │   ├── objectives/         # Optimization objectives and feedback logic
-│   └── ui/                 # Gradio web interface
+│   ├── ui/                 # Gradio web interface
+│   └── api/                # FastAPI application shell (seismo-api)
 ├── config/experiments/     # Experiment YAML configs
 ├── scripts/                # Helper scripts for running experiments
 ├── analysis/               # Jupyter notebooks for result analysis
