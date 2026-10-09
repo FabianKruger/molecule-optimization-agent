@@ -1,6 +1,7 @@
 [project]
 authors = [{name = "Fabian", email = "132886103+FabianKruger@users.noreply.github.com"}]
-dependencies = ["shap>=0.50.0,<0.51", "certifi"]
+# certifi was a direct dep but nothing imports it; CA bundles still arrive via httpx/requests.
+dependencies = ["shap>=0.50.0,<0.51"]
 name = "seismo"
 requires-python = ">= 3.11"
 version = "0.1.0"
@@ -42,15 +43,11 @@ python-dotenv = ">=1.2.1,<2"
 pyyaml = ">=6.0.3,<7"
 pytorch = "*"
 xgboost = ">=3.1.2,<4"
-ipykernel = ">=7.1.0,<8"
-jupyterlab = ">=4.5.0,<5"
-seaborn = ">=0.13.2"
+matplotlib = "*"  # used by src/seismo/save_experiment.py (was transitive via seaborn)
 pillow = ">=10.0,<12"  # gradio requires pillow<12
 pydantic = ">=2.0,<2.12.5"  # gradio 6.x requires pydantic<=2.12.4
 biotite = ">=1.5"
 scikit-learn = ">=1.8"
-anthropic = "*"
-umap-learn = ">=0.5.11,<0.6"
 pytest = ">=8"
 fastapi = ">=0.115"
 # conda-forge equivalent of the PyPI uvicorn[standard] extra; depends on uvicorn
@@ -77,13 +74,26 @@ boltz = { version = ">=2.2.1", extras = ["cuda"] }
 [tool.pixi.feature.boltz2.target.osx.pypi-dependencies]
 boltz = { version = ">=2.2.1"}
 
-[tool.pixi.feature.marimo.dependencies]
+# Paper notebooks (Jupyter + marimo), analysis/paper scripts, and
+# scripts/xgboost_training.py. Kept off default so pixi run seismo /
+# seismo-ui / seismo-api stay lean. Use: pixi run -e analysis …
+# polaris>=0.13 needs python<=3.12 on conda-forge; with default python 3.13
+# the solver picks 0.2.x. Tighten later if analysis moves off 3.13.
+[tool.pixi.feature.analysis.dependencies]
+ipykernel = ">=7.1.0,<8"
+jupyterlab = ">=4.5.0,<5"
+seaborn = ">=0.13.2"
+anthropic = "*"
+umap-learn = ">=0.5.11,<0.6"
+polaris = "*"
 marimo = "*"
 altair = "*"
 altair_saver = "*"
 polars = "*"
 ruff = "*"
 vl-convert-python = "*"
+# marimo accepts tomlkit>=0.12; gradio (default) needs <0.15
+tomlkit = ">=0.12.0,<0.15.0"
 
 [tool.pixi.feature.lint.dependencies]
 python = "3.13.*"
@@ -96,9 +106,11 @@ uvicorn = ">=0.32"
 
 [tool.pixi.environments]
 default = { features = [], solve-group = "default" }
+# Default deps plus notebook/paper packages (Jupyter, marimo, plotting, polaris).
+# Own solve-group so marimo's websockets pin does not reshape the default lock.
+analysis = { features = ["analysis"], solve-group = "analysis" }
 tdc = { features = ["tdc"], solve-group = "tdc", no-default-feature = true }
 boltz2 = { features = ["boltz2"], solve-group = "boltz2", no-default-feature = true }
-marimo = { features = ["marimo"], solve-group = "marimo", no-default-feature = true}
 lint = { features = ["lint"], no-default-feature = true }
 
 [tool.pytest.ini_options]
