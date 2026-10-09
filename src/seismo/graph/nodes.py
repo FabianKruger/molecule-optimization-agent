@@ -79,7 +79,11 @@ def _message_content_is_blank(content: Any) -> bool:
 def _sanitize_messages(messages: Any) -> Any:
     if not isinstance(messages, list):
         return messages
-    return [m for m in messages if not _message_content_is_blank(getattr(m, "content", None))]
+    return [
+        m
+        for m in messages
+        if not _message_content_is_blank(getattr(m, "content", None))
+    ]
 
 
 def _is_blank_content_gateway_error(error: APIStatusError) -> bool:
@@ -150,7 +154,7 @@ def rate_limit_sensible_llm_call(llm: ChatOpenAI, message, max_attempts=3):
             time.sleep(delay)
             delay = min(delay * 2, 300)  # cap at 10s
 
-        except (APIConnectionError, httpcore.RemoteProtocolError) as e:
+        except (APIConnectionError, httpcore.RemoteProtocolError):
             if attempt == max_attempts - 1:
                 raise
 
@@ -174,7 +178,7 @@ def rate_limit_sensible_llm_call(llm: ChatOpenAI, message, max_attempts=3):
             )
             if e.status_code == 400 and _is_blank_content_gateway_error(e):
                 if attempt < max_attempts - 1:
-                    wait = min(2 ** attempt, 15)
+                    wait = min(2**attempt, 15)
                     logger.warning(
                         "Encountered provider 400 due to blank content handling; retrying in %ss (attempt %s/%s)",
                         wait,
@@ -294,37 +298,42 @@ def make_prediction_node(objective: Objective):
 
         result = objective.evaluate(state)
 
-        score = result["score"]
+        if "Combined" in result:
+            score = result["Combined"]["value"]
+        else:
+            score = next(iter(result.values()))["value"]
         logger.info(f"Iteration {iteration}: Oracle returned score: {score:.4f}")
 
-        # Log individual scores if this is a composite oracle
-        if "scores" in result:
-            score_details = ", ".join(
-                [f"{k}={v:.4f}" for k, v in result["scores"].items()]
-            )
+        # Log individual scores (skip Combined — already logged as primary)
+        individual = {k: v["value"] for k, v in result.items() if k != "Combined"}
+        if individual:
+            score_details = ", ".join([f"{k}={v:.4f}" for k, v in individual.items()])
             logger.info(f"Iteration {iteration}: Individual scores: {score_details}")
 
         state["oracle_result"] = result
+
+        explanation = "\n\n".join(
+            f"{k}:\n{v['explanation']}"
+            for k, v in result.items()
+            if v.get("explanation")
+        )
 
         trace_entry = {
             "iteration": state["iteration_count"],
             "smiles": state["current_smiles"],
             "reason": state["current_reason"],
-            "score": result["score"],
-            "explanation": result["explanation"],
+            "score": score,
+            "explanation": explanation,
         }
 
         # If we mess with the score, save the original
-        if "extra_scores" in result:
-            extra_scores = json.loads(result["extra_scores"])
-            if "original_affinity_probability_binary" in extra_scores:
-                trace_entry["original_score"] = extra_scores[
-                    "original_affinity_probability_binary"
-                ]
+        original = result.get("original_affinity_probability_binary")
+        if original is not None:
+            trace_entry["original_score"] = original["value"]
 
-        # Include individual scores from composite oracles
-        if "scores" in result:
-            trace_entry["scores"] = result["scores"]
+        # Include individual scores (floats) from multi-score oracles
+        if len(individual) > 1 or "Combined" in result:
+            trace_entry["scores"] = individual
 
         state["trace"].append(trace_entry)
 

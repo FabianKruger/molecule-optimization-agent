@@ -1,7 +1,6 @@
 from ..oracles.base import Oracle, OracleResult
 from ..state import WorkflowState
 
-
 FIRST_MESSAGE_TEMPLATE = """
 We are optimizing molecules for structural similarity to a target molecule using MACCS fingerprints and Tanimoto similarity.
 
@@ -32,22 +31,24 @@ class SimilarityObjective:
     name = "similarity"
 
     def __init__(
-        self, 
-        oracle: Oracle, 
-        target_similarity: float = 0.9, 
+        self,
+        oracle: Oracle,
+        target_similarity: float = 0.9,
         max_iterations: int = 20,
     ):
         self.oracle = oracle
         self._target_similarity = float(target_similarity)
         self._max_iterations = int(max_iterations)
-        
+
         # Extract target_smiles from oracle
         self._target_smiles = self._extract_target_smiles(oracle)
 
     def _extract_target_smiles(self, oracle: Oracle) -> str:
         """Extract target_smiles from oracle via get_params()."""
         if not hasattr(oracle, "get_params"):
-            raise ValueError("Oracle must implement get_params() for SimilarityObjective")
+            raise ValueError(
+                "Oracle must implement get_params() for SimilarityObjective"
+            )
         params = oracle.get_params()
         if "target_smiles" not in params:
             raise ValueError("Oracle must provide 'target_smiles' in get_params()")
@@ -64,8 +65,9 @@ class SimilarityObjective:
         return self.oracle(smiles)
 
     def build_feedback(self, state: WorkflowState, result: OracleResult) -> str:
-        similarity = result["score"]
-        explanation = result["explanation"]
+        sim = result["Similarity"]
+        similarity = sim["value"]
+        explanation = sim.get("explanation", "")
 
         # Check if molecule is identical to target
         is_identical = "IDENTICAL MOLECULE" in explanation
@@ -73,10 +75,10 @@ class SimilarityObjective:
         feedback = f"""
 Evaluation of your proposal:
 
-SMILES: {state['current_smiles']}
+SMILES: {state["current_smiles"]}
 Tanimoto Similarity: {similarity:.4f}
 Goal: achieve similarity ≥ {self._target_similarity:.2f}
-Iteration: {state['iteration_count']} / {self._max_iterations}
+Iteration: {state["iteration_count"]} / {self._max_iterations}
 
 {explanation}
 """
@@ -107,12 +109,15 @@ Respond with JSON only:
         if state["iteration_count"] >= self._max_iterations:
             return True
 
+        sim = result["Similarity"]
+        explanation = sim.get("explanation", "")
+
         # Check for identical molecule (not allowed as success)
-        if "IDENTICAL MOLECULE" in result.get("explanation", ""):
+        if "IDENTICAL MOLECULE" in explanation:
             return False
 
         # Success: similarity meets target (and not identical)
-        similarity = result["score"]
+        similarity = sim["value"]
         if similarity is not None and similarity >= self._target_similarity:
             return True
 

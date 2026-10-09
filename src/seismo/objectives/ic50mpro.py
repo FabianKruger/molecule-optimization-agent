@@ -1,10 +1,7 @@
-from typing import Optional
-
-from ..state import WorkflowState
 from ..oracles.base import Oracle, OracleResult
-from .base import Objective
+from ..state import WorkflowState
 
-#SARS-COV-2 Main Protease (MPro)
+# SARS-COV-2 Main Protease (MPro)
 
 FIRST_MESSAGE_TEMPLATE = """
 We are optimizing ligands for a protease.
@@ -44,16 +41,17 @@ class IC50MproObjective:
         return self.oracle(smiles)
 
     def build_feedback(self, state: WorkflowState, result: OracleResult) -> str:
-        ic50 = result["score"]
-        explanation = result["explanation"]
+        ic50_score = result["IC50"]
+        ic50 = ic50_score["value"]
+        explanation = ic50_score.get("explanation", "")
 
         return f"""
 Evaluation of your last proposal:
 
-SMILES: {state['current_smiles']}
+SMILES: {state["current_smiles"]}
 Predicted IC50: {ic50:.2f} nM (lower is better)
 Goal: IC50 < {self._target_ic50_nM:.2f} nM.
-Iteration: {state['iteration_count']} / {self._max_iterations}
+Iteration: {state["iteration_count"]} / {self._max_iterations}
 
 Oracle explanation:
 {explanation}
@@ -74,7 +72,7 @@ Do not include any additional text, comments, Markdown, or code fences.
         if state["iteration_count"] >= self._max_iterations:
             return True
 
-        ic50 = result["score"]
+        ic50 = result["IC50"]["value"]
         if ic50 is not None and ic50 < self._target_ic50_nM:
             return True
 

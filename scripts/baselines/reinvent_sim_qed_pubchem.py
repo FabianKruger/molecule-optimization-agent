@@ -5,9 +5,9 @@ from __future__ import annotations
 
 import json
 import sys
-import yaml
 from pathlib import Path
 
+import yaml
 from molopt.reinvent import REINVENT  # type: ignore
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -15,9 +15,9 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from molopt_agent.oracles.composite import CompositeOracle
-from molopt_agent.oracles.qed import ExplainableQedOracle
-from molopt_agent.oracles.similarity import SimilarityOracle
+from molopt_agent.oracles.composite import CompositeOracle  # noqa: E402
+from molopt_agent.oracles.qed import ExplainableQedOracle  # noqa: E402
+from molopt_agent.oracles.similarity import SimilarityOracle  # noqa: E402
 
 MAX_ORACLE_CALLS = 50
 RESULTS_DIR = ROOT / "data/results/similarity_qed_pubchem/reinvent"
@@ -27,13 +27,15 @@ MOLECULES_FILE = ROOT / "data/molecules/sampled_molecules.txt"
 def create_oracle(target_smiles: str) -> CompositeOracle:
     return CompositeOracle(
         oracles=[ExplainableQedOracle(), SimilarityOracle(target_smiles)],
-        weights=[0.5, 0.5],
-        names=["QED", "Similarity"],
+        components=[
+            {"oracle": 0, "score": "QED", "weight": 0.5},
+            {"oracle": 1, "score": "Similarity", "weight": 0.5},
+        ],
     )
 
 
 def sim_qed_oracle_fn(oracle: CompositeOracle, smiles: str) -> float:
-    return oracle(smiles)["score"]
+    return oracle(smiles)["Combined"]["value"]
 
 
 def mol_buffer_to_trace(mol_buffer: dict) -> list[dict]:

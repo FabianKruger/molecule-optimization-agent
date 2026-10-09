@@ -1,84 +1,94 @@
-from typing import Sequence
+from typing import Sequence, TypedDict
 
 from .base import Oracle, OracleResult
 
 
-class CompositeOracleResult(OracleResult):
-    """Extended result that includes individual sub-scores and explanations."""
-    scores: dict[str, float]
-    explanations: dict[str, str]
+class CompositeComponent(TypedDict):
+    """Select one score from a child oracle and assign a Combined weight."""
+
+    oracle: int  # index into ``oracles``
+    score: str  # key in that oracle's OracleResult
+    weight: float
 
 
 class CompositeOracle:
     """
-    Combines multiple oracles into one.
-    
-    - Scores are combined as a weighted sum (normalized by sum of weights).
-    - Explanations from each oracle are concatenated in result["explanation"].
-    - Individual scores are available in result["scores"] dict.
-    - Individual explanations are available in result["explanations"] dict.
+    Combines scores from multiple oracles.
+
+    Each component picks one score key from one child oracle. Those scores are
+    exposed in the result under the same key. ``Combined`` is the normalized
+    weighted average (weight 0 scores are included for constraints but do not
+    affect ``Combined`` when all positive weights are used for normalization).
     """
 
     def __init__(
         self,
         oracles: Sequence[Oracle],
-        weights: Sequence[float],
-        names: Sequence[str] | None = None,
+        components: Sequence[CompositeComponent],
     ):
-        if len(oracles) < 2:
-            raise ValueError("CompositeOracle requires at least 2 oracles")
-        
+        if len(oracles) < 1:
+            raise ValueError("CompositeOracle requires at least 1 oracle")
+        if len(components) < 1:
+            raise ValueError("CompositeOracle requires at least 1 component")
+
         self.oracles = list(oracles)
-        self.weights = list(weights)
-        self.names = list(names) if names else [f"Oracle {i+1}" for i in range(len(oracles))]
-        
-        if len(self.weights) != len(self.oracles):
-            raise ValueError(
-                f"Number of weights ({len(self.weights)}) must match "
-                f"number of oracles ({len(self.oracles)})"
-            )
-        if len(self.names) != len(self.oracles):
-            raise ValueError(
-                f"Number of names ({len(self.names)}) must match "
-                f"number of oracles ({len(self.oracles)})"
-            )
-        
-        # Precompute normalized weights
-        total = sum(self.weights)
-        self.normalized_weights = [w / total for w in self.weights]
+        self.components = [dict(c) for c in components]
+
+        seen_keys: set[str] = set()
+        for i, comp in enumerate(self.components):
+            if "oracle" not in comp or "score" not in comp or "weight" not in comp:
+                raise ValueError(
+                    f"Component {i} must have keys 'oracle', 'score', and 'weight'"
+                )
+            idx = int(comp["oracle"])
+            if idx < 0 or idx >= len(self.oracles):
+                raise ValueError(
+                    f"Component {i} oracle index {idx} out of range "
+                    f"[0, {len(self.oracles)})"
+                )
+            key = str(comp["score"])
+            if key in seen_keys:
+                raise ValueError(f"Duplicate component score key '{key}'")
+            if key == "Combined":
+                raise ValueError("Component score key 'Combined' is reserved")
+            seen_keys.add(key)
+            comp["oracle"] = idx
+            comp["score"] = key
+            comp["weight"] = float(comp["weight"])
+
+        total = sum(c["weight"] for c in self.components)
+        if total > 0:
+            self.normalized_weights = [c["weight"] / total for c in self.components]
+        else:
+            self.normalized_weights = [0.0] * len(self.components)
 
     def get_params(self) -> dict:
         """Return oracle configuration for sharing with objectives."""
         return {
-            "weights": self.weights,
+            "components": self.components,
             "normalized_weights": self.normalized_weights,
-            "names": self.names,
             "oracles": self.oracles,
         }
 
-    def __call__(self, smiles: str) -> CompositeOracleResult:
+    def __call__(self, smiles: str) -> OracleResult:
         results = [oracle(smiles) for oracle in self.oracles]
-        
-        # Weighted average score
-        combined_score = sum(
-            w * r["score"] for w, r in zip(self.normalized_weights, results)
-        )
-        
-        # Store individual scores and explanations by name
-        scores = {name: r["score"] for name, r in zip(self.names, results)}
-        explanations = {name: r["explanation"] for name, r in zip(self.names, results)}
-        
-        # Concatenate explanations with simple headers for combined explanation
-        explanation_parts = []
-        for name, result in zip(self.names, results):
-            explanation_parts.append(f"{name}:\n{result['explanation']}")
-        
-        combined_explanation = "\n\n".join(explanation_parts)
-        
-        return {
-            "score": combined_score,
-            "explanation": combined_explanation,
-            "scores": scores,
-            "explanations": explanations,
-        }
 
+        scores: OracleResult = {}
+        for comp in self.components:
+            idx = comp["oracle"]
+            key = comp["score"]
+            child = results[idx]
+            if key not in child:
+                raise KeyError(
+                    f"Oracle {idx} result missing score '{key}'. "
+                    f"Available: {list(child)}"
+                )
+            scores[key] = child[key]
+
+        combined = sum(
+            w * scores[c["score"]]["value"]
+            for c, w in zip(self.components, self.normalized_weights)
+        )
+        scores["Combined"] = {"value": combined}
+
+        return scores

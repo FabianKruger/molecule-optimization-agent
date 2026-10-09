@@ -3,7 +3,6 @@ from typing import Literal
 from ..oracles.base import Oracle, OracleResult
 from ..state import WorkflowState
 
-
 FIRST_MESSAGE_TEMPLATE = """
 We are optimizing ligands for the SARS-COV-2 Main Protease (MPro).
 
@@ -29,7 +28,7 @@ Respond with a single JSON object:
 class IC50MproNovelObjective:
     """
     Multi-objective optimization for IC50 and novelty.
-    
+
     - Score is based on IC50 only (lower is better).
     - Novelty is a hard constraint: the final molecule must be novel (not in PubChem).
     - Non-novel molecules can be proposed during optimization but won't be accepted as final.
@@ -61,22 +60,18 @@ class IC50MproNovelObjective:
 
     def _get_explanation(self, result: OracleResult) -> str:
         """Get explanation based on xai setting."""
-        explanations = result["explanations"]
-
         if self._xai == "none":
             ic50_text = "No explanation provided."
         else:
-            ic50_text = explanations[self.IC50_KEY]
+            ic50_text = result[self.IC50_KEY].get("explanation", "")
 
-        novelty_text = explanations[self.NOVELTY_KEY]
+        novelty_text = result[self.NOVELTY_KEY].get("explanation", "")
 
         return f"IC50 prediction:\n{ic50_text}\n\nNovelty:\n{novelty_text}"
 
     def build_feedback(self, state: WorkflowState, result: OracleResult) -> str:
-        scores = result["scores"]
-
-        ic50_score = scores[self.IC50_KEY]
-        novelty_score = scores[self.NOVELTY_KEY]
+        ic50_score = result[self.IC50_KEY]["value"]
+        novelty_score = result[self.NOVELTY_KEY]["value"]
 
         ic50_ok = ic50_score < self._target_ic50_nM
         is_novel = novelty_score == 1.0
@@ -90,10 +85,10 @@ class IC50MproNovelObjective:
 
         return f"""Evaluation of your last proposal:
 
-SMILES: {state['current_smiles']}
+SMILES: {state["current_smiles"]}
 Predicted IC50: {ic50_score:.2f} nM (target: < {self._target_ic50_nM:.2f} nM) {"✓" if ic50_ok else "✗"}
 Novelty: {novelty_status}
-Iteration: {state['iteration_count']} / {self._max_iterations}
+Iteration: {state["iteration_count"]} / {self._max_iterations}
 
 {explanation}
 
@@ -109,9 +104,8 @@ Do not include any additional text, comments, Markdown, or code fences.""".strip
         if state["iteration_count"] >= self._max_iterations:
             return True
 
-        scores = result["scores"]
-        ic50_score = scores[self.IC50_KEY]
-        novelty_score = scores[self.NOVELTY_KEY]
+        ic50_score = result[self.IC50_KEY]["value"]
+        novelty_score = result[self.NOVELTY_KEY]["value"]
 
         # Success: IC50 below target AND molecule is novel
         return ic50_score < self._target_ic50_nM and novelty_score == 1.0

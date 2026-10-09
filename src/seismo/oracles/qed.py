@@ -18,13 +18,13 @@ rdBase.DisableLog("rdApp.error")
 class ExplainableQedOracle:
     """
     Explainable QED (Quantitative Estimate of Drug-likeness) Oracle.
-    
+
     QED = exp(Σ(wᵢ × log(ADSᵢ)) / Σwᵢ)
     Score range: 0-1, higher is better.
     """
 
     PROPERTY_NAMES = ["MW", "ALOGP", "HBA", "HBD", "PSA", "ROTB", "AROM", "ALERTS"]
-    
+
     # Optimal ranges where ADS ≥ 0.95
     OPTIMAL_RANGES = {
         "MW": "281-332 Da",
@@ -64,7 +64,7 @@ class ExplainableQedOracle:
         # Build explanation
         explanation = self._format_explanation(qed_props, contributions, alerts)
 
-        return {"score": qed_score, "explanation": explanation}
+        return {"QED": {"value": qed_score, "explanation": explanation}}
 
     def _format_explanation(self, props, contributions: dict, alerts: list) -> str:
         lines = [
@@ -77,17 +77,21 @@ class ExplainableQedOracle:
             contrib = contributions[name]
             value = prop_values[name]
             optimal = self.OPTIMAL_RANGES[name]
-            
+
             if name in ["HBA", "HBD", "ROTB", "AROM", "ALERTS"]:
                 val_str = str(int(value))
             else:
                 val_str = f"{value:.2f}"
-            
-            lines.append(f"  {name}: {contrib:+.3f} (value={val_str}, optimal={optimal})")
+
+            lines.append(
+                f"  {name}: {contrib:+.3f} (value={val_str}, optimal={optimal})"
+            )
 
         if alerts:
             lines.append("")
-            lines.append(f"{len(alerts)} structural alert(s) triggered. SMARTS patterns of alerts:")
+            lines.append(
+                f"{len(alerts)} structural alert(s) triggered. SMARTS patterns of alerts:"
+            )
             for smarts in alerts:
                 lines.append(f"  {smarts}")
 

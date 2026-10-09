@@ -1,15 +1,17 @@
 from typing import Protocol, TypedDict
 
 
-class OracleResult(TypedDict, total=False):
+class OracleScore(TypedDict, total=False):
     """
-    Minimal oracle output:
-      - score: scalar the optimizer uses (higher/lower as you define).
-      - explanation: short human-readable explanation.
+    Single score field of an OracleResult.
     """
 
-    score: float
+    value: float
     explanation: str
+
+
+# Keys should be a "what is this" description of the score.
+OracleResult = dict[str, OracleScore]
 
 
 class Oracle(Protocol):

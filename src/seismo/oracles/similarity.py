@@ -6,15 +6,14 @@ from rdkit.DataStructs import TanimotoSimilarity
 from .base import OracleResult
 from .utils import build_maccs_key_definitions
 
-
 MACCS_KEY_DEFINITIONS = build_maccs_key_definitions()
 
 
 class SimilarityOracle:
     """
     Oracle computing Tanimoto similarity using MACCS keys against a target molecule.
-    
-    Returns similarity score (0-1, higher = more similar) and explanation of 
+
+    Returns similarity score (0-1, higher = more similar) and explanation of
     which structural features differ between the query and target molecules.
     """
 
@@ -36,9 +35,13 @@ class SimilarityOracle:
         query_inchi_key = MolToInchiKey(mol)
         if query_inchi_key == self.target_inchi_key:
             return {
-                "score": 0.0,
-                "explanation": "IDENTICAL MOLECULE - This is the target molecule itself. "
-                               "Please propose a structurally different molecule.",
+                "Similarity": {
+                    "value": 0.0,
+                    "explanation": (
+                        "IDENTICAL MOLECULE - This is the target molecule itself. "
+                        "Please propose a structurally different molecule."
+                    ),
+                },
             }
 
         fp = MACCSkeys.GenMACCSKeys(mol)
@@ -53,16 +56,14 @@ class SimilarityOracle:
 
         explanation = self._build_explanation(missing_from_query, extra_in_query)
 
-        return {"score": similarity, "explanation": explanation}
+        return {"Similarity": {"value": similarity, "explanation": explanation}}
 
     def get_params(self) -> dict:
         """Return oracle configuration for sharing with objectives."""
         return {"target_smiles": self.target_smiles}
 
     def _build_explanation(
-        self, 
-        missing_from_query: set[int], 
-        extra_in_query: set[int]
+        self, missing_from_query: set[int], extra_in_query: set[int]
     ) -> str:
         if not missing_from_query and not extra_in_query:
             return "All MACCS key bits match between query and target."

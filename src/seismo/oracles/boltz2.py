@@ -172,7 +172,7 @@ class Boltz2Oracle:
                 timeout=self.timeout,
             )
             logger.info("Boltz-2 prediction completed successfully")
-        except TimeoutExpired as e:
+        except TimeoutExpired:
             logger.warning(
                 f"Boltz-2 subprocess timed out after {self.timeout}s ({self.timeout / 60:.1f} minutes).\n"
             )
@@ -221,10 +221,9 @@ class Boltz2Oracle:
             explanation = ""
 
         result: OracleResult = {
-            "score": score,
-            "explanation": explanation,
-            "extra_scores": json.dumps(additional_scores),  # pyright: ignore[reportAssignmentType]
+            self.binding_score_name: {"value": score, "explanation": explanation},
         }
+        result.update(additional_scores)
 
         logger.info(f"Boltz-2 prediction result: {result}")
 

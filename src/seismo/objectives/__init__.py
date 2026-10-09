@@ -1,18 +1,30 @@
 from typing import Dict, Type
 
+from ..config import ObjectiveConfig
+from ..oracles.base import Oracle
 from .base import Objective
 from .boltz2 import Boltz2Objective
 from .ic50mpro import IC50MproObjective
 from .ic50mpro_novel import IC50MproNovelObjective
 from .ic50mpro_qed_novel import IC50MproQedNovelObjective
 from .novel import NovelObjective
-from .opioid_ki import OpioidKiObjective
 from .qed import QedObjective
 from .similarity import SimilarityObjective
 from .similarity_qed import SimilarityQedObjective
-from .tdc_tasks import TdcObjective
-from ..config import ObjectiveConfig
-from ..oracles.base import Oracle
+
+try:
+    from .opioid_ki import OpioidKiObjective
+
+    _opioid_ki_available = True
+except Exception:
+    _opioid_ki_available = False
+
+try:
+    from .tdc_tasks import TdcObjective
+
+    _tdc_available = True
+except Exception:
+    _tdc_available = False
 
 
 OBJECTIVE_REGISTRY: Dict[str, Type[Objective]] = {
@@ -21,11 +33,11 @@ OBJECTIVE_REGISTRY: Dict[str, Type[Objective]] = {
     "ic50mpro_novel": IC50MproNovelObjective,
     "ic50mpro_qed_novel": IC50MproQedNovelObjective,
     "novel": NovelObjective,
-    "opioid_ki": OpioidKiObjective,
     "qed": QedObjective,
     "similarity": SimilarityObjective,
     "similarity_qed": SimilarityQedObjective,
-    "tdc_tasks": TdcObjective,
+    **({"opioid_ki": OpioidKiObjective} if _opioid_ki_available else {}),
+    **({"tdc_tasks": TdcObjective} if _tdc_available else {}),
 }
 
 

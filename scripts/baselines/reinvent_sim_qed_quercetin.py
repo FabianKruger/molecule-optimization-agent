@@ -5,9 +5,9 @@ from __future__ import annotations
 
 import json
 import sys
-import yaml
 from pathlib import Path
 
+import yaml
 from molopt.reinvent import REINVENT  # type: ignore
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -15,9 +15,9 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from molopt_agent.oracles.composite import CompositeOracle
-from molopt_agent.oracles.qed import ExplainableQedOracle
-from molopt_agent.oracles.similarity import SimilarityOracle
+from molopt_agent.oracles.composite import CompositeOracle  # noqa: E402
+from molopt_agent.oracles.qed import ExplainableQedOracle  # noqa: E402
+from molopt_agent.oracles.similarity import SimilarityOracle  # noqa: E402
 
 QUERCETIN_SMILES = "O=C1c3c(O/C(=C1/O)c2ccc(O)c(O)c2)cc(O)cc3O"
 MAX_ORACLE_CALLS = 1000
@@ -28,8 +28,10 @@ RESULTS_DIR = ROOT / "data/results/similarity_qed_quercetin/reinvent"
 def create_oracle() -> CompositeOracle:
     return CompositeOracle(
         oracles=[ExplainableQedOracle(), SimilarityOracle(QUERCETIN_SMILES)],
-        weights=[0.5, 0.5],
-        names=["QED", "Similarity"],
+        components=[
+            {"oracle": 0, "score": "QED", "weight": 0.5},
+            {"oracle": 1, "score": "Similarity", "weight": 0.5},
+        ],
     )
 
 
@@ -53,7 +55,7 @@ def run(rep: int, seed: int) -> None:
     oracle = create_oracle()
 
     def evaluator(smiles: str) -> float:
-        return oracle(smiles)["score"]
+        return oracle(smiles)["Combined"]["value"]
 
     evaluator.__name__ = "sim_qed_oracle"
 

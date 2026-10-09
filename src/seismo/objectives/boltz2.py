@@ -1,6 +1,3 @@
-import json
-from typing import Optional
-
 from ..oracles.base import Oracle, OracleResult
 from ..state import WorkflowState
 
@@ -102,9 +99,11 @@ class Boltz2Objective:
         return self.oracle(smiles)
 
     def build_feedback(self, state: WorkflowState, result: OracleResult) -> str:
-        explanation = result.get("explanation", "")
-        extra_scores_json = result.get("extra_scores", "{}")
-        extra_scores = json.loads(extra_scores_json)
+        binding_score_name = getattr(
+            self.oracle, "binding_score_name", "affinity_probability_binary"
+        )
+        primary = result[binding_score_name]
+        explanation = primary.get("explanation", "")
 
         explanation_section = ""
         if explanation:
@@ -115,7 +114,7 @@ Oracle explanation:
 
         if self._is_probability_mode:
             # Probability mode: optimize binding probability
-            binding_probability = result["score"]
+            binding_probability = primary["value"]
             return f"""
 Evaluation of your last proposal:
 
@@ -136,9 +135,10 @@ Do not include any additional text, comments, Markdown, or code fences.
 """.strip()
         else:
             # Affinity mode: optimize affinity with probability constraint
-            affinity = result["score"]
-            # parse probability from oracle explanation
-            binding_probability = extra_scores.get("affinity_probability_binary", None)
+            affinity = primary["value"]
+            binding_probability = result.get("affinity_probability_binary", {}).get(
+                "value"
+            )
 
             probability_info = ""
             if binding_probability is not None:
@@ -170,7 +170,10 @@ Do not include any additional text, comments, Markdown, or code fences.
 
         if self._is_probability_mode:
             # Probability mode: check if target probability is reached
-            binding_probability = result["score"]
+            binding_score_name = getattr(
+                self.oracle, "binding_score_name", "affinity_probability_binary"
+            )
+            binding_probability = result[binding_score_name]["value"]
             if (
                 binding_probability is not None
                 and binding_probability >= self._target_binding_probability

@@ -6,9 +6,9 @@ from __future__ import annotations
 import json
 import math
 import sys
-import yaml
 from pathlib import Path
 
+import yaml
 from molopt.reinvent import REINVENT  # type: ignore
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -16,13 +16,12 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-import numpy as np
-import xgboost as xgb
-from rdkit import Chem
-from rdkit.Chem import MACCSkeys, QED
-
-from molopt_agent.oracles.novel import NovelOracle
-from molopt_agent.oracles.qed import ExplainableQedOracle
+import numpy as np  # noqa: E402
+import xgboost as xgb  # noqa: E402
+from molopt_agent.oracles.novel import NovelOracle  # noqa: E402
+from molopt_agent.oracles.qed import ExplainableQedOracle  # noqa: E402
+from rdkit import Chem  # noqa: E402
+from rdkit.Chem import MACCSkeys  # noqa: E402
 
 MAX_ORACLE_CALLS = 50
 N_REPLICATES = 3
@@ -46,12 +45,18 @@ def mol_buffer_to_trace(mol_buffer: dict, eval_cache: dict) -> list[dict]:
         cache = eval_cache.get(smiles)
         if cache is None:
             continue
-        entries.append({
-            "iteration": int(call_idx),
-            "smiles": smiles,
-            "score": cache["ic50"],
-            "scores": {"IC50": cache["ic50"], "QED": cache["qed"], "Novelty": cache["novelty"]},
-        })
+        entries.append(
+            {
+                "iteration": int(call_idx),
+                "smiles": smiles,
+                "score": cache["ic50"],
+                "scores": {
+                    "IC50": cache["ic50"],
+                    "QED": cache["qed"],
+                    "Novelty": cache["novelty"],
+                },
+            }
+        )
     return sorted(entries, key=lambda x: x["iteration"])
 
 
@@ -74,8 +79,8 @@ def run(rep: int, seed: int) -> None:
         ic50 = predict_ic50_nM(smiles, model)
         if ic50 is None:
             return 0.0
-        qed = qed_oracle(smiles)["score"]
-        novelty = novel_oracle(smiles)["score"]
+        qed = qed_oracle(smiles)["QED"]["value"]
+        novelty = novel_oracle(smiles)["Novelty"]["value"]
         eval_cache[smiles] = {"ic50": ic50, "qed": qed, "novelty": novelty}
         # Convert to maximization score: pIC50, penalise low QED or non-novel molecules
         if qed >= QED_THRESHOLD and novelty == 1.0:

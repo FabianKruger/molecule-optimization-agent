@@ -7,36 +7,40 @@ from .similarity import SimilarityOracle
 
 try:
     from .boltz2 import Boltz2Oracle
+
     _boltz2_available = True
 except Exception:
     _boltz2_available = False
 
 try:
     from .ic50mpro import IC50MproOracle
+
     _ic50mpro_available = True
 except Exception:
     _ic50mpro_available = False
 
 try:
     from .novel import NovelOracle
+
     _novel_available = True
 except Exception:
     _novel_available = False
 
 try:
     from .opioid_ki import MolEncoderOpioidKiOracle
+
     _opioid_ki_available = True
 except Exception:
     _opioid_ki_available = False
 
 try:
     from .tdc_tasks import TdcOracle
+
     _tdc_available = True
 except Exception:
     _tdc_available = False
 
 from ..config import OracleConfig
-
 
 ORACLE_REGISTRY: Dict[str, Type[Oracle]] = {
     "qed": ExplainableQedOracle,
@@ -57,22 +61,21 @@ def build_oracle_from_config(cfg: OracleConfig) -> Oracle:
         if not oracles_cfg:
             raise ValueError("CompositeOracle requires 'oracles' list in params")
 
-        weights = cfg.params.get("weights")
-        if not weights:
-            raise ValueError("CompositeOracle requires 'weights' list in params")
+        components = cfg.params.get("components")
+        if not components:
+            raise ValueError("CompositeOracle requires 'components' list in params")
 
         sub_oracles = [
-            build_oracle_from_config(OracleConfig(name=sub["name"], params=sub.get("params", {})))
+            build_oracle_from_config(
+                OracleConfig(name=sub["name"], params=sub.get("params", {}))
+            )
             for sub in oracles_cfg
         ]
-        names = cfg.params.get("names")
-        return CompositeOracle(oracles=sub_oracles, weights=weights, names=names)
+        return CompositeOracle(oracles=sub_oracles, components=components)
 
     if cfg.name not in ORACLE_REGISTRY:
         available = ", ".join(sorted(ORACLE_REGISTRY.keys()))
-        raise ValueError(
-            f"Unknown oracle '{cfg.name}'. Available: {available}"
-        )
+        raise ValueError(f"Unknown oracle '{cfg.name}'. Available: {available}")
     cls = ORACLE_REGISTRY[cfg.name]
     try:
         return cls(**cfg.params)

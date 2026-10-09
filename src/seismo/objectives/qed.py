@@ -1,7 +1,6 @@
 from ..oracles.base import Oracle, OracleResult
 from ..state import WorkflowState
 
-
 FIRST_MESSAGE_TEMPLATE = """
 We are optimizing molecules for drug-likeness using the QED (Quantitative Estimate of Drug-likeness) score.
 
@@ -35,7 +34,9 @@ class QedObjective:
 
     name = "qed"
 
-    def __init__(self, oracle: Oracle, target_qed: float = 0.9, max_iterations: int = 20):
+    def __init__(
+        self, oracle: Oracle, target_qed: float = 0.9, max_iterations: int = 20
+    ):
         self.oracle = oracle
         self._target_qed = float(target_qed)
         self._max_iterations = int(max_iterations)
@@ -48,14 +49,15 @@ class QedObjective:
         return self.oracle(smiles)
 
     def build_feedback(self, state: WorkflowState, result: OracleResult) -> str:
-        qed_score = result["score"]
-        explanation = result["explanation"]
+        qed = result["QED"]
+        qed_score = qed["value"]
+        explanation = qed.get("explanation", "")
 
         return f"""
-SMILES: {state['current_smiles']}
+SMILES: {state["current_smiles"]}
 QED: {qed_score:.3f}
 Goal: achieve QED ≥ {self._target_qed:.2f}
-Iteration: {state['iteration_count']} / {self._max_iterations}
+Iteration: {state["iteration_count"]} / {self._max_iterations}
 
 {explanation}
 
@@ -72,7 +74,7 @@ Respond with JSON only:
             return True
 
         # Success: QED meets target
-        qed_score = result["score"]
+        qed_score = result["QED"]["value"]
         if qed_score is not None and qed_score >= self._target_qed:
             return True
 
@@ -80,4 +82,3 @@ Respond with JSON only:
 
     def max_iterations(self) -> int:
         return self._max_iterations
-

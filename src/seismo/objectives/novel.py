@@ -1,7 +1,6 @@
 from ..oracles.base import Oracle, OracleResult
 from ..state import WorkflowState
 
-
 FIRST_MESSAGE_TEMPLATE = """
 We are generating novel molecules that do not already exist in PubChem.
 
@@ -37,8 +36,9 @@ class NovelObjective:
         return self.oracle(smiles)
 
     def build_feedback(self, state: WorkflowState, result: OracleResult) -> str:
-        score = result["score"]
-        explanation = result["explanation"]
+        novelty = result["Novelty"]
+        score = novelty["value"]
+        explanation = novelty.get("explanation", "")
 
         if score == 1.0:
             status = "NOVEL - Not in PubChem"
@@ -46,9 +46,9 @@ class NovelObjective:
             status = "EXISTS - Found in PubChem"
 
         return f"""
-SMILES: {state['current_smiles']}
+SMILES: {state["current_smiles"]}
 Status: {status}
-Iteration: {state['iteration_count']} / {self._max_iterations}
+Iteration: {state["iteration_count"]} / {self._max_iterations}
 
 {explanation}
 
@@ -65,7 +65,7 @@ Respond with JSON only:
             return True
 
         # Success: molecule is novel (not in PubChem)
-        if result["score"] == 1.0:
+        if result["Novelty"]["value"] == 1.0:
             return True
 
         return False

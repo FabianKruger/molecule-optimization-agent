@@ -2,8 +2,7 @@ from typing import Literal
 
 from ..oracles.base import Oracle, OracleResult
 from ..state import WorkflowState
-from .generic_messages import get_generic_first_message, get_generic_feedback
-
+from .generic_messages import get_generic_feedback, get_generic_first_message
 
 FIRST_MESSAGE_TEMPLATE = """
 We are optimizing molecules for TWO objectives simultaneously:
@@ -64,22 +63,33 @@ class SimilarityQedObjective:
         # Extract from oracle
         oracle_params = self._extract_from_oracle(oracle)
         self._target_smiles = oracle_params["target_smiles"]
-        self._similarity_weight = float(oracle_params["weights"][0])
-        self._qed_weight = float(oracle_params["weights"][1])
+        self._similarity_weight = float(oracle_params["similarity_weight"])
+        self._qed_weight = float(oracle_params["qed_weight"])
 
     def _extract_from_oracle(self, oracle: Oracle) -> dict:
         """Extract shared params from oracle via get_params()."""
         if not hasattr(oracle, "get_params"):
-            raise ValueError("Oracle must implement get_params() for SimilarityQedObjective")
-        
+            raise ValueError(
+                "Oracle must implement get_params() for SimilarityQedObjective"
+            )
+
         params = oracle.get_params()
         extracted = {}
-        
-        # Get weights from composite oracle
-        if "weights" not in params:
-            raise ValueError("Oracle must provide 'weights' in get_params()")
-        extracted["weights"] = params["weights"]
-        
+
+        components = params.get("components")
+        if not components:
+            raise ValueError("Oracle must provide 'components' in get_params()")
+        weights_by_score = {c["score"]: float(c["weight"]) for c in components}
+        if (
+            self.SIMILARITY_KEY not in weights_by_score
+            or self.QED_KEY not in weights_by_score
+        ):
+            raise ValueError(
+                f"Composite components must include '{self.SIMILARITY_KEY}' and '{self.QED_KEY}'"
+            )
+        extracted["similarity_weight"] = weights_by_score[self.SIMILARITY_KEY]
+        extracted["qed_weight"] = weights_by_score[self.QED_KEY]
+
         # Check sub-oracles for target_smiles
         for sub_oracle in params.get("oracles", []):
             if hasattr(sub_oracle, "get_params"):
@@ -87,10 +97,12 @@ class SimilarityQedObjective:
                 if "target_smiles" in sub_params:
                     extracted["target_smiles"] = sub_params["target_smiles"]
                     break
-        
+
         if "target_smiles" not in extracted:
-            raise ValueError("Could not extract target_smiles from oracle's sub-oracles")
-        
+            raise ValueError(
+                "Could not extract target_smiles from oracle's sub-oracles"
+            )
+
         return extracted
 
     def first_message(self) -> str:
@@ -111,9 +123,10 @@ class SimilarityQedObjective:
 
     def _get_explanation(self, result: OracleResult) -> str:
         """Get explanation based on xai setting."""
-        explanations = result.get("explanations", {})
-        similarity_explanation = explanations.get(self.SIMILARITY_KEY, "")
-        qed_explanation = explanations.get(self.QED_KEY, "")
+        similarity_explanation = result.get(self.SIMILARITY_KEY, {}).get(
+            "explanation", ""
+        )
+        qed_explanation = result.get(self.QED_KEY, {}).get("explanation", "")
 
         if self._xai == "none":
             similarity_text = "No explanation provided."
@@ -128,7 +141,7 @@ class SimilarityQedObjective:
         return f"Similarity:\n{similarity_text}\n\nQED:\n{qed_text}"
 
     def build_feedback(self, state: WorkflowState, result: OracleResult) -> str:
-        combined_score = result["score"]
+        combined_score = result["Combined"]["value"]
 
         # Use generic feedback for no_description mode
         if self._xai == "no_description":
@@ -140,22 +153,21 @@ class SimilarityQedObjective:
                 higher_is_better=True,
             )
 
-        scores = result.get("scores", {})
-
-        similarity_score = scores.get(self.SIMILARITY_KEY, 0.0)
-        qed_score = scores.get(self.QED_KEY, 0.0)
+        similarity_score = result.get(self.SIMILARITY_KEY, {}).get("value", 0.0)
+        qed_score = result.get(self.QED_KEY, {}).get("value", 0.0)
 
         sim_ok = similarity_score >= self._min_similarity
         qed_ok = qed_score >= self._min_qed
         combined_ok = combined_score >= self._target_score
 
         # Check if molecule is identical to target
-        is_identical = "IDENTICAL MOLECULE" in result["explanation"]
+        sim_explanation = result.get(self.SIMILARITY_KEY, {}).get("explanation", "")
+        is_identical = "IDENTICAL MOLECULE" in sim_explanation
 
         explanation = self._get_explanation(result)
 
-        feedback = f"""SMILES: {state['current_smiles']}
-Iteration: {state['iteration_count']} / {self._max_iterations}
+        feedback = f"""SMILES: {state["current_smiles"]}
+Iteration: {state["iteration_count"]} / {self._max_iterations}
 
 Combined score: {combined_score:.4f} (target: ≥ {self._target_score:.2f}) {"✓" if combined_ok else "✗"}
 Similarity: {similarity_score:.4f} (min: {self._min_similarity:.2f}) {"✓" if sim_ok else "✗"}
@@ -184,18 +196,20 @@ Respond with JSON only:
         if state["iteration_count"] >= self._max_iterations:
             return True
 
-        if "IDENTICAL MOLECULE" in result.get("explanation", ""):
+        sim_explanation = result.get(self.SIMILARITY_KEY, {}).get("explanation", "")
+        if "IDENTICAL MOLECULE" in sim_explanation:
             return False
 
-        combined_score = result["score"]
-        scores = result.get("scores", {})
-        similarity_score = scores.get(self.SIMILARITY_KEY, 0.0)
-        qed_score = scores.get(self.QED_KEY, 0.0)
+        combined_score = result["Combined"]["value"]
+        similarity_score = result.get(self.SIMILARITY_KEY, {}).get("value", 0.0)
+        qed_score = result.get(self.QED_KEY, {}).get("value", 0.0)
 
         # Success: combined score meets target AND both minimums satisfied
-        if (combined_score >= self._target_score 
-            and similarity_score >= self._min_similarity 
-            and qed_score >= self._min_qed):
+        if (
+            combined_score >= self._target_score
+            and similarity_score >= self._min_similarity
+            and qed_score >= self._min_qed
+        ):
             return True
 
         return False

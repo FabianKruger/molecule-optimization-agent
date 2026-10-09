@@ -46,16 +46,17 @@ SRC_DIR = PROJECT_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from molopt_agent.objectives.generic_messages import get_generic_first_message
-from molopt_agent.objectives.tdc_tasks import TDC_ORACLE_DESCRIPTIONS
-from molopt_agent.oracles.composite import CompositeOracle
-from molopt_agent.oracles.ic50mpro import IC50MproOracle
-from molopt_agent.oracles.novel import NovelOracle
-from molopt_agent.oracles.qed import ExplainableQedOracle
-from molopt_agent.oracles.similarity import SimilarityOracle
-from molopt_agent.oracles.tdc_tasks import TdcOracle
-from molopt_agent.system_prompt import SYSTEM_PROMPT
-
+from molopt_agent.objectives.generic_messages import (  # noqa: E402
+    get_generic_first_message,
+)
+from molopt_agent.objectives.tdc_tasks import TDC_ORACLE_DESCRIPTIONS  # noqa: E402
+from molopt_agent.oracles.composite import CompositeOracle  # noqa: E402
+from molopt_agent.oracles.ic50mpro import IC50MproOracle  # noqa: E402
+from molopt_agent.oracles.novel import NovelOracle  # noqa: E402
+from molopt_agent.oracles.qed import ExplainableQedOracle  # noqa: E402
+from molopt_agent.oracles.similarity import SimilarityOracle  # noqa: E402
+from molopt_agent.oracles.tdc_tasks import TdcOracle  # noqa: E402
+from molopt_agent.system_prompt import SYSTEM_PROMPT  # noqa: E402
 
 API_KEY_ENV = "OPENAI_API_KEY"
 BASE_URL_ENV = "OPENAI_BASE_URL"
@@ -74,7 +75,11 @@ SIM_WEIGHTS: list[float] = [0.5, 0.5]
 QUERCETIN_NAME = "quercetin"
 QUERCETIN_SMILES = "C1=CC(=C(C=C1C2=C(C(=O)C3=C(C=C(C=C3O2)O)O)O)O)O"
 
-CUSTOM_TASKS: set[str] = {"ic50mpro_qed_novel", "similarity_qed_pubchem", "similarity_qed_quercetin"}
+CUSTOM_TASKS: set[str] = {
+    "ic50mpro_qed_novel",
+    "similarity_qed_pubchem",
+    "similarity_qed_quercetin",
+}
 
 BOLTZ2_TASKS: set[str] = {"boltz2_sars_cov2", "boltz2_trib2", "boltz2_mgyp"}
 
@@ -156,7 +161,11 @@ def build_llm(model: str, temperature: float) -> ChatOpenAI:
     if not api_key:
         raise RuntimeError(f"Missing API key: set {API_KEY_ENV} environment variable")
 
-    llm_kwargs: dict[str, Any] = {"model": model, "api_key": api_key, "temperature": temperature}
+    llm_kwargs: dict[str, Any] = {
+        "model": model,
+        "api_key": api_key,
+        "temperature": temperature,
+    }
     base_url = os.environ.get(BASE_URL_ENV)
     if base_url:
         llm_kwargs["base_url"] = base_url
@@ -186,7 +195,7 @@ def _boltz2_user_prompt(task_name: str, n_molecules: int, mode: Mode) -> str:
             f"- Target: Binding probability >= {target_binding_probability:.3f}\n\n"
             "Task:\n"
             f"Generate exactly {n_molecules} different candidate molecules in one response.\n\n"
-            f"Return a JSON array with exactly {n_molecules} objects, each containing keys \"reason\" and \"smiles\".\n"
+            f'Return a JSON array with exactly {n_molecules} objects, each containing keys "reason" and "smiles".\n'
             "All SMILES must be unique within the array."
         )
 
@@ -200,8 +209,8 @@ def _boltz2_user_prompt(task_name: str, n_molecules: int, mode: Mode) -> str:
         "Propose a single initial molecule as a SMILES string that you expect to have strong binding affinity to the target protein.\n\n"
         "Respond with a single JSON object:\n"
         "{\n"
-        "  \"reason\": \"<why this is a reasonable starting point for this objective>\",\n"
-        "  \"smiles\": \"<SMILES string>\"\n"
+        '  "reason": "<why this is a reasonable starting point for this objective>",\n'
+        '  "smiles": "<SMILES string>"\n'
         "}"
     )
 
@@ -216,7 +225,7 @@ def _generic_user_prompt(n_molecules: int, mode: Mode, higher_is_better: bool) -
         return (
             f"Your task is to optimize the score. {direction}.\n\n"
             f"Generate exactly {n_molecules} different candidate molecules in one response.\n\n"
-            f"Return a JSON array with exactly {n_molecules} objects, each containing keys \"reason\" and \"smiles\".\n"
+            f'Return a JSON array with exactly {n_molecules} objects, each containing keys "reason" and "smiles".\n'
             "All SMILES must be unique within the array."
         )
     return get_generic_first_message(higher_is_better=higher_is_better)
@@ -234,7 +243,7 @@ def _ic50_user_prompt(n_molecules: int, mode: Mode) -> str:
         return (
             f"{task_desc}\n\n"
             f"Generate exactly {n_molecules} different candidate molecules in one response.\n\n"
-            f"Return a JSON array with exactly {n_molecules} objects, each containing keys \"reason\" and \"smiles\".\n"
+            f'Return a JSON array with exactly {n_molecules} objects, each containing keys "reason" and "smiles".\n'
             "All SMILES must be unique within the array."
         )
     return (
@@ -242,8 +251,8 @@ def _ic50_user_prompt(n_molecules: int, mode: Mode) -> str:
         "Propose a molecule as a SMILES string that you expect to have strong inhibitory effect on the enzyme while maintaining good drug-like properties.\n\n"
         "Respond with a single JSON object:\n"
         "{\n"
-        "  \"reason\": \"<short explanation>\",\n"
-        "  \"smiles\": \"<SMILES string>\"\n"
+        '  "reason": "<short explanation>",\n'
+        '  "smiles": "<SMILES string>"\n'
         "}"
     )
 
@@ -270,7 +279,7 @@ def _similarity_user_prompt(
         return (
             f"{task_desc}\n\n"
             f"Generate exactly {n_molecules} different candidate molecules in one response.\n\n"
-            f"Return a JSON array with exactly {n_molecules} objects, each containing keys \"reason\" and \"smiles\".\n"
+            f'Return a JSON array with exactly {n_molecules} objects, each containing keys "reason" and "smiles".\n'
             "All SMILES must be unique within the array."
         )
     return (
@@ -278,8 +287,8 @@ def _similarity_user_prompt(
         "Propose a molecule as a SMILES string that balances both objectives.\n\n"
         "Respond with a single JSON object:\n"
         "{\n"
-        "  \"reason\": \"<short explanation>\",\n"
-        "  \"smiles\": \"<SMILES string>\"\n"
+        '  "reason": "<short explanation>",\n'
+        '  "smiles": "<SMILES string>"\n'
         "}"
     )
 
@@ -292,7 +301,9 @@ def build_user_prompt(
     target_smiles: str | None = None,
 ) -> str:
     if prompt_style == "generic":
-        return _generic_user_prompt(n_molecules, mode, higher_is_better=_is_higher_better(task_name))
+        return _generic_user_prompt(
+            n_molecules, mode, higher_is_better=_is_higher_better(task_name)
+        )
     if task_name in BOLTZ2_TASKS:
         return _boltz2_user_prompt(task_name, n_molecules, mode)
     if task_name == "ic50mpro_qed_novel":
@@ -321,7 +332,7 @@ def build_user_prompt(
             "Task:\n"
             f"{step_instruction}\n\n"
             "Return a JSON array with exactly "
-            f"{n_molecules} objects, each containing keys \"reason\" and \"smiles\".\n"
+            f'{n_molecules} objects, each containing keys "reason" and "smiles".\n'
             "All SMILES must be unique within the array."
         )
     return (
@@ -333,8 +344,8 @@ def build_user_prompt(
         f"{step_instruction}\n\n"
         "Respond with a single JSON object:\n"
         "{\n"
-        "  \"reason\": \"<short explanation>\",\n"
-        "  \"smiles\": \"<SMILES string>\"\n"
+        '  "reason": "<short explanation>",\n'
+        '  "smiles": "<SMILES string>"\n'
         "}"
     )
 
@@ -352,22 +363,35 @@ def build_task_oracle(task_name: str, target_smiles: str | None = None) -> Any:
                 ExplainableQedOracle(),
                 NovelOracle(),
             ],
-            weights=[1.0, 0.0, 0.0],
-            names=["IC50", "QED", "Novelty"],
+            components=[
+                {"oracle": 0, "score": "IC50", "weight": 1.0},
+                {"oracle": 1, "score": "QED", "weight": 0.0},
+                {"oracle": 2, "score": "Novelty", "weight": 0.0},
+            ],
         )
     if task_name == "similarity_qed_pubchem":
         if target_smiles is None:
             raise ValueError("similarity_qed_pubchem requires target_smiles")
         return CompositeOracle(
-            oracles=[SimilarityOracle(target_smiles=target_smiles), ExplainableQedOracle()],
-            weights=SIM_WEIGHTS,
-            names=["Similarity", "QED"],
+            oracles=[
+                SimilarityOracle(target_smiles=target_smiles),
+                ExplainableQedOracle(),
+            ],
+            components=[
+                {"oracle": 0, "score": "Similarity", "weight": SIM_WEIGHTS[0]},
+                {"oracle": 1, "score": "QED", "weight": SIM_WEIGHTS[1]},
+            ],
         )
     if task_name == "similarity_qed_quercetin":
         return CompositeOracle(
-            oracles=[SimilarityOracle(target_smiles=QUERCETIN_SMILES), ExplainableQedOracle()],
-            weights=SIM_WEIGHTS,
-            names=["Similarity", "QED"],
+            oracles=[
+                SimilarityOracle(target_smiles=QUERCETIN_SMILES),
+                ExplainableQedOracle(),
+            ],
+            components=[
+                {"oracle": 0, "score": "Similarity", "weight": SIM_WEIGHTS[0]},
+                {"oracle": 1, "score": "QED", "weight": SIM_WEIGHTS[1]},
+            ],
         )
     return TdcOracle(oracle_name=task_name)
 
@@ -376,10 +400,16 @@ def _load_sampled_molecules() -> list[str]:
     path = PROJECT_ROOT / "data/molecules/sampled_molecules.txt"
     if not path.exists():
         raise FileNotFoundError(f"Sampled molecules file not found: {path}")
-    return [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        line.strip()
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
-def _validate_messages(system_prompt: str, user_prompt: str, mode: Mode, n_molecules: int) -> None:
+def _validate_messages(
+    system_prompt: str, user_prompt: str, mode: Mode, n_molecules: int
+) -> None:
     """Check message composition before the first LLM call."""
     if not system_prompt.strip():
         raise ValueError("System prompt is empty")
@@ -391,7 +421,9 @@ def _validate_messages(system_prompt: str, user_prompt: str, mode: Mode, n_molec
         if "json array" not in user_prompt.lower():
             raise ValueError("Batch user prompt does not mention a JSON array")
         if str(n_molecules) not in user_prompt:
-            raise ValueError(f"Batch user prompt does not mention molecule count ({n_molecules})")
+            raise ValueError(
+                f"Batch user prompt does not mention molecule count ({n_molecules})"
+            )
     elif mode == "independent":
         if "json object" not in user_prompt.lower():
             raise ValueError("Independent user prompt does not mention a JSON object")
@@ -412,7 +444,9 @@ def run_task_independent(
 
     for i in range(1, n_molecules + 1):
         try:
-            response = llm.invoke([SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=prompt)])
+            response = llm.invoke(
+                [SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=prompt)]
+            )
             response_text = _to_text(response.content)
             payload = _extract_json_payload(response_text)
             smiles, reason = _safe_smiles_reason(payload)
@@ -428,22 +462,43 @@ def run_task_independent(
                 "parse_status": "success",
             }
             trace.append(entry)
-            conversation.append({"role": "AIMessage", "content": json.dumps({"reason": reason, "smiles": smiles})})
-            print(f"[{task_name}] iteration {i}/{n_molecules} parsed successfully (no oracle eval)")
+            conversation.append(
+                {
+                    "role": "AIMessage",
+                    "content": json.dumps({"reason": reason, "smiles": smiles}),
+                }
+            )
+            print(
+                f"[{task_name}] iteration {i}/{n_molecules} parsed successfully (no oracle eval)"
+            )
             continue
 
         try:
             result = oracle(smiles)
-            score = float(result["score"])
+            if "Combined" in result:
+                score = float(result["Combined"]["value"])
+            else:
+                score = float(next(iter(result.values()))["value"])
         except Exception as e:
             print(f"[{task_name}] iteration {i}: oracle failed for {smiles}: {e}")
             continue
 
-        entry: dict[str, Any] = {"iteration": i, "smiles": smiles, "reason": reason, "score": score}
-        if "scores" in result:
-            entry["scores"] = {k: float(v) for k, v in result["scores"].items()}
+        entry: dict[str, Any] = {
+            "iteration": i,
+            "smiles": smiles,
+            "reason": reason,
+            "score": score,
+        }
+        entry["scores"] = {
+            k: float(v["value"]) for k, v in result.items() if k != "Combined"
+        }
         trace.append(entry)
-        conversation.append({"role": "AIMessage", "content": json.dumps({"reason": reason, "smiles": smiles})})
+        conversation.append(
+            {
+                "role": "AIMessage",
+                "content": json.dumps({"reason": reason, "smiles": smiles}),
+            }
+        )
         print(f"[{task_name}] iteration {i}/{n_molecules} score={score:.4f}")
 
     return trace, conversation
@@ -464,7 +519,9 @@ def run_task_batch(
 
     response_text = ""
     try:
-        response = llm.invoke([SystemMessage(content=BATCH_SYSTEM_PROMPT), HumanMessage(content=prompt)])
+        response = llm.invoke(
+            [SystemMessage(content=BATCH_SYSTEM_PROMPT), HumanMessage(content=prompt)]
+        )
         response_text = _to_text(response.content)
     except Exception as e:
         print(f"[{task_name}] batch LLM call failed: {type(e).__name__}: {e}")
@@ -514,19 +571,30 @@ def run_task_batch(
                     "parse_status": "success",
                 }
             )
-            print(f"[{task_name}] batch item {i}/{n_molecules} parsed successfully (no oracle eval)")
+            print(
+                f"[{task_name}] batch item {i}/{n_molecules} parsed successfully (no oracle eval)"
+            )
             continue
 
         try:
             result = oracle(smiles)
-            score = float(result["score"])
+            if "Combined" in result:
+                score = float(result["Combined"]["value"])
+            else:
+                score = float(next(iter(result.values()))["value"])
         except Exception as e:
             print(f"[{task_name}] batch item {i}: oracle failed for {smiles}: {e}")
             continue
 
-        entry: dict[str, Any] = {"iteration": i, "smiles": smiles, "reason": reason, "score": score}
-        if "scores" in result:
-            entry["scores"] = {k: float(v) for k, v in result["scores"].items()}
+        entry: dict[str, Any] = {
+            "iteration": i,
+            "smiles": smiles,
+            "reason": reason,
+            "score": score,
+        }
+        entry["scores"] = {
+            k: float(v["value"]) for k, v in result.items() if k != "Combined"
+        }
         trace.append(entry)
         print(f"[{task_name}] batch item {i}/{n_molecules} score={score:.4f}")
 
@@ -546,7 +614,7 @@ def save_trace(
     extra_config: dict[str, Any] | None = None,
     target_idx: int | None = None,
 ) -> Path:
-    
+
     if task_name in TDC_ORACLE_DESCRIPTIONS.keys():
         task_dir = output_dir / "tdc_tasks" / task_name
     else:
@@ -554,7 +622,11 @@ def save_trace(
     task_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    suffix = f"_target{target_idx}" if task_name == "similarity_qed_pubchem" and target_idx is not None else ""
+    suffix = (
+        f"_target{target_idx}"
+        if task_name == "similarity_qed_pubchem" and target_idx is not None
+        else ""
+    )
     out_path = task_dir / f"zero_shot_{mode}{suffix}_{prompt_style}_{timestamp}.json"
 
     config: dict[str, Any] = {
@@ -580,12 +652,22 @@ def save_trace(
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Zero-shot generation baseline for PMO/TDC/Boltz2 tasks")
-    parser.add_argument("--output-dir", default="data/results/zero_shot", help="Output directory")
-    parser.add_argument("--n-molecules", type=int, default=50, help="Molecules to generate per task")
+    parser = argparse.ArgumentParser(
+        description="Zero-shot generation baseline for PMO/TDC/Boltz2 tasks"
+    )
+    parser.add_argument(
+        "--output-dir", default="data/results/zero_shot", help="Output directory"
+    )
+    parser.add_argument(
+        "--n-molecules", type=int, default=50, help="Molecules to generate per task"
+    )
     parser.add_argument("--model", default="claude-opus-4.5", help="Model name")
-    parser.add_argument("--temperature", type=float, default=1.0, help="Sampling temperature")
-    parser.add_argument("--tasks", nargs="*", default=None, help="Optional subset of tasks")
+    parser.add_argument(
+        "--temperature", type=float, default=1.0, help="Sampling temperature"
+    )
+    parser.add_argument(
+        "--tasks", nargs="*", default=None, help="Optional subset of tasks"
+    )
     parser.add_argument(
         "--mode",
         choices=["independent", "batch"],
@@ -628,7 +710,9 @@ def main() -> None:
         if task_name == "similarity_qed_pubchem":
             sampled = _load_sampled_molecules()
             print(f"  Running over {len(sampled)} sampled targets.")
-            targets: list[tuple[str | None, int | None]] = [(s, i) for i, s in enumerate(sampled, start=1)]
+            targets: list[tuple[str | None, int | None]] = [
+                (s, i) for i, s in enumerate(sampled, start=1)
+            ]
         elif task_name == "similarity_qed_quercetin":
             targets = [(QUERCETIN_SMILES, 1)]
         else:
@@ -638,28 +722,41 @@ def main() -> None:
             oracle = build_task_oracle(task_name, target_smiles=target_smiles)
 
             user_prompt = build_user_prompt(
-                task_name, args.n_molecules, mode,
-                prompt_style=prompt_style, target_smiles=target_smiles,
+                task_name,
+                args.n_molecules,
+                mode,
+                prompt_style=prompt_style,
+                target_smiles=target_smiles,
             )
-            system_prompt = SYSTEM_PROMPT if mode == "independent" else BATCH_SYSTEM_PROMPT
+            system_prompt = (
+                SYSTEM_PROMPT if mode == "independent" else BATCH_SYSTEM_PROMPT
+            )
             _validate_messages(system_prompt, user_prompt, mode, args.n_molecules)
 
             if mode == "independent":
                 trace, conversation = run_task_independent(
-                    llm, task_name=task_name, n_molecules=args.n_molecules,
-                    oracle=oracle, prompt=user_prompt,
+                    llm,
+                    task_name=task_name,
+                    n_molecules=args.n_molecules,
+                    oracle=oracle,
+                    prompt=user_prompt,
                 )
             else:
                 trace, conversation = run_task_batch(
-                    llm, task_name=task_name, n_molecules=args.n_molecules,
-                    oracle=oracle, prompt=user_prompt,
+                    llm,
+                    task_name=task_name,
+                    n_molecules=args.n_molecules,
+                    oracle=oracle,
+                    prompt=user_prompt,
                 )
 
             extra: dict[str, Any] = {"prompt_style": prompt_style}
             if task_name in BOLTZ2_TASKS:
                 extra["oracle_evaluated"] = False
                 extra["target_name"] = BOLTZ2_TARGETS[task_name]["name"]
-                extra["target_binding_probability"] = BOLTZ2_TARGETS[task_name]["target_binding_probability"]
+                extra["target_binding_probability"] = BOLTZ2_TARGETS[task_name][
+                    "target_binding_probability"
+                ]
             if target_smiles is not None:
                 extra["target_smiles"] = target_smiles
                 extra["target_idx"] = target_idx
@@ -678,7 +775,9 @@ def main() -> None:
                 target_idx=target_idx,
             )
             if task_name in BOLTZ2_TASKS:
-                print(f"Saved {len(trace)} generated molecules (no oracle evaluation) to {out_path}")
+                print(
+                    f"Saved {len(trace)} generated molecules (no oracle evaluation) to {out_path}"
+                )
             else:
                 print(f"Saved {len(trace)} evaluated molecules to {out_path}")
 
