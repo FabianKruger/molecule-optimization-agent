@@ -13,7 +13,6 @@ from seismo.objectives.ic50mpro import IC50MproObjective
 from seismo.objectives.ic50mpro_novel import IC50MproNovelObjective
 from seismo.objectives.ic50mpro_qed_novel import IC50MproQedNovelObjective
 from seismo.objectives.novel import NovelObjective
-from seismo.objectives.opioid_ki import OpioidKiObjective
 from seismo.objectives.qed import QedObjective
 from seismo.objectives.similarity import SimilarityObjective
 from seismo.objectives.similarity_qed import SimilarityQedObjective
@@ -21,7 +20,6 @@ from seismo.oracles.boltz2 import Boltz2Oracle
 from seismo.oracles.composite import CompositeOracle
 from seismo.oracles.ic50mpro import IC50MproOracle
 from seismo.oracles.novel import NovelOracle
-from seismo.oracles.opioid_ki import MolEncoderOpioidKiOracle
 from seismo.oracles.qed import ExplainableQedOracle
 from seismo.oracles.similarity import SimilarityOracle
 
@@ -30,7 +28,6 @@ DEFAULT_PROTEIN_SEQUENCE = "GSGFRKMAFPSGKVEGCMVQVTCGTTTLNGLWLDDVVYCPRHVICTSEDMLN
 ASPIRIN_SMILES = "CC(=O)Oc1ccccc1C(=O)O"
 QUERCETIN_SMILES = "O=C1c3c(O/C(=C1/O)c2ccc(O)c(O)c2)cc(O)cc3O"
 IC50_MODEL = "data/xgboost/xgb_maccs_best"
-OPIOID_MODEL = "fabikru/molencoder-D3R-simple"
 
 _AA_ALPHABET = set("ACDEFGHIKLMNPQRSTVWY")
 
@@ -315,21 +312,6 @@ def _build_novel(
     return objective, _experiment_config("novel", max_iterations)
 
 
-def _build_opioid_ki(
-    params: dict[str, Any], job_dir: Path
-) -> tuple[Objective, ExperimentConfig]:
-    del job_dir
-    target = _require_number(params, "target_ki_nM", default=10)
-    max_iterations = _require_int(
-        params, "max_iterations", default=20, minimum=1, maximum=30
-    )
-    oracle = MolEncoderOpioidKiOracle(model_name=OPIOID_MODEL)
-    objective = OpioidKiObjective(
-        oracle, target_ki_nM=target, max_iterations=max_iterations
-    )
-    return objective, _experiment_config("opioid_ki", max_iterations)
-
-
 def _build_ic50mpro(
     params: dict[str, Any], job_dir: Path
 ) -> tuple[Objective, ExperimentConfig]:
@@ -535,24 +517,6 @@ PRESETS: tuple[Preset, ...] = (
         score_label="Novelty",
         fields=(_max_iterations_field(default=20, maximum=30),),
         builder=_build_novel,
-    ),
-    Preset(
-        id="opioid_ki",
-        title="Opioid Ki",
-        description="Minimize predicted opioid receptor Ki.",
-        higher_is_better=False,
-        score_label="Ki (nM)",
-        fields=(
-            PresetField(
-                name="target_ki_nM",
-                label="Target Ki in nM",
-                type="number",
-                default=10,
-                required=True,
-            ),
-            _max_iterations_field(default=20, maximum=30),
-        ),
-        builder=_build_opioid_ki,
     ),
     Preset(
         id="ic50mpro",

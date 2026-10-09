@@ -34,3 +34,28 @@ def test_health_returns_ok() -> None:
     response = client.get("/api/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+def test_frontend_dist_is_served_when_present() -> None:
+    from pathlib import Path
+
+    from seismo.api import app as app_module
+
+    dist = Path(app_module.__file__).resolve().parents[3] / "frontend" / "dist"
+    index = dist / "index.html"
+    if not index.is_file():
+        pytest.skip("frontend/dist not built")
+
+    client = TestClient(create_app())
+    root = client.get("/")
+    assert root.status_code == 200
+    assert "text/html" in root.headers["content-type"]
+    assert "seismo" in root.text.lower() or "root" in root.text
+
+    spa = client.get("/jobs/example")
+    assert spa.status_code == 200
+    assert "text/html" in spa.headers["content-type"]
+
+    health = client.get("/api/health")
+    assert health.status_code == 200
+    assert health.json() == {"status": "ok"}

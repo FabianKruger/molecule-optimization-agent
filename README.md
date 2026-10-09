@@ -100,6 +100,19 @@ Start the FastAPI process that serves the health check, preset catalog, job API,
 pixi run seismo-api
 ```
 
+For local UI development, run the Vite app in a second terminal (Node/npm come from the `frontend` pixi environment; the task `cd`s into `frontend/` and installs npm deps as needed). It proxies `/api` to `http://127.0.0.1:8000`:
+
+```bash
+pixi run frontend
+```
+
+Build the production bundle (served by `seismo-api` at `/`):
+
+```bash
+pixi run frontend-build
+pixi run seismo-api
+```
+
 The API listens on `http://127.0.0.1:8000`. Pass `--port` (or `-p`) to use another port. Requires `OPENAI_API_KEY` (and honors `OPENAI_BASE_URL` / `SEISMO_MODEL`) to start jobs. Job records live under `data/web_jobs/`; the CLI (`pixi run seismo --config ...`) still writes under `data/runs`.
 
 Useful endpoints:

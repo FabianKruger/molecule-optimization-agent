@@ -82,7 +82,6 @@ def test_presets_list_boltz2_first() -> None:
         "similarity",
         "similarity_qed",
         "novel",
-        "opioid_ki",
         "ic50mpro",
         "ic50mpro_novel",
         "ic50mpro_qed_novel",
