@@ -65,6 +65,8 @@ export type JobDetail = JobSummary & {
   summary: string | null
   best: JobBest | null
   iterations: JobIteration[]
+  /** Snapshot of objective.first_message() at job start; null on older jobs. */
+  first_message: string | null
 }
 
 export type CreateJobResponse = {

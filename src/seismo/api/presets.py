@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Literal
@@ -622,6 +623,19 @@ def build_preset_job(
 
     objective, cfg = preset.builder(normalized, job_dir)
     return preset, objective, cfg, normalized
+
+
+def preview_first_message(preset_id: str, params: dict[str, Any]) -> str:
+    """Render ``objective.first_message()`` for the given preset and params.
+
+    Uses a temporary job directory so builders that write under ``job_dir``
+    (e.g. Boltz-2) do not touch the real jobs root.
+    """
+    with tempfile.TemporaryDirectory(prefix="seismo-preview-") as tmp:
+        _preset, objective, _cfg, _normalized = build_preset_job(
+            preset_id, params, Path(tmp)
+        )
+        return objective.first_message()
 
 
 def score_label_for_job(preset: Preset, params: dict[str, Any]) -> str:

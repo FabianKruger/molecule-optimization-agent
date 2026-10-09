@@ -6,8 +6,9 @@ import {
   type FormEvent,
 } from 'react'
 import { Link } from 'react-router-dom'
-import { ApiError, createJob } from '../api'
+import { ApiError, createJob, previewFirstMessage } from '../api'
 import type { Preset } from '../types'
+import { FirstMessageDisclosure } from './FirstMessageDisclosure'
 
 type Props = {
   presets: Preset[]
@@ -55,6 +56,10 @@ export function PresetForm({ presets, onCreated }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [runningJobId, setRunningJobId] = useState<string | undefined>()
   const [submitting, setSubmitting] = useState(false)
+  const [instructionsOpen, setInstructionsOpen] = useState(false)
+  const [firstMessage, setFirstMessage] = useState<string | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewError, setPreviewError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!preset) {
@@ -63,7 +68,47 @@ export function PresetForm({ presets, onCreated }: Props) {
     setValues(defaultsFor(preset))
     setError(null)
     setRunningJobId(undefined)
+    setFirstMessage(null)
+    setPreviewError(null)
   }, [preset])
+
+  const coercedParams = useMemo(
+    () => (preset ? coerceParams(preset, values) : {}),
+    [preset, values],
+  )
+
+  useEffect(() => {
+    if (!preset || !instructionsOpen) {
+      return
+    }
+
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      setPreviewLoading(true)
+      setPreviewError(null)
+      void previewFirstMessage(preset.id, coercedParams)
+        .then((message) => {
+          if (!cancelled) {
+            setFirstMessage(message)
+            setPreviewLoading(false)
+          }
+        })
+        .catch((err: unknown) => {
+          if (!cancelled) {
+            setFirstMessage(null)
+            setPreviewLoading(false)
+            setPreviewError(
+              err instanceof Error ? err.message : 'Failed to load instructions',
+            )
+          }
+        })
+    }, 250)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [preset, coercedParams, instructionsOpen])
 
   if (!preset) {
     return <p className="muted">No presets available.</p>
@@ -160,6 +205,19 @@ export function PresetForm({ presets, onCreated }: Props) {
           </label>
         )
       })}
+
+      <FirstMessageDisclosure
+        message={firstMessage}
+        loading={previewLoading}
+        error={previewError}
+        onToggle={(open) => {
+          setInstructionsOpen(open)
+          if (open) {
+            setPreviewLoading(true)
+            setPreviewError(null)
+          }
+        }}
+      />
 
       {error ? (
         <p className="error" role="alert">

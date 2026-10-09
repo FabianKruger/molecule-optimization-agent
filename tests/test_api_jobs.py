@@ -117,6 +117,51 @@ def test_composite_preset_builders_use_components_api(tmp_path: Path) -> None:
         assert normalized["max_iterations"] == 2
 
 
+def test_preview_first_message_for_qed(jobs_root: Path) -> None:
+    app = create_app(
+        jobs_root=jobs_root,
+        stream_fn=_fake_stream_factory(threading.Event()),
+    )
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/presets/qed/first-message",
+            json={"params": {"target_qed": 0.85, "max_iterations": 5}},
+        )
+    assert response.status_code == 200
+    message = response.json()["first_message"]
+    assert "QED" in message
+    assert "0.85" in message
+
+
+def test_preview_first_message_rejects_bad_params(jobs_root: Path) -> None:
+    app = create_app(
+        jobs_root=jobs_root,
+        stream_fn=_fake_stream_factory(threading.Event()),
+    )
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/presets/similarity/first-message",
+            json={
+                "params": {"target_smiles": "not-a-smiles", "max_iterations": 5},
+            },
+        )
+    assert response.status_code == 400
+    assert "Invalid target SMILES" in response.json()["detail"]
+
+
+def test_preview_first_message_unknown_preset(jobs_root: Path) -> None:
+    app = create_app(
+        jobs_root=jobs_root,
+        stream_fn=_fake_stream_factory(threading.Event()),
+    )
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/presets/nope/first-message",
+            json={"params": {}},
+        )
+    assert response.status_code == 404
+
+
 def test_job_lifecycle_with_fake_stream(jobs_root: Path, api_key: None) -> None:
     del api_key
     gate = threading.Event()
@@ -127,10 +172,18 @@ def test_job_lifecycle_with_fake_stream(jobs_root: Path, api_key: None) -> None:
 
         created = client.post(
             "/api/jobs",
-            json={"preset_id": "qed", "params": {"max_iterations": 3}},
+            json={
+                "preset_id": "qed",
+                "params": {"target_qed": 0.91, "max_iterations": 3},
+            },
         )
         assert created.status_code == 201
         job_id = created.json()["id"]
+
+        early = client.get(f"/api/jobs/{job_id}").json()
+        assert early["first_message"] is not None
+        assert "0.91" in early["first_message"]
+        assert "QED" in early["first_message"]
 
         # Second start while running -> 409
         conflict = client.post(
@@ -155,6 +208,7 @@ def test_job_lifecycle_with_fake_stream(jobs_root: Path, api_key: None) -> None:
         assert detail["status"] in {"running", "succeeded"}
         assert detail["iterations"][0]["smiles"] == ASPIRIN
         assert detail["best"]["score"] == 0.42
+        assert detail["first_message"] == early["first_message"]
 
         # Wait for success.
         for _ in range(50):
@@ -336,4 +390,5 @@ def test_interrupted_running_job_on_startup(jobs_root: Path, api_key: None) -> N
     assert detail["status"] == "failed"
     assert detail["error"] == "interrupted by server restart"
     assert detail["iterations_completed"] == 1
+    assert detail["first_message"] is None
     assert os.environ.get("OPENAI_API_KEY") == "test-key"

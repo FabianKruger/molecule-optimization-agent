@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { cancelJob, fetchJob } from '../api'
+import { FirstMessageDisclosure } from '../components/FirstMessageDisclosure'
 import { MoleculePanel } from '../components/MoleculePanel'
 import { ScoreChart } from '../components/ScoreChart'
 import { formatScore, shortenSmiles } from '../format'
@@ -157,6 +158,10 @@ export function JobPage() {
           </p>
         ) : null}
       </header>
+
+      <section className="panel">
+        <FirstMessageDisclosure message={job.first_message} />
+      </section>
 
       <MoleculePanel
         jobId={job.id}

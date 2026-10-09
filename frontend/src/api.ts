@@ -103,6 +103,20 @@ export async function cancelJob(id: string): Promise<CreateJobResponse> {
   })
 }
 
+export async function previewFirstMessage(
+  presetId: string,
+  params: Record<string, string | number>,
+): Promise<string> {
+  const data = await request<{ first_message: string }>(
+    `/api/presets/${encodeURIComponent(presetId)}/first-message`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ params }),
+    },
+  )
+  return data.first_message
+}
+
 export function structureUrl(jobId: string, iteration: number): string {
   return `/api/jobs/${jobId}/iterations/${iteration}/structure`
 }

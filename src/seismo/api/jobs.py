@@ -20,6 +20,7 @@ from seismo.api.presets import (
     build_preset_job,
     get_preset,
     list_presets,
+    preview_first_message,
     score_label_for_job,
 )
 from seismo.config import ExperimentConfig
@@ -151,6 +152,7 @@ def _detail_view(job: dict[str, Any]) -> dict[str, Any]:
             "summary": job.get("summary"),
             "best": job.get("best"),
             "iterations": job.get("iterations", []),
+            "first_message": job.get("first_message"),
         }
     )
     return detail
@@ -258,6 +260,7 @@ class JobManager:
                 "params": normalized,
                 "higher_is_better": preset.higher_is_better,
                 "score_label": score_label_for_job(preset, normalized),
+                "first_message": objective.first_message(),
                 "summary": None,
                 "best": None,
                 "iterations": [],
@@ -391,6 +394,10 @@ class CreateJobBody(BaseModel):
     params: dict[str, Any] = Field(default_factory=dict)
 
 
+class PreviewFirstMessageBody(BaseModel):
+    params: dict[str, Any] = Field(default_factory=dict)
+
+
 def _job_manager(request: Request) -> JobManager:
     manager = request.app.state.job_manager
     assert isinstance(manager, JobManager)
@@ -403,6 +410,22 @@ def create_jobs_router() -> APIRouter:
     @router.get("/api/presets")
     def get_presets() -> dict[str, Any]:
         return {"presets": list_presets()}
+
+    @router.post("/api/presets/{preset_id}/first-message")
+    def preview_preset_first_message(
+        preset_id: str, body: PreviewFirstMessageBody
+    ) -> dict[str, str]:
+        if get_preset(preset_id) is None:
+            raise HTTPException(status_code=404, detail=f"Unknown preset: {preset_id}")
+        try:
+            message = preview_first_message(preset_id, body.params)
+        except KeyError as exc:
+            raise HTTPException(
+                status_code=404, detail=f"Unknown preset: {preset_id}"
+            ) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"first_message": message}
 
     @router.post("/api/jobs")
     def create_job(body: CreateJobBody, request: Request) -> JSONResponse:
