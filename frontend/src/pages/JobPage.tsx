@@ -17,6 +17,10 @@ function findIteration(
   return iterations.find((step) => step.iteration === iteration) ?? null
 }
 
+function isActiveStatus(status: JobDetail['status']): boolean {
+  return status === 'queued' || status === 'running'
+}
+
 export function JobPage() {
   const { id = '' } = useParams()
   const [job, setJob] = useState<JobDetail | null>(null)
@@ -55,7 +59,7 @@ export function JobPage() {
         }
         setJob(detail)
         setError(null)
-        if (detail.status !== 'running') {
+        if (!isActiveStatus(detail.status)) {
           setCancelling(false)
         }
         setSelectedIteration((current) => {
@@ -70,7 +74,7 @@ export function JobPage() {
           return detail.best?.iteration ?? null
         })
 
-        if (detail.status === 'running') {
+        if (isActiveStatus(detail.status)) {
           timer = window.setTimeout(() => {
             void load()
           }, 2000)
@@ -123,9 +127,15 @@ export function JobPage() {
   }
 
   const statusLine =
-    job.status === 'running'
-      ? `${job.phase ?? 'running'} · ${job.iterations_completed}/${job.max_iterations}`
-      : job.status
+    job.status === 'queued'
+      ? job.queue_position != null
+        ? `waiting · #${job.queue_position}`
+        : 'waiting'
+      : job.status === 'running'
+        ? `${job.phase ?? 'running'} · ${job.iterations_completed}/${job.max_iterations}`
+        : job.status
+
+  const showTrajectory = job.status !== 'queued'
 
   return (
     <div className="page">
@@ -137,10 +147,23 @@ export function JobPage() {
         <p>
           <span className={`status status-${job.status}`}>{statusLine}</span>
         </p>
-        {job.status === 'running' ? (
+        {job.status === 'queued' ? (
+          <p className="muted">
+            This job is waiting for the current run to finish
+            {job.queue_position != null
+              ? ` (position ${job.queue_position} in the queue)`
+              : ''}
+            .
+          </p>
+        ) : null}
+        {isActiveStatus(job.status) ? (
           <p>
             <button type="button" onClick={() => void onCancel()} disabled={cancelling}>
-              {cancelling ? 'Cancelling…' : 'Cancel run'}
+              {cancelling
+                ? 'Cancelling…'
+                : job.status === 'queued'
+                  ? 'Cancel queued job'
+                  : 'Cancel run'}
             </button>
           </p>
         ) : null}
@@ -163,79 +186,81 @@ export function JobPage() {
         <FirstMessageDisclosure message={job.first_message} />
       </section>
 
-      <MoleculePanel
-        jobId={job.id}
-        iteration={bestStep}
-        title="Best so far"
-        emptyMessage="No molecule has been scored yet."
-      />
+      {showTrajectory ? (
+        <>
+          <MoleculePanel
+            jobId={job.id}
+            iteration={bestStep}
+            title="Best so far"
+            emptyMessage="No molecule has been scored yet."
+          />
 
-      <section className="panel">
-        <h2>Trajectory</h2>
-        <ScoreChart
-          iterations={job.iterations}
-          higherIsBetter={job.higher_is_better}
-          scoreLabel={job.score_label}
-          selectedIteration={selectedIteration}
-          onSelect={setSelectedIteration}
-        />
-      </section>
+          <section className="panel">
+            <h2>Trajectory</h2>
+            <ScoreChart
+              iterations={job.iterations}
+              higherIsBetter={job.higher_is_better}
+              scoreLabel={job.score_label}
+              selectedIteration={selectedIteration}
+              onSelect={setSelectedIteration}
+            />
+          </section>
 
-      <MoleculePanel
-        jobId={job.id}
-        iteration={selected}
-        title="Selected step"
-        emptyMessage="Select a scored step from the curve or table."
-        showReason
-        showScores
-        showExplanation
-      />
+          <MoleculePanel
+            jobId={job.id}
+            iteration={selected}
+            title="Selected step"
+            emptyMessage="Select a scored step from the curve or table."
+            showReason
+            showScores
+            showExplanation
+          />
 
-      <section className="panel">
-        <h2>Steps</h2>
-        {job.iterations.length === 0 ? (
-          <p className="muted">No steps yet.</p>
-        ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Iter</th>
-                  <th>SMILES</th>
-                  <th>{job.score_label}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {job.iterations.map((step) => {
-                  const isBest = job.best?.iteration === step.iteration
-                  const isSelected = selectedIteration === step.iteration
-                  return (
-                    <tr
-                      key={step.iteration}
-                      className={[
-                        isBest ? 'best-row' : '',
-                        isSelected ? 'selected-row' : '',
-                      ]
-                        .filter(Boolean)
-                        .join(' ')}
-                      onClick={() => setSelectedIteration(step.iteration)}
-                    >
-                      <td>
-                        {step.iteration}
-                        {isBest ? ' ★' : ''}
-                      </td>
-                      <td title={step.error ?? step.smiles}>
-                        {step.smiles ? shortenSmiles(step.smiles) : '—'}
-                      </td>
-                      <td>{formatScore(step.score)}</td>
+          <section className="panel">
+            <h2>Steps</h2>
+            {job.iterations.length === 0 ? (
+              <p className="muted">No scored steps yet.</p>
+            ) : (
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Iter</th>
+                      <th>SMILES</th>
+                      <th>{job.score_label}</th>
                     </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+                  </thead>
+                  <tbody>
+                    {job.iterations.map((step) => {
+                      const isBest = job.best?.iteration === step.iteration
+                      const isSelected = selectedIteration === step.iteration
+                      return (
+                        <tr
+                          key={step.iteration}
+                          className={[
+                            isBest ? 'best-row' : '',
+                            isSelected ? 'selected-row' : '',
+                          ]
+                            .filter(Boolean)
+                            .join(' ')}
+                          onClick={() => setSelectedIteration(step.iteration)}
+                        >
+                          <td>
+                            {step.iteration}
+                            {isBest ? ' ★' : ''}
+                          </td>
+                          <td title={step.smiles}>{shortenSmiles(step.smiles)}</td>
+                          <td>{formatScore(step.score)}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </>
+      ) : null}
 
       {job.status === 'succeeded' && job.summary ? (
         <section className="panel">

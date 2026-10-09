@@ -17,7 +17,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from seismo.api.app import create_app
-from seismo.api.jobs import StreamEvent
+from seismo.api.jobs import MAX_QUEUED_JOBS, StreamEvent
 from seismo.api.presets import ASPIRIN_SMILES, list_presets
 from seismo.config import ExperimentConfig
 from seismo.objectives.base import Objective
@@ -185,15 +185,18 @@ def test_job_lifecycle_with_fake_stream(jobs_root: Path, api_key: None) -> None:
         assert "0.91" in early["first_message"]
         assert "QED" in early["first_message"]
 
-        # Second start while running -> 409
-        conflict = client.post(
+        # Second start while running -> queued (not 409).
+        queued = client.post(
             "/api/jobs",
             json={"preset_id": "qed", "params": {"max_iterations": 3}},
         )
-        assert conflict.status_code == 409
-        body = conflict.json()
-        assert body["detail"] == "A job is already running"
-        assert body["running_job_id"] == job_id
+        assert queued.status_code == 201
+        queued_id = queued.json()["id"]
+        waiting = client.get(f"/api/jobs/{queued_id}").json()
+        assert waiting["status"] == "queued"
+        assert waiting["queue_position"] == 1
+        assert waiting["phase"] is None
+        assert waiting["iterations"] == []
 
         # Let the fake stream publish a scored step, then observe it mid-run.
         gate.set()
@@ -210,7 +213,7 @@ def test_job_lifecycle_with_fake_stream(jobs_root: Path, api_key: None) -> None:
         assert detail["best"]["score"] == 0.42
         assert detail["first_message"] == early["first_message"]
 
-        # Wait for success.
+        # Wait for first job success; second should start without another POST.
         for _ in range(50):
             detail = client.get(f"/api/jobs/{job_id}").json()
             if detail["status"] != "running":
@@ -220,9 +223,20 @@ def test_job_lifecycle_with_fake_stream(jobs_root: Path, api_key: None) -> None:
         assert detail["phase"] is None
         assert detail["summary"] == "Optimization finished."
 
+        second = None
+        for _ in range(50):
+            second = client.get(f"/api/jobs/{queued_id}").json()
+            if second["status"] != "queued":
+                break
+            time.sleep(0.05)
+        assert second is not None
+        assert second["status"] in {"running", "succeeded"}
+        assert second["queue_position"] is None
+
         listed = client.get("/api/jobs").json()["jobs"]
-        assert listed[0]["id"] == job_id
-        assert listed[0]["best_score"] == 0.42
+        by_id = {item["id"]: item for item in listed}
+        assert by_id[job_id]["best_score"] == 0.42
+        assert by_id[queued_id]["status"] in {"running", "succeeded"}
 
 
 def _unscored_steps_stream(
@@ -299,6 +313,76 @@ def test_unscored_steps_stay_in_trajectory(jobs_root: Path, api_key: None) -> No
     assert nan_scored["scores"] == {"Affinity": None, "QED": 0.5}
     assert valid["iteration"] == 3
     assert detail["best"] == {"iteration": 3, "smiles": "CCO", "score": 0.3}
+
+
+def test_queue_rejects_sixth_waiting_job(jobs_root: Path, api_key: None) -> None:
+    del api_key
+    gate = threading.Event()
+    app = create_app(jobs_root=jobs_root, stream_fn=_fake_stream_factory(gate))
+
+    with TestClient(app) as client:
+        running = client.post(
+            "/api/jobs",
+            json={"preset_id": "qed", "params": {"max_iterations": 3}},
+        )
+        assert running.status_code == 201
+
+        queued_ids: list[str] = []
+        for _ in range(MAX_QUEUED_JOBS):
+            response = client.post(
+                "/api/jobs",
+                json={"preset_id": "qed", "params": {"max_iterations": 3}},
+            )
+            assert response.status_code == 201
+            queued_ids.append(response.json()["id"])
+
+        listed = client.get("/api/jobs").json()["jobs"]
+        positions = {
+            item["id"]: item["queue_position"]
+            for item in listed
+            if item["status"] == "queued"
+        }
+        assert positions == {
+            job_id: index for index, job_id in enumerate(queued_ids, start=1)
+        }
+
+        overflow = client.post(
+            "/api/jobs",
+            json={"preset_id": "qed", "params": {"max_iterations": 3}},
+        )
+        assert overflow.status_code == 409
+        body = overflow.json()
+        assert body["detail"] == f"Job queue is full ({MAX_QUEUED_JOBS} waiting)"
+        assert "running_job_id" not in body
+
+
+def test_cancel_queued_job(jobs_root: Path, api_key: None) -> None:
+    del api_key
+    gate = threading.Event()
+    app = create_app(jobs_root=jobs_root, stream_fn=_fake_stream_factory(gate))
+
+    with TestClient(app) as client:
+        running = client.post(
+            "/api/jobs",
+            json={"preset_id": "qed", "params": {"max_iterations": 3}},
+        )
+        assert running.status_code == 201
+
+        queued = client.post(
+            "/api/jobs",
+            json={"preset_id": "qed", "params": {"max_iterations": 3}},
+        )
+        assert queued.status_code == 201
+        queued_id = queued.json()["id"]
+
+        cancelled = client.post(f"/api/jobs/{queued_id}/cancel")
+        assert cancelled.status_code == 200
+        detail = client.get(f"/api/jobs/{queued_id}").json()
+        assert detail["status"] == "cancelled"
+        assert detail["queue_position"] is None
+
+        again = client.post(f"/api/jobs/{queued_id}/cancel")
+        assert again.status_code == 409
 
 
 def test_cancel_running_job_frees_slot(jobs_root: Path, api_key: None) -> None:
@@ -424,6 +508,7 @@ def test_structure_endpoint_returns_png(jobs_root: Path, api_key: None) -> None:
 def test_interrupted_running_job_on_startup(jobs_root: Path, api_key: None) -> None:
     del api_key
     job_id = "00000000-0000-0000-0000-000000000001"
+    queued_id = "00000000-0000-0000-0000-000000000002"
     job_dir = jobs_root / job_id
     job_dir.mkdir()
     (job_dir / "job.json").write_text(
@@ -457,14 +542,52 @@ def test_interrupted_running_job_on_startup(jobs_root: Path, api_key: None) -> N
 """.strip(),
         encoding="utf-8",
     )
+    queued_dir = jobs_root / queued_id
+    queued_dir.mkdir()
+    (queued_dir / "job.json").write_text(
+        """
+{
+  "id": "00000000-0000-0000-0000-000000000002",
+  "preset_id": "qed",
+  "preset_title": "QED",
+  "status": "queued",
+  "phase": null,
+  "created_at": "2026-01-01T00:00:01Z",
+  "updated_at": "2026-01-01T00:00:01Z",
+  "iterations_completed": 0,
+  "max_iterations": 3,
+  "error": null,
+  "params": {"max_iterations": 3},
+  "higher_is_better": true,
+  "score_label": "QED",
+  "first_message": "queued first message",
+  "summary": null,
+  "best": null,
+  "iterations": []
+}
+""".strip(),
+        encoding="utf-8",
+    )
+    gate = threading.Event()
     app = create_app(
         jobs_root=jobs_root,
-        stream_fn=_fake_stream_factory(threading.Event()),
+        stream_fn=_fake_stream_factory(gate),
     )
     with TestClient(app) as client:
         detail = client.get(f"/api/jobs/{job_id}").json()
-    assert detail["status"] == "failed"
-    assert detail["error"] == "interrupted by server restart"
-    assert detail["iterations_completed"] == 1
-    assert detail["first_message"] is None
-    assert os.environ.get("OPENAI_API_KEY") == "test-key"
+        assert detail["status"] == "failed"
+        assert detail["error"] == "interrupted by server restart"
+        assert detail["iterations_completed"] == 1
+        assert detail["first_message"] is None
+
+        started = None
+        for _ in range(50):
+            started = client.get(f"/api/jobs/{queued_id}").json()
+            if started["status"] == "running":
+                break
+            time.sleep(0.05)
+        assert started is not None
+        assert started["status"] == "running"
+        assert started["queue_position"] is None
+        assert os.environ.get("OPENAI_API_KEY") == "test-key"
+        gate.set()

@@ -5,7 +5,6 @@ import {
   type ChangeEvent,
   type FormEvent,
 } from 'react'
-import { Link } from 'react-router-dom'
 import { ApiError, createJob, previewFirstMessage } from '../api'
 import type { Preset } from '../types'
 import { FirstMessageDisclosure } from './FirstMessageDisclosure'
@@ -54,7 +53,6 @@ export function PresetForm({ presets, onCreated }: Props) {
     preset ? defaultsFor(preset) : {},
   )
   const [error, setError] = useState<string | null>(null)
-  const [runningJobId, setRunningJobId] = useState<string | undefined>()
   const [submitting, setSubmitting] = useState(false)
   const [instructionsOpen, setInstructionsOpen] = useState(false)
   const [firstMessage, setFirstMessage] = useState<string | null>(null)
@@ -67,7 +65,6 @@ export function PresetForm({ presets, onCreated }: Props) {
     }
     setValues(defaultsFor(preset))
     setError(null)
-    setRunningJobId(undefined)
     setFirstMessage(null)
     setPreviewError(null)
   }, [preset])
@@ -118,14 +115,12 @@ export function PresetForm({ presets, onCreated }: Props) {
     event.preventDefault()
     setSubmitting(true)
     setError(null)
-    setRunningJobId(undefined)
     try {
       const result = await createJob(preset.id, coerceParams(preset, values))
       onCreated(result.id)
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.detail)
-        setRunningJobId(err.runningJobId)
       } else {
         setError(err instanceof Error ? err.message : 'Failed to start job')
       }
@@ -154,8 +149,8 @@ export function PresetForm({ presets, onCreated }: Props) {
 
       {preset.id === 'boltz2' ? (
         <p className="note">
-          Each Boltz-2 iteration can take several minutes. This job occupies the
-          only available slot.
+          Each Boltz-2 iteration can take several minutes. Only one job runs at
+          a time; others wait in a short queue.
         </p>
       ) : null}
 
@@ -222,12 +217,6 @@ export function PresetForm({ presets, onCreated }: Props) {
       {error ? (
         <p className="error" role="alert">
           {error}
-          {runningJobId ? (
-            <>
-              {' '}
-              <Link to={`/jobs/${runningJobId}`}>Open running job</Link>
-            </>
-          ) : null}
         </p>
       ) : null}
 

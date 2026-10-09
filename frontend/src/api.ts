@@ -9,14 +9,12 @@ import type {
 export class ApiError extends Error {
   status: number
   detail: string
-  runningJobId?: string
 
-  constructor(status: number, detail: string, runningJobId?: string) {
+  constructor(status: number, detail: string) {
     super(detail)
     this.name = 'ApiError'
     this.status = status
     this.detail = detail
-    this.runningJobId = runningJobId
   }
 }
 
@@ -63,7 +61,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError(
       response.status,
       formatDetail(body.detail) || response.statusText || 'Request failed',
-      body.running_job_id,
     )
   }
 

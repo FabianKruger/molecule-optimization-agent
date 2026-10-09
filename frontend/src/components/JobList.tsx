@@ -6,6 +6,13 @@ type Props = {
   jobs: JobSummary[]
 }
 
+function statusLabel(job: JobSummary): string {
+  if (job.status === 'queued' && job.queue_position != null) {
+    return `queued · #${job.queue_position}`
+  }
+  return job.status
+}
+
 export function JobList({ jobs }: Props) {
   if (jobs.length === 0) {
     return <p className="muted">No jobs yet.</p>
@@ -30,7 +37,9 @@ export function JobList({ jobs }: Props) {
                 <Link to={`/jobs/${job.id}`}>{job.preset_title}</Link>
               </td>
               <td>
-                <span className={`status status-${job.status}`}>{job.status}</span>
+                <span className={`status status-${job.status}`}>
+                  {statusLabel(job)}
+                </span>
               </td>
               <td>{formatTimestamp(job.created_at)}</td>
               <td>

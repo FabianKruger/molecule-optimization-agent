@@ -125,9 +125,9 @@ Useful endpoints:
 
 - `GET /api/health`
 - `GET /api/presets`
-- `POST /api/jobs` with `{ "preset_id", "params" }`
-- `GET /api/jobs` and `GET /api/jobs/{id}`
-- `POST /api/jobs/{id}/cancel` (running jobs only)
+- `POST /api/jobs` with `{ "preset_id", "params" }` (queues when a job is already running; max 5 waiting)
+- `GET /api/jobs` and `GET /api/jobs/{id}` (includes `queue_position` for queued jobs)
+- `POST /api/jobs/{id}/cancel` (running or queued jobs)
 
 The Gradio UI (`pixi run seismo-ui`) is unchanged and still available on port 7860.
 

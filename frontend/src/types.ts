@@ -25,7 +25,12 @@ export type Preset = {
   fields: PresetField[]
 }
 
-export type JobStatus = 'running' | 'succeeded' | 'failed' | 'cancelled'
+export type JobStatus =
+  | 'queued'
+  | 'running'
+  | 'succeeded'
+  | 'failed'
+  | 'cancelled'
 export type JobPhase = 'generating' | 'scoring' | 'summarizing' | null
 
 export type JobSummary = {
@@ -39,6 +44,7 @@ export type JobSummary = {
   max_iterations: number
   best_score: number | null
   best_smiles: string | null
+  queue_position: number | null
 }
 
 export type JobBest = {
@@ -76,5 +82,4 @@ export type CreateJobResponse = {
 
 export type ApiErrorBody = {
   detail?: unknown
-  running_job_id?: string
 }
