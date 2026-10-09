@@ -115,6 +115,12 @@ pixi run seismo-api
 
 The API listens on `http://127.0.0.1:8000`. Pass `--port` (or `-p`) to use another port. Requires `OPENAI_API_KEY` (and honors `OPENAI_BASE_URL` / `SEISMO_MODEL`) to start jobs. Job records live under `data/web_jobs/`; the CLI (`pixi run seismo --config ...`) still writes under `data/runs`.
 
+To stop stray local API/Vite processes (matched by process name, not by port, so a vLLM serve on 8000 is left alone):
+
+```bash
+pixi run kill-web
+```
+
 Useful endpoints:
 
 - `GET /api/health`

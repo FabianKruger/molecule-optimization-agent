@@ -12,6 +12,12 @@ pixi run seismo-api
 pixi run frontend
 ```
 
+Stop both:
+
+```bash
+pixi run kill-web
+```
+
 Production build (served by `seismo-api` from `/`):
 
 ```bash
