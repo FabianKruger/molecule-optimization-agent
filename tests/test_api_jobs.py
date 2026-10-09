@@ -99,6 +99,24 @@ def test_presets_list_boltz2_first() -> None:
     ]
 
 
+def test_composite_preset_builders_use_components_api(tmp_path: Path) -> None:
+    """Presets must construct CompositeOracle with components (post-#23)."""
+    from seismo.api.presets import build_preset_job
+
+    for preset_id, params in (
+        ("similarity_qed", {"max_iterations": 2}),
+        ("ic50mpro_novel", {"max_iterations": 2}),
+        ("ic50mpro_qed_novel", {"max_iterations": 2}),
+    ):
+        preset, objective, cfg, normalized = build_preset_job(
+            preset_id, params, tmp_path / preset_id
+        )
+        assert preset.id == preset_id
+        assert objective is not None
+        assert cfg.experiment_name == preset_id
+        assert normalized["max_iterations"] == 2
+
+
 def test_job_lifecycle_with_fake_stream(jobs_root: Path, api_key: None) -> None:
     del api_key
     gate = threading.Event()

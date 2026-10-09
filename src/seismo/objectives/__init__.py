@@ -12,21 +12,6 @@ from .qed import QedObjective
 from .similarity import SimilarityObjective
 from .similarity_qed import SimilarityQedObjective
 
-try:
-    from .opioid_ki import OpioidKiObjective
-
-    _opioid_ki_available = True
-except Exception:
-    _opioid_ki_available = False
-
-try:
-    from .tdc_tasks import TdcObjective
-
-    _tdc_available = True
-except Exception:
-    _tdc_available = False
-
-
 OBJECTIVE_REGISTRY: Dict[str, Type[Objective]] = {
     "boltz2": Boltz2Objective,
     "ic50mpro": IC50MproObjective,
@@ -36,8 +21,6 @@ OBJECTIVE_REGISTRY: Dict[str, Type[Objective]] = {
     "qed": QedObjective,
     "similarity": SimilarityObjective,
     "similarity_qed": SimilarityQedObjective,
-    **({"opioid_ki": OpioidKiObjective} if _opioid_ki_available else {}),
-    **({"tdc_tasks": TdcObjective} if _tdc_available else {}),
 }
 
 

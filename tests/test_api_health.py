@@ -36,6 +36,22 @@ def test_health_returns_ok() -> None:
     assert response.json() == {"status": "ok"}
 
 
+def test_create_app_imports_and_lists_presets() -> None:
+    """Regression: deleted oracle modules must not break seismo-api import."""
+    from seismo.api.presets import list_presets
+
+    app = create_app()
+    client = TestClient(app)
+    response = client.get("/api/presets")
+    assert response.status_code == 200
+    body = response.json()
+    assert "presets" in body
+    ids = [preset["id"] for preset in body["presets"]]
+    assert "boltz2" in ids
+    assert "opioid_ki" not in ids
+    assert ids == [preset["id"] for preset in list_presets()]
+
+
 def test_frontend_dist_is_served_when_present() -> None:
     from pathlib import Path
 

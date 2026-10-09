@@ -26,20 +26,6 @@ try:
 except Exception:
     _novel_available = False
 
-try:
-    from .opioid_ki import MolEncoderOpioidKiOracle
-
-    _opioid_ki_available = True
-except Exception:
-    _opioid_ki_available = False
-
-try:
-    from .tdc_tasks import TdcOracle
-
-    _tdc_available = True
-except Exception:
-    _tdc_available = False
-
 from ..config import OracleConfig
 
 ORACLE_REGISTRY: Dict[str, Type[Oracle]] = {
@@ -49,8 +35,6 @@ ORACLE_REGISTRY: Dict[str, Type[Oracle]] = {
     **({"boltz2": Boltz2Oracle} if _boltz2_available else {}),
     **({"ic50mpro": IC50MproOracle} if _ic50mpro_available else {}),
     **({"novel": NovelOracle} if _novel_available else {}),
-    **({"opioid_ki": MolEncoderOpioidKiOracle} if _opioid_ki_available else {}),
-    **({"tdc_tasks": TdcOracle} if _tdc_available else {}),
 }
 
 

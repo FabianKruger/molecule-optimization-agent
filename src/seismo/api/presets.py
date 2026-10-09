@@ -287,8 +287,10 @@ def _build_similarity_qed(
             SimilarityOracle(target_smiles=target_smiles),
             ExplainableQedOracle(),
         ],
-        weights=[0.5, 0.5],
-        names=["Similarity", "QED"],
+        components=[
+            {"oracle": 0, "score": "Similarity", "weight": 0.5},
+            {"oracle": 1, "score": "QED", "weight": 0.5},
+        ],
     )
     objective = SimilarityQedObjective(
         oracle,
@@ -337,8 +339,10 @@ def _build_ic50mpro_novel(
     )
     oracle = CompositeOracle(
         oracles=[IC50MproOracle(model_name=IC50_MODEL), NovelOracle()],
-        weights=[1.0, 0.0],
-        names=["IC50", "Novelty"],
+        components=[
+            {"oracle": 0, "score": "IC50", "weight": 1.0},
+            {"oracle": 1, "score": "Novelty", "weight": 0.0},
+        ],
     )
     objective = IC50MproNovelObjective(
         oracle,
@@ -364,8 +368,11 @@ def _build_ic50mpro_qed_novel(
             ExplainableQedOracle(),
             NovelOracle(),
         ],
-        weights=[1.0, 0.0, 0.0],
-        names=["IC50", "QED", "Novelty"],
+        components=[
+            {"oracle": 0, "score": "IC50", "weight": 1.0},
+            {"oracle": 1, "score": "QED", "weight": 0.0},
+            {"oracle": 2, "score": "Novelty", "weight": 0.0},
+        ],
     )
     objective = IC50MproQedNovelObjective(
         oracle,
