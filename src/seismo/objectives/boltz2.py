@@ -59,11 +59,20 @@ class Boltz2Objective:
         self._target_binding_probability = float(target_binding_probability)
         self._max_iterations = int(max_iterations)
         self._additional_information = additional_information
-        self.protein_sequence = (
-            (protein_sequence or self.oracle.protein_sequence)
-            if not hide_protein
-            else "Sequence unavailable"
-        )
+        if hide_protein:
+            self.protein_sequence = "Sequence unavailable"
+        else:
+            oracle_protein = getattr(self.oracle, "protein_sequence", None)
+            # Empty string falls through to the oracle, matching prior `or` behavior.
+            if bool(protein_sequence):
+                self.protein_sequence = protein_sequence
+            elif isinstance(oracle_protein, str) and bool(oracle_protein):
+                self.protein_sequence = oracle_protein
+            else:
+                raise TypeError(
+                    "Boltz2Objective needs protein_sequence or an oracle "
+                    "with a non-empty protein_sequence attribute"
+                )
         self.hide_protein = hide_protein
 
         # Detect which mode we're in based on oracle's binding_score_name
@@ -76,7 +85,8 @@ class Boltz2Objective:
 
     def first_message(self) -> str:
         additional_info_section = ""
-        if self._additional_information:
+        # Empty string should omit the section; treat None the same.
+        if bool(self._additional_information):
             additional_info_section = (
                 f"\nAdditional Information:\n{self._additional_information}\n"
             )
@@ -169,15 +179,12 @@ Do not include any additional text, comments, Markdown, or code fences.
             return True
 
         if self._is_probability_mode:
-            # Probability mode: check if target probability is reached
+            # Probability mode: check if target probability is reached.
             binding_score_name = getattr(
                 self.oracle, "binding_score_name", "affinity_probability_binary"
             )
             binding_probability = result[binding_score_name]["value"]
-            if (
-                binding_probability is not None
-                and binding_probability >= self._target_binding_probability
-            ):
+            if binding_probability >= self._target_binding_probability:
                 return True
         # In affinity mode, we only stop at max_iterations since we're continuously for higher values
 

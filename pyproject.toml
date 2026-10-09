@@ -22,7 +22,14 @@ packages = ["src/seismo", "src/molopt_agent"]
 
 [tool.pixi.workspace]
 channels = ["conda-forge"]
-platforms = ["osx-arm64", "linux-64"]
+platforms = [
+  "osx-arm64",
+  "linux-64",
+  # manylinux_2_31 wheels (llguidance, pulled in by vLLM) need glibc >= 2.31.
+  # Only the vllm environment selects this entry.
+  { name = "linux-64-glibc-2-35", platform = "linux-64", glibc = "2.35" },
+  { name = "linux-64-cuda", platform = "linux-64", cuda = "13" },
+]
 
 [tool.pixi.pypi-dependencies]
 seismo = { path = ".", editable = true }
@@ -56,6 +63,9 @@ uvicorn-standard = ">=0.32"
 # TDC environment - isolated to avoid sklearn version conflicts
 # sklearn<1.3 needed for TDC's pickled models (jnk3, gsk3b)
 # pytdc from pip (>=0.4.1) fixes rmsd import bug in conda-forge version (0.3.8)
+[tool.pixi.feature.tdc]
+platforms = ["osx-arm64", "linux-64"]
+
 [tool.pixi.feature.tdc.dependencies]
 python = ">=3.10"
 rdkit = "*"
@@ -65,26 +75,72 @@ networkx = "*"
 [tool.pixi.feature.tdc.pypi-dependencies]
 pytdc = ">=0.4.1"
 
+[tool.pixi.feature.boltz2]
+platforms = ["linux-64-cuda"]
+
 [tool.pixi.feature.boltz2.dependencies]
 python = ">=3.10,<3.13"
+numpy = "*"
+scipy = "*"
+pandas = "*"
+scikit-learn = "*"
+pytorch = "*"
+pytorch-lightning = "*"
+einops = "*"
+einx = "*"
+dm-tree = "*"
+numba = "*"
+rdkit = "*"
+gemmi = "*"
+biopython = "*"
+modelcif = "*"
+chembl_structure_pipeline = "*"
+mashumaro = "*"
+hydra-core = "*"
+wandb = "*"
+click = "*"
+pyyaml = "*"
+requests = "*"
+types-requests = "*"
+ninja = "*"
+cuda-minimal-build = "*"
+pytorch-gpu = "*"
+cuda-version = ">=13,<14"
 
 [tool.pixi.feature.boltz2.pypi-dependencies]
-boltz = { version = ">=2.2.1", extras = ["cuda"] }
+# boltz = { version = ">=2.2.1", extras = ["cuda"] }
+boltz-community = { git = "https://github.com/Novel-Therapeutics/boltz-community.git", extras = ["cuda"] }
+cuequivariance = ">=0.8"
+cuequivariance-torch = ">=0.8"
+cuequivariance-ops-torch-cu13 = ">=0.8"
 
-[tool.pixi.feature.boltz2.target.osx.pypi-dependencies]
-boltz = { version = ">=2.2.1"}
+# [tool.pixi.feature.boltz2.target.osx.pypi-dependencies]
+# boltz-community = { git = "https://github.com/Novel-Therapeutics/boltz-community.git" }
+
+[tool.pixi.feature.boltz2.activation]
+env.TRITON_PTXAS_PATH = "$CONDA_PREFIX/bin/ptxas"
+env.TRITON_PTXAS_BLACKWELL_PATH = "$TRITON_PTXAS_PATH"
+env.CUEQ_TRITON_CACHE_DIR = "$CONDA_PREFIX/caches/cuequivariance-triton"
+# Change triton cache to be isolated
+env.TRITON_CACHE_DIR = "$CONDA_PREFIX/caches/triton"
+# Change torch extensions cache, used by deepspeed, to be isolated
+env.TORCH_EXTENSIONS_DIR = "$CONDA_PREFIX/caches/torch_extensions"
 
 # Paper notebooks (Jupyter + marimo), analysis/paper scripts, and
 # scripts/xgboost_training.py. Kept off default so pixi run seismo /
 # seismo-ui / seismo-api stay lean. Use: pixi run -e analysis …
 # polaris>=0.13 needs python<=3.12 on conda-forge; with default python 3.13
 # the solver picks 0.2.x. Tighten later if analysis moves off 3.13.
+[tool.pixi.feature.analysis]
+platforms = ["osx-arm64", "linux-64"]
+
 [tool.pixi.feature.analysis.dependencies]
 ipykernel = ">=7.1.0,<8"
 jupyterlab = ">=4.5.0,<5"
 seaborn = ">=0.13.2"
 anthropic = "*"
 umap-learn = ">=0.5.11,<0.6"
+mcp = ">=2.3.0,<3"
 polaris = "*"
 marimo = "*"
 altair = "*"
@@ -94,6 +150,9 @@ ruff = "*"
 vl-convert-python = "*"
 # marimo accepts tomlkit>=0.12; gradio (default) needs <0.15
 tomlkit = ">=0.12.0,<0.15.0"
+
+[tool.pixi.feature.lint]
+platforms = ["osx-arm64", "linux-64"]
 
 [tool.pixi.feature.lint.dependencies]
 python = "3.13.*"
@@ -106,6 +165,9 @@ uvicorn = ">=0.32"
 
 # Import closure of src/ and tests/ for ty. Intentionally omits notebook and
 # paper tools (jupyterlab, ipykernel, seaborn, umap-learn, anthropic); see #28.
+[tool.pixi.feature.ty]
+platforms = ["osx-arm64", "linux-64"]
+
 [tool.pixi.feature.ty.dependencies]
 python = "3.13.*"
 ty = "*"
@@ -131,8 +193,25 @@ uvicorn-standard = ">=0.32"
 [tool.pixi.feature.ty.pypi-dependencies]
 gradio = ">=4.0"
 
+# Linux CUDA serving only. Does not inherit the harness or Boltz-2 stacks.
+# PyPI vLLM 0.30 depends on torch 2.13, whose Linux wheels are CUDA 13
+# (the stack vLLM recommends for B300). Do not module-load a cluster CUDA
+# into this env, and do not add conda pytorch (it statically links NCCL).
+[tool.pixi.feature.vllm]
+platforms = ["linux-64-glibc-2-35"]
+
+[tool.pixi.feature.vllm.dependencies]
+python = "3.12.*"
+
+[tool.pixi.feature.vllm.pypi-dependencies]
+vllm = ">=0.30.0,<0.31"
+
+[tool.pixi.feature.vllm.pypi-options]
+# Wheels only. A source build needs nvcc; that is the container fallback.
+no-build = true
+
 [tool.pixi.environments]
-default = { features = [], solve-group = "default" }
+default = { features = [], solve-group = "default", platforms = ["osx-arm64", "linux-64"] }
 # Default deps plus notebook/paper packages (Jupyter, marimo, plotting, polaris).
 # Own solve-group so marimo's websockets pin does not reshape the default lock.
 analysis = { features = ["analysis"], solve-group = "analysis" }
@@ -140,6 +219,27 @@ tdc = { features = ["tdc"], solve-group = "tdc", no-default-feature = true }
 boltz2 = { features = ["boltz2"], solve-group = "boltz2", no-default-feature = true }
 lint = { features = ["lint"], no-default-feature = true }
 ty = { features = ["ty"], no-default-feature = true }
+vllm = { features = ["vllm"], solve-group = "vllm", no-default-feature = true }
+
+# These tasks read SEISMO_LLM_PROFILE and SEISMO_LLM_WEIGHTS_DIR and do not
+# pass those as CLI flags. download-llm only downloads. load-check-llm only
+# health-checks; it does not download and does not depend on download-llm.
+# load-check-llm and bootstrap-llm also read SEISMO_LLM_CACHE_DIR and set it
+# as VLLM_CACHE_ROOT on the server (torch.compile cache included). Absolute
+# path, not inside $HOME. bootstrap-llm's only argument is the experiment YAML.
+[tool.pixi.tasks]
+download-llm = { cmd = "python scripts/local_llm/download.py", description = "Download the local LLM snapshot for SEISMO_LLM_PROFILE into SEISMO_LLM_WEIGHTS_DIR" }
+load-check-llm = { cmd = "python scripts/local_llm/download.py --load-check", description = "Health-check the SEISMO_LLM_PROFILE snapshot in SEISMO_LLM_WEIGHTS_DIR until /health, then stop vLLM" }
+
+[tool.pixi.tasks.bootstrap-llm]
+cmd = [
+  "python",
+  "scripts/local_llm/bootstrap.py",
+  "--config",
+  "{{ config }}",
+]
+args = ["config"]
+description = "Serve SEISMO_LLM_PROFILE and run one seismo experiment. The only argument is the experiment YAML."
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

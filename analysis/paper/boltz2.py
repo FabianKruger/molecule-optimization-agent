@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.19.4"
+__generated_with = "0.19.6"
 app = marimo.App(width="medium")
 
 with app.setup:
@@ -8,9 +8,9 @@ with app.setup:
     from pathlib import Path
     from typing import Any
 
+    import altair as alt
     import marimo as mo
     import polars as pl
-    import altair as alt
 
 
 @app.cell
@@ -33,40 +33,43 @@ def _():
     covid_traces = [
         (
             "boltz2_binding_optimization_conversation_20260115_190233.json",
-            {"intervention": "with_explanation", "repeat": 1},
+            # {"intervention": "with_explanation", "repeat": 1},
+            {"intervention": "claude-4.5", "repeat": 1},
         ),
-        (
-            "boltz2_binding_optimization_conversation_20260116_191958.json",
-            {"intervention": "no_explanation", "repeat": 1},
-        ),
-        (
-            "boltz2_binding_optimization_conversation_20260120_120713.json",
-            {"intervention": "no_protein", "repeat": 1},
-        ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260116_191958.json",
+        #     {"intervention": "no_explanation", "repeat": 1},
+        # ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260120_120713.json",
+        #     {"intervention": "no_protein", "repeat": 1},
+        # ),
         (
             "boltz2_binding_optimization_conversation_20260120_135913.json",
-            {"intervention": "with_explanation", "repeat": 2},
+            # {"intervention": "with_explanation", "repeat": 2},
+            {"intervention": "claude-4.5", "repeat": 2},
         ),
-        (
-            "boltz2_binding_optimization_conversation_20260120_162408.json",
-            {"intervention": "no_explanation", "repeat": 2},
-        ),
-        (
-            "boltz2_binding_optimization_conversation_20260120_162644.json",
-            {"intervention": "no_protein", "repeat": 2},
-        ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260120_162408.json",
+        #     {"intervention": "no_explanation", "repeat": 2},
+        # ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260120_162644.json",
+        #     {"intervention": "no_protein", "repeat": 2},
+        # ),
         (
             "boltz2_binding_optimization_conversation_20260120_191426.json",
-            {"intervention": "with_explanation", "repeat": 3},
+            # {"intervention": "with_explanation", "repeat": 3},
+            {"intervention": "claude-4.5", "repeat": 3},
         ),
-        (
-            "boltz2_binding_optimization_conversation_20260120_192713.json",
-            {"intervention": "no_explanation", "repeat": 3},
-        ),
-        (
-            "boltz2_binding_optimization_conversation_20260120_192927.json",
-            {"intervention": "no_protein", "repeat": 3},
-        ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260120_192713.json",
+        #     {"intervention": "no_explanation", "repeat": 3},
+        # ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260120_192927.json",
+        #     {"intervention": "no_protein", "repeat": 3},
+        # ),
         # (
         #     "boltz2_binding_optimization_conversation_20260122_125652.json",
         #     {"intervention": "with_explanation", "repeat": 4},
@@ -105,67 +108,84 @@ def _():
         # ),
         (
             "boltz2_binding_optimization_conversation_20260123_194052.json",
-            {"intervention": "with_explanation", "repeat": 7},
+            # {"intervention": "with_explanation", "repeat": 7},
+            {"intervention": "claude-4.5", "repeat": 7},
         ),
-        (
-            "boltz2_binding_optimization_conversation_20260123_194506.json",
-            {"intervention": "no_explanation", "repeat": 7},
-        ),
-        (
-            "boltz2_binding_optimization_conversation_20260123_193903.json",
-            {"intervention": "no_protein", "repeat": 7},
-        ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260123_194506.json",
+        #     {"intervention": "no_explanation", "repeat": 7},
+        # ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260123_193903.json",
+        #     {"intervention": "no_protein", "repeat": 7},
+        # ),
         (
             "boltz2_binding_optimization_conversation_20260124_125014.json",
-            {"intervention": "with_explanation", "repeat": 8},
+            # {"intervention": "with_explanation", "repeat": 8},
+            {"intervention": "claude-4.5", "repeat": 8},
+        ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260124_125338.json",
+        #     {"intervention": "no_explanation", "repeat": 8},
+        # ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260124_125441.json",
+        #     {"intervention": "no_protein", "repeat": 8},
+        # ),
+        (
+            "boltz2_binding_optimization_conversation_20261007_002107.json",
+            {"intervention": "deepseek-v3.2", "repeat": 1},
         ),
         (
-            "boltz2_binding_optimization_conversation_20260124_125338.json",
-            {"intervention": "no_explanation", "repeat": 8},
+            "boltz2_binding_optimization_conversation_20261007_094204.json",
+            {"intervention": "deepseek-v3.2", "repeat": 2},
         ),
         (
-            "boltz2_binding_optimization_conversation_20260124_125441.json",
-            {"intervention": "no_protein", "repeat": 8},
+            "boltz2_binding_optimization_conversation_20261007_111749.json",
+            {"intervention": "deepseek-v3.2", "repeat": 3},
         ),
     ]
 
     mgyp_traces = [
         (
             "boltz2_binding_optimization_conversation_20260120_185114.json",
-            {"intervention": "with_explanation", "repeat": 1},
+            # {"intervention": "with_explanation", "repeat": 1},
+            {"intervention": "claude-4.5", "repeat": 1},
         ),
-        (
-            "boltz2_binding_optimization_conversation_20260120_164334.json",
-            {"intervention": "no_explanation", "repeat": 1},
-        ),
-        (
-            "boltz2_binding_optimization_conversation_20260121_125157.json",
-            {"intervention": "no_protein", "repeat": 1},
-        ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260120_164334.json",
+        #     {"intervention": "no_explanation", "repeat": 1},
+        # ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260121_125157.json",
+        #     {"intervention": "no_protein", "repeat": 1},
+        # ),
         (
             "boltz2_binding_optimization_conversation_20260121_125339.json",
-            {"intervention": "with_explanation", "repeat": 2},
+            # {"intervention": "with_explanation", "repeat": 2},
+            {"intervention": "claude-4.5", "repeat": 2},
         ),
-        (
-            "boltz2_binding_optimization_conversation_20260121_130409.json",
-            {"intervention": "no_explanation", "repeat": 2},
-        ),
-        (
-            "boltz2_binding_optimization_conversation_20260121_130058.json",
-            {"intervention": "no_protein", "repeat": 2},
-        ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260121_130409.json",
+        #     {"intervention": "no_explanation", "repeat": 2},
+        # ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260121_130058.json",
+        #     {"intervention": "no_protein", "repeat": 2},
+        # ),
         (
             "boltz2_binding_optimization_conversation_20260121_152419.json",
-            {"intervention": "with_explanation", "repeat": 3},
+            # {"intervention": "with_explanation", "repeat": 3},
+            {"intervention": "claude-4.5", "repeat": 3},
         ),
-        (
-            "boltz2_binding_optimization_conversation_20260121_153547.json",
-            {"intervention": "no_explanation", "repeat": 3},
-        ),
-        (
-            "boltz2_binding_optimization_conversation_20260121_152832.json",
-            {"intervention": "no_protein", "repeat": 3},
-        ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260121_153547.json",
+        #     {"intervention": "no_explanation", "repeat": 3},
+        # ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260121_152832.json",
+        #     {"intervention": "no_protein", "repeat": 3},
+        # ),
         # (
         #     "boltz2_binding_optimization_conversation_20260122_133341.json",
         #     {"intervention": "with_explanation", "repeat": 4},
@@ -204,42 +224,59 @@ def _():
         # ),
         (
             "boltz2_binding_optimization_conversation_20260123_125515.json",
-            {"intervention": "with_explanation", "repeat": 7},
+            # {"intervention": "with_explanation", "repeat": 7},
+            {"intervention": "claude-4.5", "repeat": 7},
         ),
-        (
-            "boltz2_binding_optimization_conversation_20260123_131656.json",
-            {"intervention": "no_explanation", "repeat": 7},
-        ),
-        (
-            "boltz2_binding_optimization_conversation_20260123_132736.json",
-            {"intervention": "no_protein", "repeat": 7},
-        ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260123_131656.json",
+        #     {"intervention": "no_explanation", "repeat": 7},
+        # ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260123_132736.json",
+        #     {"intervention": "no_protein", "repeat": 7},
+        # ),
         (
             "boltz2_binding_optimization_conversation_20260123_164046.json",
-            {"intervention": "with_explanation", "repeat": 8},
+            # {"intervention": "with_explanation", "repeat": 8},
+            {"intervention": "claude-4.5", "repeat": 8},
+        ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260123_163227.json",
+        #     {"intervention": "no_explanation", "repeat": 8},
+        # ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260123_163719.json",
+        #     {"intervention": "no_protein", "repeat": 8},
+        # ),
+        (
+            "boltz2_binding_optimization_conversation_20261007_125112.json",
+            {"intervention": "deepseek-v3.2", "repeat": 1},
         ),
         (
-            "boltz2_binding_optimization_conversation_20260123_163227.json",
-            {"intervention": "no_explanation", "repeat": 8},
+            "boltz2_binding_optimization_conversation_20261007_152110.json",
+            {"intervention": "deepseek-v3.2", "repeat": 2},
         ),
         (
-            "boltz2_binding_optimization_conversation_20260123_163719.json",
-            {"intervention": "no_protein", "repeat": 8},
+            "boltz2_binding_optimization_conversation_20261007_163719.json",
+            {"intervention": "deepseek-v3.2", "repeat": 3},
         ),
     ]
 
     covid_interventions = [
         (
             "boltz2_binding_optimization_conversation_20260115_190233.json",
-            {"intervention": "with_explanation", "repeat": 1},
+            # {"intervention": "with_explanation", "repeat": 1},
+            {"intervention": "claude-4.5", "repeat": 1},
         ),
         (
             "boltz2_binding_optimization_conversation_20260120_135913.json",
-            {"intervention": "with_explanation", "repeat": 2},
+            # {"intervention": "with_explanation", "repeat": 2},
+            {"intervention": "claude-4.5", "repeat": 2},
         ),
         (
             "boltz2_binding_optimization_conversation_20260120_191426.json",
-            {"intervention": "with_explanation", "repeat": 3},
+            # {"intervention": "with_explanation", "repeat": 3},
+            {"intervention": "claude-4.5", "repeat": 3},
         ),
         # (
         #     "boltz2_binding_optimization_conversation_20260122_125652.json",
@@ -253,26 +290,26 @@ def _():
         #     "boltz2_binding_optimization_conversation_20260122_232902.json",
         #     {"intervention": "with_explanation", "repeat": 6},
         # ),
-        (
-            "boltz2_binding_optimization_conversation_20260123_194052.json",
-            {"intervention": "with_explanation", "repeat": 7},
-        ),
-        (
-            "boltz2_binding_optimization_conversation_20260124_125014.json",
-            {"intervention": "with_explanation", "repeat": 8},
-        ),
-        (
-            "boltz2_binding_optimization_conversation_20260119_145428.json",
-            {"intervention": "no_explanation, inverted", "repeat": 1},
-        ),
-        (
-            "boltz2_binding_optimization_conversation_20260122_014613.json",
-            {"intervention": "no_explanation, inverted", "repeat": 2},
-        ),
-        (
-            "boltz2_binding_optimization_conversation_20260122_015405.json",
-            {"intervention": "no_explanation, inverted", "repeat": 3},
-        ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260123_194052.json",
+        #     {"intervention": "with_explanation", "repeat": 7},
+        # ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260124_125014.json",
+        #     {"intervention": "with_explanation", "repeat": 8},
+        # ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260119_145428.json",
+        #     {"intervention": "no_explanation, inverted", "repeat": 1},
+        # ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260122_014613.json",
+        #     {"intervention": "no_explanation, inverted", "repeat": 2},
+        # ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260122_015405.json",
+        #     {"intervention": "no_explanation, inverted", "repeat": 3},
+        # ),
         # (
         #     "boltz2_binding_optimization_conversation_20260123_032522.json",
         #     {"intervention": "no_explanation, inverted", "repeat": 4},
@@ -281,26 +318,26 @@ def _():
         #     "boltz2_binding_optimization_conversation_20260123_033102.json",
         #     {"intervention": "no_explanation, inverted", "repeat": 5},
         # ),
-        (
-            "boltz2_binding_optimization_conversation_20260125_124117.json",
-            {"intervention": "no_explanation, inverted", "repeat": 6},
-        ),
-        (
-            "boltz2_binding_optimization_conversation_20260125_192645.json",
-            {"intervention": "no_explanation, inverted", "repeat": 7},
-        ),
-        (
-            "boltz2_binding_optimization_conversation_20260119_145603.json",
-            {"intervention": "no_explanation, wrong_protein", "repeat": 1},
-        ),
-        (
-            "boltz2_binding_optimization_conversation_20260122_012156.json",
-            {"intervention": "no_explanation, wrong_protein", "repeat": 2},
-        ),
-        (
-            "boltz2_binding_optimization_conversation_20260122_014329.json",
-            {"intervention": "no_explanation, wrong_protein", "repeat": 3},
-        ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260125_124117.json",
+        #     {"intervention": "no_explanation, inverted", "repeat": 6},
+        # ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260125_192645.json",
+        #     {"intervention": "no_explanation, inverted", "repeat": 7},
+        # ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260119_145603.json",
+        #     {"intervention": "no_explanation, wrong_protein", "repeat": 1},
+        # ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260122_012156.json",
+        #     {"intervention": "no_explanation, wrong_protein", "repeat": 2},
+        # ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260122_014329.json",
+        #     {"intervention": "no_explanation, wrong_protein", "repeat": 3},
+        # ),
         # (
         #     "boltz2_binding_optimization_conversation_20260123_030309.json",
         #     {"intervention": "no_explanation, wrong_protein", "repeat": 4},
@@ -309,14 +346,14 @@ def _():
         #     "boltz2_binding_optimization_conversation_20260123_033842.json",
         #     {"intervention": "no_explanation, wrong_protein", "repeat": 5},
         # ),
-        (
-            "boltz2_binding_optimization_conversation_20260125_124115.json",
-            {"intervention": "no_explanation, wrong_protein", "repeat": 6},
-        ),
-        (
-            "boltz2_binding_optimization_conversation_20260125_191555.json",
-            {"intervention": "no_explanation, wrong_protein", "repeat": 7},
-        ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260125_124115.json",
+        #     {"intervention": "no_explanation, wrong_protein", "repeat": 6},
+        # ),
+        # (
+        #     "boltz2_binding_optimization_conversation_20260125_191555.json",
+        #     {"intervention": "no_explanation, wrong_protein", "repeat": 7},
+        # ),
     ]
     return covid_interventions, covid_traces, mgyp_traces
 
@@ -328,33 +365,29 @@ def _():
     legend_title = "Model"
 
     intervention_map = {
-        "with_explanation": "Full explanation",
-        "no_explanation": "No explanation",
-        "no_protein": "No description",
-        "no_explanation, inverted": "No explanation, probability inverted",
-        "no_explanation, wrong_protein": "No explanation, wrong protein",
+        # "with_explanation": "Full explanation",
+        # "no_explanation": "No explanation",
+        # "no_protein": "No description",
+        # "no_explanation, inverted": "No explanation, probability inverted",
+        # "no_explanation, wrong_protein": "No explanation, wrong protein",
+        "deepseek-v3.2": "DeepSeek v3.2",
+        "claude-4.5": "Claude 4.5",
     }
 
-    color_scale = [
-        "#2E86AB",  # full
-        # "#00a69d",  # partial
-        "#ffcc00",  # no expl
-        "#f58220",  # no descr
-        "#ffcc00",  # no expl, score inverted
-        "#f58220",  # no expl, wrong protein
-    ]
-
-
     regular_color_map = {
-        "Full explanation": "#2E86AB",
-        "No explanation": "#ffcc00",
-        "No description": "#f58220",
+        # "Full explanation": "#2E86AB",
+        # "No explanation": "#ffcc00",
+        # "No description": "#f58220",
+        "Claude 4.5": "#2E86AB",
+        "DeepSeek v3.2": "#ffcc00",
     }
 
     intervention_color_map = {
-        "Full explanation": "#2E86AB",
-        "No explanation, probability inverted": "#ffcc00",
-        "No explanation, wrong protein": "#f58220",
+        # "Full explanation": "#2E86AB",
+        # "No explanation, probability inverted": "#ffcc00",
+        # "No explanation, wrong protein": "#f58220",
+        "Claude 4.5": "#2E86AB",
+        "DeepSeek v3.2": "#ffcc00",
     }
     return (
         intervention_color_map,
@@ -490,6 +523,24 @@ def forward_fill_nan(df: pl.DataFrame) -> pl.DataFrame:
 
 @app.cell
 def _(intervention_map, legend_title, x_title, y_title):
+    import subprocess
+
+    import vl_convert as vlc
+
+    # vl-convert on macOS uses Core Text and misses fonts that only fontconfig
+    # can see, which drops every DejaVu glyph in PNG and PDF output.
+    try:
+        _font_listing = subprocess.check_output(
+            ["fc-list", "DejaVu Sans", "file"], text=True
+        )
+    except (OSError, subprocess.CalledProcessError):
+        _font_listing = ""
+    for _font_line in _font_listing.splitlines():
+        _font_path = _font_line.split(":", 1)[0].strip()
+        if _font_path.endswith("DejaVuSans.ttf"):
+            vlc.register_font_directory(str(Path(_font_path).parent))
+            break
+
     def single_chart(
         *,
         df: pl.DataFrame,
@@ -520,6 +571,8 @@ def _(intervention_map, legend_title, x_title, y_title):
             title=legend_title,
             fillColor="white",
             strokeColor="black",
+            labelColor="black",
+            titleColor="black",
             padding=4,
             titleFontWeight="normal",  # non-bold
             titleAnchor="middle",  # center the title
@@ -614,6 +667,7 @@ def _(intervention_map, legend_title, x_title, y_title):
             height=310,
         )
         return _chart
+
     return (single_chart,)
 
 
@@ -641,7 +695,6 @@ def _(covid_traces, run_dir):
         conversation_column_list=covid_traces,
         run_dir=run_dir,
     ).sort("intervention", "iteration", "repeat")
-
 
     count_missing_scores(raw_covid_df)
     return (raw_covid_df,)
@@ -776,8 +829,6 @@ def _(
     _chart.save(figure_dir / covid_fig_fn)
     _chart.save((figure_dir / covid_fig_fn).with_suffix(".png"), ppi=300)
 
-    covid_chart = _chart
-
     mo.ui.altair_chart(_chart)
     return
 
@@ -791,10 +842,10 @@ def _(figure_dir, mgyp_df, mgyp_fig_fn, regular_color_map, single_chart):
 
     _chart = _chart.encode(y=alt.Y(scale=alt.Scale(domain=[0, 1.1])))
 
-    mgyp_chart = _chart
-
     _chart.save(figure_dir / mgyp_fig_fn, method="selenium")
-    _chart.save((figure_dir / mgyp_fig_fn).with_suffix(".png"), ppi=300, method="selenium")
+    _chart.save(
+        (figure_dir / mgyp_fig_fn).with_suffix(".png"), ppi=300, method="selenium"
+    )
     _chart.save((figure_dir / mgyp_fig_fn).with_suffix(".svg"))
 
     mo.ui.altair_chart(_chart)
@@ -817,8 +868,6 @@ def _(
     _chart = _chart.encode(y=alt.Y(scale=alt.Scale(domain=[0, 1.1])))
     _chart.save(figure_dir / intervention_fig_fn)
     _chart.save((figure_dir / intervention_fig_fn).with_suffix(".png"), ppi=300)
-
-    intervention_chart = _chart
 
     mo.ui.altair_chart(_chart)
     return
