@@ -8,7 +8,7 @@ import yaml
 class LLMConfig:
     model: str
     temperature: float
-    reasoning_effort: str
+    reasoning_effort: str | None
 
 
 @dataclass
@@ -29,8 +29,8 @@ class ExperimentConfig:
     llm: LLMConfig
     recursion_limit: int = 100
     log_dir: str = "logs"
-    oracle: OracleConfig = field(default=None)      # type: ignore[assignment]
-    objective: ObjectiveConfig = field(default=None)  # type: ignore[assignment]
+    oracle: OracleConfig = field(default=None)  # ty: ignore[invalid-assignment]
+    objective: ObjectiveConfig = field(default=None)  # ty: ignore[invalid-assignment]
 
 
 def load_experiment_config(path: str) -> ExperimentConfig:
@@ -57,14 +57,21 @@ def load_experiment_config(path: str) -> ExperimentConfig:
             raise ValueError(f"Missing required key in config.llm: '{key}'")
     if "reasoning_effort" not in llm_raw or llm_raw["reasoning_effort"] == "None":
         reasoning_effort = None
-    elif llm_raw["reasoning_effort"] in ["minimal", "low", "medium", "high"] and llm_raw["model"].startswith("gpt"):
+    elif llm_raw["reasoning_effort"] in [
+        "minimal",
+        "low",
+        "medium",
+        "high",
+    ] and llm_raw["model"].startswith("gpt"):
         reasoning_effort = str(llm_raw["reasoning_effort"])
     else:
-        raise ValueError(f"Invalid key value or model combination in config.llm: 'reasoning_effort'")
+        raise ValueError(
+            "Invalid key value or model combination in config.llm: 'reasoning_effort'"
+        )
     llm = LLMConfig(
         model=str(llm_raw["model"]),
         temperature=float(llm_raw["temperature"]),
-        reasoning_effort=reasoning_effort
+        reasoning_effort=reasoning_effort,
     )
 
     # Oracle section

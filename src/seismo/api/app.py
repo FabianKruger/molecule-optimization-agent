@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+
+from seismo.api.jobs import JobManager, StreamFn, create_jobs_router
 
 _VITE_ORIGINS = (
     "http://127.0.0.1:5173",
@@ -24,13 +28,30 @@ def _frontend_dist() -> Path:
     return _project_root() / "frontend" / "dist"
 
 
-def create_app() -> FastAPI:
+def _default_jobs_root() -> Path:
+    return _project_root() / "data" / "web_jobs"
+
+
+def create_app(
+    *,
+    jobs_root: Path | None = None,
+    stream_fn: StreamFn | None = None,
+) -> FastAPI:
     """Build the FastAPI app.
 
     Route registration stays here so later tickets can add routers
     without changing the uvicorn entrypoint in ``main()``.
     """
-    app = FastAPI(title="seismo")
+    root = Path(jobs_root) if jobs_root is not None else _default_jobs_root()
+    manager = JobManager(root, stream_fn=stream_fn)
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
+        app.state.job_manager.mark_interrupted_jobs()
+        yield
+
+    app = FastAPI(title="seismo", lifespan=lifespan)
+    app.state.job_manager = manager
 
     app.add_middleware(
         CORSMiddleware,
@@ -44,7 +65,7 @@ def create_app() -> FastAPI:
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
-    # Future routers (presets, jobs, ...) register on ``app`` here.
+    app.include_router(create_jobs_router())
 
     _mount_frontend_if_present(app)
     return app
@@ -93,7 +114,9 @@ def _port(value: str) -> int:
 def main() -> None:
     """Serve the API on 127.0.0.1, port 8000 unless --port is set."""
     import uvicorn
+    from dotenv import load_dotenv
 
+    load_dotenv()
     args = parse_args()
     uvicorn.run(create_app(), host="127.0.0.1", port=args.port)
 

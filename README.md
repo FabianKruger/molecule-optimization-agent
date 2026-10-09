@@ -94,13 +94,22 @@ You can provide feedback after each optimization round to guide the agent toward
 
 ### FastAPI (web PoC)
 
-Start the FastAPI process that serves `/api/health` and, when present, the built React app from `frontend/dist`:
+Start the FastAPI process that serves the health check, preset catalog, job API, and, when present, the built React app from `frontend/dist`:
 
 ```bash
 pixi run seismo-api
 ```
 
-The API listens on `http://127.0.0.1:8000`. Pass `--port` (or `-p`) to use another port. The Gradio UI (`pixi run seismo-ui`) is unchanged and still available on port 7860.
+The API listens on `http://127.0.0.1:8000`. Pass `--port` (or `-p`) to use another port. Requires `OPENAI_API_KEY` (and honors `OPENAI_BASE_URL` / `SEISMO_MODEL`) to start jobs. Job records live under `data/web_jobs/`; the CLI (`pixi run seismo --config ...`) still writes under `data/runs`.
+
+Useful endpoints:
+
+- `GET /api/health`
+- `GET /api/presets`
+- `POST /api/jobs` with `{ "preset_id", "params" }`
+- `GET /api/jobs` and `GET /api/jobs/{id}`
+
+The Gradio UI (`pixi run seismo-ui`) is unchanged and still available on port 7860.
 
 ## Reproducing Paper Results
 
@@ -200,7 +209,7 @@ molecule-optimization-agent/
 │   ├── oracles/            # Scoring functions (QED, similarity, IC50, etc.)
 │   ├── objectives/         # Optimization objectives and feedback logic
 │   ├── ui/                 # Gradio web interface
-│   └── api/                # FastAPI application shell (seismo-api)
+│   └── api/                # FastAPI app + job API (seismo-api)
 ├── config/experiments/     # Experiment YAML configs
 ├── scripts/                # Helper scripts for running experiments
 ├── analysis/               # Jupyter notebooks for result analysis
