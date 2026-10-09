@@ -9,8 +9,6 @@ import biotite.structure as struc
 from biotite.structure.io.pdb import PDBFile
 from sklearn.metrics import pairwise_distances
 
-from molopt_agent.oracles.base import OracleResult
-
 from .base import OracleResult
 
 logger = logging.getLogger(__name__)

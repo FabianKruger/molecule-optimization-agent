@@ -6,7 +6,7 @@ from rdkit import Chem
 from rdkit.Chem import MACCSkeys
 
 from .base import OracleResult
-from molopt_agent.oracles.utils import build_maccs_key_definitions
+from .utils import build_maccs_key_definitions
 
 class IC50MproOracle:
     """

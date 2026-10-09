@@ -70,17 +70,21 @@ OPENAI_BASE_URL=https://custom-endpoint.example.com/v1  # Optional
 ### Command Line
 
 ```bash
-pixi run molopt --config config/experiments/<your_experiment>.yaml  
-# e.g.: pixi run molopt --config config/experiments/similarity.yaml
+pixi run seismo --config config/experiments/<your_experiment>.yaml  
+# e.g.: pixi run seismo --config config/experiments/similarity.yaml
 ```
+
+`molopt` still runs the same command and prints a deprecation notice.
 
 ### Interactive UI
 
 Launch the Gradio web interface for interactive molecule optimization:
 
 ```bash
-pixi run molopt-ui
+pixi run seismo-ui
 ```
+
+`molopt-ui` still launches the UI and prints a deprecation notice. Importing `molopt_agent` still works and emits a `FutureWarning`; use `seismo` instead.
 
 The UI runs at `http://127.0.0.1:7860` and supports:
 - **Similarity + QED**: Optimize for structural similarity to a target molecule while maintaining drug-likeness
@@ -178,7 +182,7 @@ Results are saved to `log_dir` as JSON files containing:
 
 ```
 molecule-optimization-agent/
-├── src/molopt_agent/       # Main package
+├── src/seismo/             # Main package
 │   ├── main.py             # CLI entry point
 │   ├── config.py           # YAML config loading
 │   ├── state.py            # LangGraph state definition

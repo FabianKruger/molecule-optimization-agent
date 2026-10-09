@@ -98,7 +98,7 @@ run_experiment() {
     
     echo "  Running: $description"
     cd "$REPO_DIR"
-    pixi run molopt --config "$config_path"
+    pixi run seismo --config "$config_path"
 }
 
 # ==============================================================================
