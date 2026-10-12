@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -17,6 +18,26 @@ _VITE_ORIGINS = (
     "http://127.0.0.1:5173",
     "http://localhost:5173",
 )
+
+# Baked into the image at Docker build time (see README deploy metadata).
+_BUILD_TIME_ENV = "SEISMO_BUILD_TIME"
+_APP_SHA_ENV = "SEISMO_BUILD_SHA"
+_DEPLOY_SHA_ENV = "SEISMO_DEPLOY_SHA"
+_UNKNOWN_BUILD_VALUE = "unknown"
+
+
+def _env_or_unknown(name: str) -> str:
+    value = os.environ.get(name, "").strip()
+    return value if value else _UNKNOWN_BUILD_VALUE
+
+
+def build_metadata() -> dict[str, str]:
+    """Return deploy identity from bake-time env vars (no git at runtime)."""
+    return {
+        "build_time": _env_or_unknown(_BUILD_TIME_ENV),
+        "app_sha": _env_or_unknown(_APP_SHA_ENV),
+        "deploy_sha": _env_or_unknown(_DEPLOY_SHA_ENV),
+    }
 
 
 def _project_root() -> Path:
@@ -63,7 +84,7 @@ def create_app(
 
     @app.get("/api/health")
     def health() -> dict[str, str]:
-        return {"status": "ok"}
+        return {"status": "ok", **build_metadata()}
 
     app.include_router(create_jobs_router())
 

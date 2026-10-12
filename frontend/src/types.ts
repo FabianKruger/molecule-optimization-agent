@@ -83,3 +83,10 @@ export type CreateJobResponse = {
 export type ApiErrorBody = {
   detail?: unknown
 }
+
+export type HealthResponse = {
+  status: string
+  build_time: string
+  app_sha: string
+  deploy_sha: string
+}

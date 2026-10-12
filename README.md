@@ -123,13 +123,48 @@ pixi run kill-web
 
 Useful endpoints:
 
-- `GET /api/health`
+- `GET /api/health` — `status` plus deploy identity (`build_time`, `app_sha`, `deploy_sha`; see below)
 - `GET /api/presets`
 - `POST /api/jobs` with `{ "preset_id", "params" }` (queues when a job is already running; max 5 waiting)
 - `GET /api/jobs` and `GET /api/jobs/{id}` (includes `queue_position` for queued jobs)
 - `POST /api/jobs/{id}/cancel` (running or queued jobs)
 
 The Gradio UI (`pixi run seismo-ui`) is unchanged and still available on port 7860.
+
+#### Deploy identity (build metadata)
+
+The Launch and Job pages show a footer with bake-time deploy identity. Values come from environment variables set when the Docker image is built (not from `git` inside the running container). Unset or blank values are reported as `unknown`.
+
+| Env | Role | Health field |
+|---|---|---|
+| `SEISMO_BUILD_TIME` | ISO-8601 UTC bake time | `build_time` |
+| `SEISMO_BUILD_SHA` | SHA of this app (submodule / this repo) | `app_sha` |
+| `SEISMO_DEPLOY_SHA` | SHA of the parent deploy repo / image recipe | `deploy_sha` |
+
+Parent CI example (Dockerfile lives in the parent deploy repo; this repo owns the runtime contract):
+
+```bash
+SEISMO_BUILD_SHA=$(git -C path/to/molecule-optimization-agent rev-parse --short HEAD)
+SEISMO_DEPLOY_SHA=$(git rev-parse --short HEAD)
+SEISMO_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+docker build \
+  --build-arg SEISMO_BUILD_SHA="$SEISMO_BUILD_SHA" \
+  --build-arg SEISMO_DEPLOY_SHA="$SEISMO_DEPLOY_SHA" \
+  --build-arg SEISMO_BUILD_TIME="$SEISMO_BUILD_TIME" \
+  ...
+```
+
+In the Dockerfile, pass each build-arg into the image environment:
+
+```dockerfile
+ARG SEISMO_BUILD_TIME=unknown
+ARG SEISMO_BUILD_SHA=unknown
+ARG SEISMO_DEPLOY_SHA=unknown
+ENV SEISMO_BUILD_TIME=$SEISMO_BUILD_TIME \
+    SEISMO_BUILD_SHA=$SEISMO_BUILD_SHA \
+    SEISMO_DEPLOY_SHA=$SEISMO_DEPLOY_SHA
+```
 
 ## Reproducing Paper Results
 

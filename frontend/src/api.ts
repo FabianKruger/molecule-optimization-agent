@@ -1,6 +1,7 @@
 import type {
   ApiErrorBody,
   CreateJobResponse,
+  HealthResponse,
   JobDetail,
   JobSummary,
   Preset,
@@ -68,6 +69,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     return undefined as T
   }
   return (await response.json()) as T
+}
+
+export async function fetchHealth(): Promise<HealthResponse> {
+  return request<HealthResponse>('/api/health')
 }
 
 export async function fetchPresets(): Promise<Preset[]> {
