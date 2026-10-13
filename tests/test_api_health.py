@@ -29,6 +29,22 @@ def test_port_flag_rejects_out_of_range() -> None:
         parse_args(["--port", "65536"])
 
 
+def test_host_defaults_to_loopback(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("SEISMO_HOST", raising=False)
+    assert parse_args([]).host == "127.0.0.1"
+
+
+def test_host_env_overrides_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SEISMO_HOST", "0.0.0.0")
+    assert parse_args([]).host == "0.0.0.0"
+
+
+def test_host_flag_overrides_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SEISMO_HOST", "0.0.0.0")
+    assert parse_args(["--host", "127.0.0.1"]).host == "127.0.0.1"
+    assert parse_args(["-H", "127.0.0.1"]).host == "127.0.0.1"
+
+
 def test_health_returns_ok_with_unknown_build_metadata(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

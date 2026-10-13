@@ -113,7 +113,7 @@ pixi run frontend-build
 pixi run seismo-api
 ```
 
-The API listens on `http://127.0.0.1:8000`. Pass `--port` (or `-p`) to use another port. Requires `OPENAI_API_KEY` (and honors `OPENAI_BASE_URL` / `SEISMO_MODEL`) to start jobs. Job records live under `data/web_jobs/`; the CLI (`pixi run seismo --config ...`) still writes under `data/runs`.
+The API listens on `http://127.0.0.1:8000` by default (loopback only). Pass `--port` (or `-p`) to use another port. For container/ALB deploys, bind all interfaces with `--host 0.0.0.0` (or `-H`) or `SEISMO_HOST=0.0.0.0`; the CLI flag wins over the env var. Requires `OPENAI_API_KEY` (and honors `OPENAI_BASE_URL` / `SEISMO_MODEL`) to start jobs. Job records live under `data/web_jobs/`; the CLI (`pixi run seismo --config ...`) still writes under `data/runs`.
 
 To stop stray local API/Vite processes (matched by process name, not by port, so a vLLM serve on 8000 is left alone):
 

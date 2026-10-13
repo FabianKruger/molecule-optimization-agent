@@ -14,6 +14,7 @@ from fastapi.responses import FileResponse
 
 from seismo.api.jobs import JobManager, StreamFn, create_jobs_router
 
+_DEFAULT_HOST = "127.0.0.1"
 _VITE_ORIGINS = (
     "http://127.0.0.1:5173",
     "http://localhost:5173",
@@ -113,8 +114,21 @@ def _mount_frontend_if_present(app: FastAPI) -> None:
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """Parse seismo-api arguments. The port defaults to 8000."""
+    """Parse seismo-api arguments.
+
+    Host defaults to ``127.0.0.1`` (or ``SEISMO_HOST`` when set). Port defaults
+    to 8000. ``--host`` / ``-H`` wins over ``SEISMO_HOST``.
+    """
     parser = argparse.ArgumentParser(description="Serve the seismo API.")
+    parser.add_argument(
+        "--host",
+        "-H",
+        default=None,
+        help=(
+            f"Bind address (default: {_DEFAULT_HOST}, or SEISMO_HOST). "
+            "Use 0.0.0.0 for container/ALB health checks."
+        ),
+    )
     parser.add_argument(
         "--port",
         "-p",
@@ -122,7 +136,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=8000,
         help="Port to listen on (default: 8000)",
     )
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if args.host is None:
+        env_host = os.environ.get("SEISMO_HOST", "").strip()
+        args.host = env_host if env_host else _DEFAULT_HOST
+    return args
 
 
 def _port(value: str) -> int:
@@ -133,13 +151,13 @@ def _port(value: str) -> int:
 
 
 def main() -> None:
-    """Serve the API on 127.0.0.1, port 8000 unless --port is set."""
+    """Serve the API; host/port from CLI, SEISMO_HOST, or local defaults."""
     import uvicorn
     from dotenv import load_dotenv
 
     load_dotenv()
     args = parse_args()
-    uvicorn.run(create_app(), host="127.0.0.1", port=args.port)
+    uvicorn.run(create_app(), host=args.host, port=args.port)
 
 
 if __name__ == "__main__":
