@@ -51,7 +51,7 @@ class IC50MproOracle:
     ) -> str:
         MACCS_KEY_DEFINITIONS = build_maccs_key_definitions()
 
-        indexed = [(attr, idx + 1) for idx, attr in enumerate(attribution)]
+        indexed = [(attr, idx + 1) for idx, attr in enumerate(attribution) if idx != 0]
         indexed_sorted = sorted(indexed, key=lambda x: x[0], reverse=True)
         top_values = indexed_sorted[:10]
         low_values = indexed_sorted[-10:]
@@ -75,7 +75,7 @@ class IC50MproOracle:
         for attr, key_id in top_values:
             desc = MACCS_KEY_DEFINITIONS.get(key_id, f"MACCS_KEY_{key_id}")
             lines.append(
-                        f"| {attr:.6f} | {int(fp[key_id-1])} | {key_id} | {desc} |"
+                        f"| {attr:.6f} | {int(fp[key_id])} | {key_id} | {desc} |"
                     )
         lines.append("")
 
@@ -87,7 +87,7 @@ class IC50MproOracle:
         for attr, key_id in low_values:
             desc = MACCS_KEY_DEFINITIONS.get(key_id, f"MACCS_KEY_{key_id}")
             lines.append(
-                        f"| {attr:.6f} | {int(fp[key_id-1])} | {key_id} | {desc} |"
+                        f"| {attr:.6f} | {int(fp[key_id])} | {key_id} | {desc} |"
                     )
                 
         return "\n".join(lines)
