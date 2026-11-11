@@ -1,18 +1,88 @@
-import polaris as po
-import pandas as pd
-import numpy as np
-from rdkit import Chem
-from rdkit.Chem import MACCSkeys
-from xgboost import XGBRegressor
+"""Train the pIC50 (SARS-CoV-2 Mpro) XGBoost surrogate used by the IC50 oracle.
+
+Hyperparameters are selected by k-fold cross-validation on the Polaris train
+split. The Polaris test split is read exactly once, after the configuration is
+fixed, to report held-out performance.
+
+Molecules are featurised as the full 167-bit MACCS vector returned by RDKit, in
+which bit k is MACCS key k and bit 0 is unused. Keeping all 167 bits means
+feature index k is MACCS key k, which is the indexing the IC50 oracle relies on
+when it reports SHAP attributions.
+
+The dataset itself comes from the Polaris hub, which cannot be queried from
+this environment (polaris-lib needs an httpx stack that clashes with the httpx2
+required by anthropic and openai). Export it once in a throwaway environment
+and pass the CSV in, or rely on the cached split CSVs next to this model:
+
+    pixi run python scripts/xgboost_training.py --raw-csv path/to/asap_potency_raw.csv
+
+Once the split CSVs exist, plain `pixi run python scripts/xgboost_training.py`
+reproduces the model without any hub access.
+"""
+
+import argparse
 import json
-from datetime import datetime
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
-
 import random
-import itertools
 from copy import deepcopy
+from datetime import datetime
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import sklearn
+import xgboost
+from rdkit import Chem, rdBase
+from rdkit.Chem import MACCSkeys
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.model_selection import KFold
+from xgboost import XGBRegressor
+
+ROOT = Path(__file__).resolve().parents[1]
+
+CONFIG = {
+    # Data
+    "dataset": "asap-discovery/antiviral-potency-2025-unblinded",
+    "target_column": "pIC50 (SARS-CoV-2 Mpro)",
+    "smiles_column": "CXSMILES",
+    # Cached copies of the two splits, so training does not need Polaris access
+    # and so the train split is available as a reference set for applicability
+    # domain analyses. Delete them to force a fresh download.
+    "train_csv": ROOT / "data/xgboost/asap_potency_train.csv",
+    "test_csv": ROOT / "data/xgboost/asap_potency_test.csv",
+    # Model selection
+    "n_trials": 40,
+    "n_folds": 5,
+    "seed": 42,
+    # Output
+    "model_prefix": ROOT / "data/xgboost/xgb_maccs_best",
+}
+
+# Fixed model settings, unchanged from the originally published model. Only the
+# four searched hyperparameters below vary between trials.
+FIXED_PARAMS = {
+    "n_estimators": 2000,
+    "learning_rate": 0.03,
+    "subsample": 0.8,
+    "reg_alpha": 0.1,
+    "reg_lambda": 2,
+    "grow_policy": "lossguide",
+    "max_leaves": 128,
+    "objective": "reg:squarederror",
+    "tree_method": "hist",
+    "random_state": 42,
+}
+
+SEARCH_SPACE = {
+    "max_depth": [3, 4, 5, 6],
+    "min_child_weight": [1, 3, 5, 7],
+    "gamma": [0, 0.1, 0.5, 1.0],
+    "colsample_bytree": [0.4, 0.6, 0.8, 1.0],
+}
 
 
+# -------------------------
+#  Data loading
+# -------------------------
 def polaris_to_dataframe(ds):
     root = ds.zarr_root  # opens the zarr hierarchy
     data = {}
@@ -25,43 +95,68 @@ def polaris_to_dataframe(ds):
 
     return pd.DataFrame(data)
 
-def preprocess_for_xgb(df, column_name_target_values, column_name_smiles):
-    # ----------------------------------------
-    # 1. Rename columns
-    # ----------------------------------------
-    df = df.rename(columns={
-        column_name_target_values: "pIC50",
-        column_name_smiles: "SMILES"
-    })
 
-   # 2. Drop NaNs in pIC50
+def preprocess_for_xgb(df, column_name_target_values, column_name_smiles):
+    df = df.rename(
+        columns={column_name_target_values: "pIC50", column_name_smiles: "SMILES"}
+    )
+
     df = df.dropna(subset=["pIC50"]).reset_index(drop=True)
     df["pIC50"] = df["pIC50"].astype("float64")
 
-    # 3. CXSMILES → SMILES (safe)
+    # CXSMILES → SMILES (safe)
     def cx_to_smiles(s):
         if isinstance(s, str):
-            base = s.split("|")[0]   # takes SMILES part
-            return base.strip()      # remove left-over spaces
+            base = s.split("|")[0]  # takes SMILES part
+            return base.strip()  # remove left-over spaces
         return s
 
     df["SMILES"] = df["SMILES"].apply(cx_to_smiles)
 
-    # 4. Check Set column
     if "Set" not in df.columns:
         raise ValueError('Dataframe must contain a "Set" column with values "train" or "test".')
 
-    # 5. Train/test split
     df_train = df[df["Set"].str.lower() == "train"].reset_index(drop=True)
-    df_test  = df[df["Set"].str.lower() == "test"].reset_index(drop=True)
+    df_test = df[df["Set"].str.lower() == "test"].reset_index(drop=True)
 
-    # 6. Print split percentages
     total = len(df)
     print(f"Total usable rows: {total}")
-    print(f"Train: {len(df_train)} ({len(df_train)/total*100:.2f}%)")
-    print(f"Test:  {len(df_test)} ({len(df_test)/total*100:.2f}%)")
+    print(f"Train: {len(df_train)} ({len(df_train) / total * 100:.2f}%)")
+    print(f"Test:  {len(df_test)} ({len(df_test) / total * 100:.2f}%)")
 
     return df_train, df_test
+
+
+def load_splits(cfg, raw_csv=None):
+    """Return the train and test splits, deriving them once if needed."""
+    train_csv, test_csv = Path(cfg["train_csv"]), Path(cfg["test_csv"])
+
+    if train_csv.exists() and test_csv.exists():
+        print(f"Using cached splits: {train_csv.name}, {test_csv.name}")
+        return pd.read_csv(train_csv), pd.read_csv(test_csv)
+
+    if raw_csv is not None:
+        print(f"Reading the raw dataset export from {raw_csv}")
+        df = pd.read_csv(raw_csv)
+    else:
+        import polaris as po  # only needed when no local copy exists
+
+        print(f"Downloading {cfg['dataset']} from Polaris")
+        df = polaris_to_dataframe(po.load_dataset(cfg["dataset"]))
+
+    df_train, df_test = preprocess_for_xgb(
+        df,
+        column_name_target_values=cfg["target_column"],
+        column_name_smiles=cfg["smiles_column"],
+    )
+
+    train_csv.parent.mkdir(parents=True, exist_ok=True)
+    df_train[["SMILES", "pIC50"]].to_csv(train_csv, index=False)
+    df_test[["SMILES", "pIC50"]].to_csv(test_csv, index=False)
+    print(f"Cached splits to {train_csv.name} and {test_csv.name}")
+
+    return df_train, df_test
+
 
 # -------------------------
 #  Convert SMILES → MACCS keys
@@ -74,7 +169,8 @@ def smiles_to_maccs(smiles: str):
     arr = np.array(list(fp.ToBitString()), dtype=np.float32)
     return arr  # shape = (167,)
 
-def df_to_maccs(df, smiles_column):
+
+def df_to_maccs(df, smiles_column="SMILES", target_column="pIC50"):
     fingerprints = []
     valid_idx = []
 
@@ -83,181 +179,172 @@ def df_to_maccs(df, smiles_column):
         if fp is not None:
             fingerprints.append(fp)
             valid_idx.append(i)
-    
+
     X = np.vstack(fingerprints)
-    y = df.loc[valid_idx, "pIC50"].values
-    return X, y, valid_idx
+    y = df.loc[valid_idx, target_column].values.astype(float)
+    n_invalid = len(df) - len(valid_idx)
+    if n_invalid:
+        print(f"  dropped {n_invalid} molecules with unparseable SMILES")
+    return X, y
 
 
 # -------------------------
-#  Train XGBoost on MACCS features
+#  Metrics
 # -------------------------
-def train_xgb_maccs(
-        df,
-        max_depth=6,
-        min_child_weight=5,
-        gamma=0.1,
-        colsample_bytree=0.5,
-        smiles_col="SMILES",
-        target_col="pIC50"
-    ):
-    X, y, valid_idx = df_to_maccs(df, smiles_col)
-
-    model = XGBRegressor(
-        n_estimators=2000,
-        learning_rate=0.03,
-        max_depth=max_depth,
-        min_child_weight=min_child_weight,
-        gamma=gamma,
-        colsample_bytree=colsample_bytree,
-        subsample=0.8,
-        reg_alpha=0.1,
-        reg_lambda=2,
-        grow_policy="lossguide",
-        max_leaves=128,
-        objective="reg:squarederror",
-        tree_method="hist",
-        random_state=42
-    )
-
-    model.fit(X, y)
-    return model, X, y, valid_idx
+def regression_metrics(y_true, y_pred) -> dict:
+    """RMSE, MAE and R2. Note that sklearn's mean_squared_error returns MSE."""
+    mse = mean_squared_error(y_true, y_pred)
+    return {
+        "rmse": float(np.sqrt(mse)),
+        "mse": float(mse),
+        "mae": float(mean_absolute_error(y_true, y_pred)),
+        "r2": float(r2_score(y_true, y_pred)),
+        "n_samples": int(len(y_true)),
+    }
 
 
-def save_xgb_model(model, metadata: dict, path_prefix: str = "xgb_maccs"):
+# -------------------------
+#  Model selection
+# -------------------------
+def make_model(params: dict) -> XGBRegressor:
+    return XGBRegressor(**FIXED_PARAMS, **params)
+
+
+def sample_configs(n_trials: int, seed: int) -> list[dict]:
+    """Draw distinct hyperparameter configurations reproducibly."""
+    rng = random.Random(seed)
+    grid_size = int(np.prod([len(v) for v in SEARCH_SPACE.values()]))
+    configs: list[dict] = []
+    seen = set()
+    while len(configs) < min(n_trials, grid_size):
+        params = {name: rng.choice(values) for name, values in SEARCH_SPACE.items()}
+        key = tuple(sorted(params.items()))
+        if key in seen:
+            continue
+        seen.add(key)
+        configs.append(params)
+    return configs
+
+
+def cross_validate(X, y, params: dict, n_folds: int, seed: int) -> dict:
+    """Mean out-of-fold RMSE for one configuration."""
+    kfold = KFold(n_splits=n_folds, shuffle=True, random_state=seed)
+    fold_rmse = []
+    for train_idx, val_idx in kfold.split(X):
+        model = make_model(params)
+        model.fit(X[train_idx], y[train_idx])
+        fold_rmse.append(regression_metrics(y[val_idx], model.predict(X[val_idx]))["rmse"])
+    return {
+        "cv_rmse_mean": float(np.mean(fold_rmse)),
+        "cv_rmse_std": float(np.std(fold_rmse)),
+        "cv_rmse_folds": [float(v) for v in fold_rmse],
+    }
+
+
+def search_xgb_models(X_train, y_train, cfg) -> tuple[dict, dict, list[dict]]:
+    """Select hyperparameters on cross-validated train performance only."""
+    configs = sample_configs(cfg["n_trials"], cfg["seed"])
+    print(f"\nCross-validating {len(configs)} configurations ({cfg['n_folds']} folds)")
+
+    trials = []
+    best_params, best_cv = None, None
+    for i, params in enumerate(configs, start=1):
+        cv = cross_validate(X_train, y_train, params, cfg["n_folds"], cfg["seed"])
+        trials.append({"params": params, **cv})
+        marker = ""
+        if best_cv is None or cv["cv_rmse_mean"] < best_cv["cv_rmse_mean"]:
+            best_params, best_cv = deepcopy(params), cv
+            marker = "  <- new best"
+        print(
+            f"  trial {i:>2}/{len(configs)}: CV RMSE = {cv['cv_rmse_mean']:.4f} "
+            f"+/- {cv['cv_rmse_std']:.4f}  {params}{marker}"
+        )
+
+    return best_params, best_cv, trials
+
+
+# -------------------------
+#  Persistence
+# -------------------------
+def save_xgb_model(model, metadata: dict, path_prefix):
     """Save XGBoost model + metadata to disk."""
-    
-    # Save model
+    path_prefix = Path(path_prefix)
+    path_prefix.parent.mkdir(parents=True, exist_ok=True)
+
     model.save_model(f"{path_prefix}.json")
-    
-    # Add timestamp + versioning info
+
     metadata = metadata.copy()
     metadata["saved_at"] = datetime.now().isoformat()
     metadata["model_format"] = "xgboost-json"
-    
-    # Save metadata
+
     with open(f"{path_prefix}_metadata.json", "w") as f:
         json.dump(metadata, f, indent=2)
-    
-    print(f"Model saved to {path_prefix}.json")
+
+    print(f"\nModel saved to {path_prefix}.json")
     print(f"Metadata saved to {path_prefix}_metadata.json")
 
 
-def evaluate_on_test(model, df_test):
-    X_test = []
-    y_test = []
-    valid_idx = []
+def main(cfg=CONFIG, raw_csv=None):
+    df_train, df_test = load_splits(cfg, raw_csv=raw_csv)
 
-    for i, row in df_test.iterrows():
-        fp = smiles_to_maccs(row["SMILES"])
-        if fp is None:
-            continue
-        X_test.append(fp)
-        y_test.append(row["pIC50"])
-        valid_idx.append(i)
+    print("\nFeaturising train split")
+    X_train, y_train = df_to_maccs(df_train)
+    print("Featurising test split")
+    X_test, y_test = df_to_maccs(df_test)
 
-    if len(X_test) == 0:
-        raise ValueError("No valid SMILES in test set.")
+    best_params, best_cv = search_xgb_models(X_train, y_train, cfg)[:2]
 
-    X_test = np.vstack(X_test)
-    y_test = np.array(y_test, dtype=float)
+    # Refit the selected configuration on the full train split, then read the
+    # test split for the first and only time.
+    model = make_model(best_params)
+    model.fit(X_train, y_train)
+    test_metrics = regression_metrics(y_test, model.predict(X_test))
 
-    preds = model.predict(X_test)
+    print("\n==============================")
+    print("Selected hyperparameters:", best_params)
+    print(f"CV RMSE (train split):  {best_cv['cv_rmse_mean']:.3f} +/- {best_cv['cv_rmse_std']:.3f}")
+    print(f"Test RMSE:              {test_metrics['rmse']:.3f}")
+    print(f"Test MAE:               {test_metrics['mae']:.3f}")
+    print(f"Test R2:                {test_metrics['r2']:.3f}")
+    print(f"Test molecules:         {test_metrics['n_samples']}")
+    print("==============================")
 
-    # Metrics
-    rmse = mean_squared_error(y_test, preds)
-    mae = mean_absolute_error(y_test, preds)
-    r2 = r2_score(y_test, preds)
+    save_xgb_model(
+        model,
+        {
+            "dataset": cfg["dataset"],
+            "target": cfg["target_column"],
+            "featurisation": "167-bit MACCS keys (RDKit), feature index k = MACCS key k",
+            "selection": (
+                f"{cfg['n_folds']}-fold cross-validation on the train split over "
+                f"{cfg['n_trials']} random hyperparameter draws, seed {cfg['seed']}"
+            ),
+            "hyperparameters": {**FIXED_PARAMS, **best_params},
+            "searched_hyperparameters": best_params,
+            "cv_metrics": best_cv,
+            "test_metrics": test_metrics,
+            "n_train_molecules": int(len(y_train)),
+            "versions": {
+                "xgboost": xgboost.__version__,
+                "scikit-learn": sklearn.__version__,
+                "rdkit": rdBase.rdkitVersion,
+                "numpy": np.__version__,
+                "pandas": pd.__version__,
+            },
+        },
+        path_prefix=cfg["model_prefix"],
+    )
 
-    metrics = {
-        "rmse": rmse,
-        "mae": mae,
-        "r2": r2,
-        "n_test_samples": len(y_test),
-        "n_invalid_smiles": len(df_test) - len(y_test)
-    }
-
-    return preds, metrics
-
-
-def search_xgb_models(
-        df_train,
-        df_test,
-        n_trials=40,
-        save_prefix="data/xgboost/xgb_maccs_best"
-    ):
-    # Hyperparameter search space
-    space = {
-        "max_depth": [3, 4, 5, 6],
-        "min_child_weight": [1, 3, 5, 7],
-        "gamma": [0, 0.1, 0.5, 1.0],
-        "colsample_bytree": [0.4, 0.6, 0.8, 1.0]
-    }
-
-    best_rmse = float("inf")
-    best_model = None
-    best_params = None
-    best_metrics = None
-
-    for i in range(n_trials):
-        # Sample a random combination
-        params = {
-            "max_depth": random.choice(space["max_depth"]),
-            "min_child_weight": random.choice(space["min_child_weight"]),
-            "gamma": random.choice(space["gamma"]),
-            "colsample_bytree": random.choice(space["colsample_bytree"])
-        }
-
-        print(f"\n=== Trial {i+1}/{n_trials} ===")
-        print("Params:", params)
-
-        # Train model
-        model, X_train, y_train, valid_idx = train_xgb_maccs(
-            df_train,
-            max_depth=params["max_depth"],
-            min_child_weight=params["min_child_weight"],
-            gamma=params["gamma"],
-            colsample_bytree=params["colsample_bytree"],
-        )
-
-        # Evaluate on test
-        preds, metrics = evaluate_on_test(model, df_test)
-        rmse = metrics["rmse"]
-
-        print(f"RMSE = {rmse:.4f}")
-
-        # Check if best model so far
-        if rmse < best_rmse:
-            print("→ New best model found! Saving…")
-
-            best_rmse = rmse
-            best_model = deepcopy(model)
-            best_params = params
-            best_metrics = metrics
-
-            # Save using your existing function
-            metadata = {
-                "hyperparameters": params,
-                "metrics": metrics,
-            }
-            save_xgb_model(best_model, metadata, path_prefix=save_prefix)
-
-    print("\n\n==============================")
-    print("Best model found:")
-    print("Hyperparameters:", best_params)
-    print("Metrics:", best_metrics)
-    print("==============================\n")
+    return model
 
 
-
-# Load the dataset from the Hub
-dataset = po.load_dataset("asap-discovery/antiviral-potency-2025-unblinded")
-
-# Convert to dataframe
-df = polaris_to_dataframe(dataset)
-
-# Preprocess data
-df_train, df_test = preprocess_for_xgb(df, column_name_target_values="pIC50 (SARS-CoV-2 Mpro)", column_name_smiles="CXSMILES")
-
-# Random 4x4x4x4 hyperparameter search space and save best (lowest rmse) model
-search_xgb_models(df_train, df_test, save_prefix="data/xgboost/xgb_maccs_best")
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--raw-csv",
+        type=Path,
+        default=None,
+        help="raw dataset export to derive the splits from, used only when the "
+        "cached split CSVs are absent",
+    )
+    main(raw_csv=parser.parse_args().raw_csv)
