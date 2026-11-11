@@ -51,7 +51,16 @@ class IC50MproOracle:
     ) -> str:
         MACCS_KEY_DEFINITIONS = build_maccs_key_definitions()
 
-        indexed = [(attr, idx + 1) for idx, attr in enumerate(attribution) if idx != 0]
+        # RDKit's GenMACCSKeys returns 167 bits in which bit k is MACCS key k
+        # (keys run from 1 to 166) and bit 0 is unused. The model is trained on
+        # that full bit string, so attribution index k also belongs to key k.
+        # Index 0 is dropped because it carries no chemical meaning.
+        if len(attribution) != len(fp):
+            raise ValueError(
+                f"Expected one attribution per fingerprint bit, got "
+                f"{len(attribution)} attributions for {len(fp)} bits."
+            )
+        indexed = [(attr, idx) for idx, attr in enumerate(attribution) if idx != 0]
         indexed_sorted = sorted(indexed, key=lambda x: x[0], reverse=True)
         top_values = indexed_sorted[:10]
         low_values = indexed_sorted[-10:]
