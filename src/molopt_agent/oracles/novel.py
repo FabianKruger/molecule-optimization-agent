@@ -1,3 +1,5 @@
+import time
+
 import requests
 
 from .base import OracleResult
@@ -35,17 +37,47 @@ class NovelOracle:
                 ),
             }
 
+    MAX_ATTEMPTS = 3
+    RETRY_BACKOFF_SECONDS = 1.0
+
     def _pubchem_exists(self, smiles: str) -> bool:
         """
         Return True if PubChem has at least one real CID (> 0) for the given SMILES.
-        
-        Raises requests.HTTPError on non-2xx responses.
+
+        PubChem answers 200 with CID 0 for a SMILES it can parse but does not
+        hold, so a molecule being absent is not an error. A 400
+        PUGREST.BadRequest means PubChem could not parse the SMILES at all, which
+        cannot correspond to a stored compound, so it is reported as absent. This
+        happens for RDKit-valid but chemically unusual proposals, for example an
+        [SH] in a ring, and must not abort an optimisation run. Transient network
+        and server errors are retried before giving up.
         """
-        r = requests.get(self.PUBCHEM_URL, params={"smiles": smiles}, timeout=10)
-        r.raise_for_status()
+        last_error: Exception | None = None
 
-        data = r.json()
-        cids = data.get("IdentifierList", {}).get("CID", [])
+        for attempt in range(self.MAX_ATTEMPTS):
+            try:
+                r = requests.get(self.PUBCHEM_URL, params={"smiles": smiles}, timeout=10)
 
-        # PubChem CIDs are positive integers; anything <= 0 is not a real compound ID
-        return any(isinstance(cid, int) and cid > 0 for cid in cids)
+                # PubChem cannot parse it, or holds no record under that query
+                if r.status_code in (400, 404):
+                    return False
+
+                r.raise_for_status()
+                data = r.json()
+                cids = data.get("IdentifierList", {}).get("CID", [])
+
+                # PubChem CIDs are positive integers; anything <= 0 is not a real compound ID
+                return any(isinstance(cid, int) and cid > 0 for cid in cids)
+
+            except requests.HTTPError as error:
+                status = error.response.status_code if error.response is not None else None
+                if status is not None and 400 <= status < 500:
+                    raise  # a client error we did not anticipate, do not mask it
+                last_error = error
+            except (requests.ConnectionError, requests.Timeout, ValueError) as error:
+                last_error = error
+
+            if attempt < self.MAX_ATTEMPTS - 1:
+                time.sleep(self.RETRY_BACKOFF_SECONDS * (attempt + 1))
+
+        raise last_error  # type: ignore[misc]
