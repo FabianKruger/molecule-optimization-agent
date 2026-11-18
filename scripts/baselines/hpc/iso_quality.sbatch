@@ -1,32 +1,45 @@
 #!/bin/bash
 # Long-horizon iso-quality baseline runs, one array task per single run.
 #
-#     METHOD=reinvent BUDGET=10000 sbatch --time=2:00:00 --mem=4G scripts/baselines/hpc/iso_quality.sbatch
-#     METHOD=gpbo     BUDGET=10000 sbatch                        scripts/baselines/hpc/iso_quality.sbatch
+#     sbatch --time=0:30:00 --mem=4G scripts/baselines/hpc/iso_quality.sbatch graph_ga 10000
+#     sbatch --time=2:00:00 --mem=4G scripts/baselines/hpc/iso_quality.sbatch reinvent 10000
+#     sbatch                         scripts/baselines/hpc/iso_quality.sbatch gpbo     10000
 #
-# Both can be in the queue at once, they write to different directories.
+# The method is the first argument and the oracle budget the second. All three
+# can be in the queue at once, they write to the same directory but different
+# files.
+#
+# The --time and --mem flags override the #SBATCH defaults below. They have to
+# be given on the command line rather than worked out inside the script,
+# because Slurm reads the directives before the script ever runs. The defaults
+# are sized for GP BO, so it needs no overrides at all.
 #
 # A single run cannot be parallelised, because each oracle call depends on the
 # result of the previous one. One (target, replicate) pair is therefore the
 # smallest unit of work, and 20 targets by 3 replicates gives 60 independent
 # tasks per method. Wall clock is then the cost of one run rather than three.
 #
-# The defaults below are sized for GP BO, the expensive case. Override on the
-# command line for REINVENT, as above.
-#
 # If the cluster limits how many array tasks may run at once, or you want to be
 # polite to other users, throttle with a percentage: --array=1-60%20 runs at
 # most 20 at a time and finishes in the same total core-hours.
 #
-# Account and partition are site-specific and are not set here. Either export
-# them before submitting, which Slurm picks up on its own,
+# Account and partition are site-specific, so they ship commented out. Fill in
+# the two directives below and they apply to every submission, which is the
+# least error-prone option if you always use the same cluster. Being a tracked
+# file, your values will then show up as a local modification to it.
+#
+# The alternatives, if you would rather leave the file alone, are to export
 #
 #     export SBATCH_ACCOUNT=<your account>
 #     export SBATCH_PARTITION=<your partition>
 #
-# or pass -A and -p to sbatch.
+# or to pass -A and -p to sbatch. Precedence is command line, then environment,
+# then the directives in this file, so an exported SBATCH_PARTITION silently
+# beats a directive set here.
 
 #SBATCH --job-name=iso_quality
+##SBATCH --account=
+##SBATCH --partition=
 #SBATCH --array=1-60
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -38,10 +51,18 @@
 
 set -euo pipefail
 
-METHOD="${METHOD:?set METHOD to graph_ga, reinvent or gpbo}"
-BUDGET="${BUDGET:-10000}"
+# Arguments, not environment variables, so that they show up in squeue and do
+# not depend on how the site configures --export.
+METHOD="${1:-${METHOD:-}}"
+BUDGET="${2:-${BUDGET:-10000}}"
 REPS="${REPS:-3}"
 TARGETS="${TARGETS:-20}"
+
+case "$METHOD" in
+    graph_ga|reinvent|gpbo) ;;
+    "") echo "usage: sbatch $0 <graph_ga|reinvent|gpbo> [budget]" >&2; exit 1 ;;
+    *)  echo "error: unknown method '$METHOD', expected graph_ga, reinvent or gpbo" >&2; exit 1 ;;
+esac
 
 TASK="${SLURM_ARRAY_TASK_ID:?this script expects to run as a Slurm array}"
 if (( TASK < 1 || TASK > TARGETS * REPS )); then
