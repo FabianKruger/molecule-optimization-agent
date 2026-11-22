@@ -36,6 +36,18 @@ Respond with a single JSON object:
 """.strip()
 
 
+def omitted_explanation_text(policy: str, k: int) -> str:
+    """Placeholder shown instead of an explanation outside the shortened history."""
+    if policy == "last_k":
+        reason = f"this molecule is not among the last {k} valid molecules"
+    else:
+        reason = (
+            f"this molecule is not among the {k} best or "
+            f"{k} worst valid molecules by combined score"
+        )
+    return f"[Explanation omitted: {reason}.]"
+
+
 class SimilarityQedObjective:
     """Multi-objective optimization for Tanimoto similarity and QED."""
 
@@ -52,7 +64,10 @@ class SimilarityQedObjective:
         min_similarity: float = 0.6,
         min_qed: float = 0.5,
         max_iterations: int = 20,
-        xai: Literal["full", "partial", "none", "no_description"] = "full",
+        xai: Literal[
+            "full", "partial", "none", "no_description", "last_k", "best_worst_k"
+        ] = "full",
+        history_k: int = 2,
     ):
         self.oracle = oracle
         self._target_score = float(target_score)
@@ -60,6 +75,9 @@ class SimilarityQedObjective:
         self._min_qed = float(min_qed)
         self._max_iterations = int(max_iterations)
         self._xai = xai
+        self.history_k = int(history_k)
+        if self.history_k < 1:
+            raise ValueError("history_k must be >= 1")
 
         # Extract from oracle
         oracle_params = self._extract_from_oracle(oracle)
@@ -109,6 +127,13 @@ class SimilarityQedObjective:
         smiles = state["current_smiles"]
         return self.oracle(smiles)
 
+    @property
+    def history_policy(self) -> str:
+        """How much explanation history the LLM sees (see graph/history.py)."""
+        if self._xai in ("last_k", "best_worst_k"):
+            return self._xai
+        return "full"
+
     def _get_explanation(self, result: OracleResult) -> str:
         """Get explanation based on xai setting."""
         explanations = result.get("explanations", {})
@@ -121,13 +146,24 @@ class SimilarityQedObjective:
         elif self._xai == "partial":
             similarity_text = "No explanation provided."
             qed_text = qed_explanation or "No explanation provided."
-        else:  # "full"
+        else:  # "full", "last_k", "best_worst_k" (history is shortened elsewhere)
             similarity_text = similarity_explanation or "No explanation provided."
             qed_text = qed_explanation or "No explanation provided."
 
         return f"Similarity:\n{similarity_text}\n\nQED:\n{qed_text}"
 
     def build_feedback(self, state: WorkflowState, result: OracleResult) -> str:
+        return self._render_feedback(state, result, self._get_explanation(result))
+
+    def build_compact_feedback(self, state: WorkflowState, result: OracleResult) -> str:
+        """Feedback with the explanations replaced by a placeholder."""
+        return self._render_feedback(
+            state, result, omitted_explanation_text(self._xai, self.history_k)
+        )
+
+    def _render_feedback(
+        self, state: WorkflowState, result: OracleResult, explanation: str
+    ) -> str:
         combined_score = result["score"]
 
         # Use generic feedback for no_description mode
@@ -151,8 +187,6 @@ class SimilarityQedObjective:
 
         # Check if molecule is identical to target
         is_identical = "IDENTICAL MOLECULE" in result["explanation"]
-
-        explanation = self._get_explanation(result)
 
         feedback = f"""SMILES: {state['current_smiles']}
 Iteration: {state['iteration_count']} / {self._max_iterations}

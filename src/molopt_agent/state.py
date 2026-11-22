@@ -15,6 +15,10 @@ class WorkflowState(TypedDict):
     is_valid: bool
     validation_error: str
     final_response: str
+    # iteration -> {"msg_index": position of its feedback message, "text": compact feedback}
+    compact_feedback: dict[int, dict]
+    # one entry per LLM generation call with the history policy applied
+    context_log: list[dict]
 
 
 def make_initial_state() -> WorkflowState:
@@ -29,4 +33,6 @@ def make_initial_state() -> WorkflowState:
         "is_valid": False,
         "validation_error": "",
         "final_response": "",
+        "compact_feedback": {},
+        "context_log": [],
     }

@@ -40,6 +40,7 @@ def save_conversation_log(
         "config": asdict(config),
         "conversation": conversation,
         "trace": state["trace"],
+        "context_log": state.get("context_log", []),
         "iterations": state["iteration_count"],
         "summary": state["final_response"],
     }

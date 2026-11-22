@@ -14,7 +14,7 @@ from rdkit import Chem
 
 from ..objectives.base import Objective
 from ..state import WorkflowState
-
+from .history import build_llm_messages
 logger = logging.getLogger(__name__)
 
 
@@ -216,7 +216,15 @@ def make_generation_node(objective: Objective, llm: ChatOpenAI, system_prompt: s
                 state["validation_error"] = ""
 
         logger.info(f"Iteration {iteration}: Calling LLM to generate molecule...")
-        response = rate_limit_sensible_llm_call(llm, state["messages"])
+        policy = getattr(objective, "history_policy", "full")
+        if policy == "full":
+            llm_messages = state["messages"]
+        else:
+            llm_messages, log_entry = build_llm_messages(
+                state, policy, objective.history_k
+            )
+            state["context_log"].append(log_entry)
+        response = rate_limit_sensible_llm_call(llm, llm_messages)
         state["messages"].append(response)
         state["raw_model_output"] = response.content.strip()
         state["iteration_count"] += 1
@@ -330,6 +338,11 @@ def make_prediction_node(objective: Objective):
 
         feedback = objective.build_feedback(state, result)
         state["messages"].append(HumanMessage(content=feedback))
+        if getattr(objective, "history_policy", "full") != "full":
+            state["compact_feedback"][state["iteration_count"]] = {
+                "msg_index": len(state["messages"]) - 1,
+                "text": objective.build_compact_feedback(state, result),
+            }
         return state
 
     return prediction_node
@@ -344,6 +357,9 @@ def make_final_response_node(llm: ChatOpenAI, xai_mode: str | None = None):
 
         # Remove explanations from trace so summary only sees what the generation
         # model actually saw (respects xai filtering in objectives)
+        # Note: in the shortened-history modes (last_k, best_worst_k) the
+        # generation model did not see every explanation (see context_log), so
+        # this only holds approximately there; the summary is not adapted to it.
         # For no_description mode, also remove individual scores to hide task info
         keys_to_exclude = {"explanation", "original_score"}
         if xai_mode == "no_description":
