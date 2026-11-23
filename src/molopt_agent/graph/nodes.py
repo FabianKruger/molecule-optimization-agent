@@ -221,7 +221,11 @@ def make_generation_node(objective: Objective, llm: ChatOpenAI, system_prompt: s
             llm_messages = state["messages"]
         else:
             llm_messages, log_entry = build_llm_messages(
-                state, policy, objective.history_k
+                state,
+                policy,
+                objective.history_k,
+                form=getattr(objective, "history_form", "compact"),
+                max_iterations=objective.max_iterations(),
             )
             state["context_log"].append(log_entry)
         response = rate_limit_sensible_llm_call(llm, llm_messages)
@@ -338,7 +342,10 @@ def make_prediction_node(objective: Objective):
 
         feedback = objective.build_feedback(state, result)
         state["messages"].append(HumanMessage(content=feedback))
-        if getattr(objective, "history_policy", "full") != "full":
+        if (
+            getattr(objective, "history_policy", "full") != "full"
+            and getattr(objective, "history_form", "compact") == "compact"
+        ):
             state["compact_feedback"][state["iteration_count"]] = {
                 "msg_index": len(state["messages"]) - 1,
                 "text": objective.build_compact_feedback(state, result),

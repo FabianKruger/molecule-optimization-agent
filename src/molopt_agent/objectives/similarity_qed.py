@@ -65,7 +65,14 @@ class SimilarityQedObjective:
         min_qed: float = 0.5,
         max_iterations: int = 20,
         xai: Literal[
-            "full", "partial", "none", "no_description", "last_k", "best_worst_k"
+            "full",
+            "partial",
+            "none",
+            "no_description",
+            "last_k",
+            "best_worst_k",
+            "truncated_last_k",
+            "truncated_best_worst_k",
         ] = "full",
         history_k: int = 2,
     ):
@@ -132,7 +139,14 @@ class SimilarityQedObjective:
         """How much explanation history the LLM sees (see graph/history.py)."""
         if self._xai in ("last_k", "best_worst_k"):
             return self._xai
+        if self._xai in ("truncated_last_k", "truncated_best_worst_k"):
+            return self._xai.removeprefix("truncated_")
         return "full"
+
+    @property
+    def history_form(self) -> str:
+        """"compact" keeps all iterations (explanations replaced), "truncated" removes iterations."""
+        return "truncated" if self._xai.startswith("truncated_") else "compact"
 
     def _get_explanation(self, result: OracleResult) -> str:
         """Get explanation based on xai setting."""

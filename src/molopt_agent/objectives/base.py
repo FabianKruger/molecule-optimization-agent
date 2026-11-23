@@ -17,11 +17,13 @@ class HistoryObjective(Objective, Protocol):
     """Objective that supports shortened explanation history (see graph/history.py).
 
     `history_policy` is "full", "last_k" or "best_worst_k". Objectives without
-    these attributes are treated as "full". `build_compact_feedback` returns the
-    feedback with the explanations replaced by a placeholder.
+    these attributes are treated as "full". `history_form` is "compact" (older
+    explanations replaced by a placeholder, needs `build_compact_feedback`) or
+    "truncated" (older iterations removed, needs nothing objective specific).
     """
 
     history_policy: str
+    history_form: str
     history_k: int
 
     def build_compact_feedback(self, state: WorkflowState, result: OracleResult) -> str: ...

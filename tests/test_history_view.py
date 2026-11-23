@@ -159,6 +159,124 @@ def test_invalid_history_k():
     raise AssertionError("history_k=0 should be rejected")
 
 
+def _run_sequence(policy, items, k=2):
+    """items: a score per valid attempt, None for an invalid SMILES. Ends with one extra LLM call."""
+    objective = SimilarityQedObjective(
+        oracle=_FakeOracle(), xai=policy, history_k=k, max_iterations=100
+    )
+    scores = iter([i for i in items if i is not None])
+
+    def evaluate(state):
+        score = next(scores)
+        return {
+            "score": score,
+            "explanation": "expl",
+            "scores": {"Similarity": score, "QED": score},
+            "explanations": {"Similarity": "SIM-EXPL", "QED": "QED-EXPL"},
+        }
+
+    objective.evaluate = evaluate
+    smiles = ["C(("] * len(items) + ["C"]
+    valid_count = 0
+    for i, item in enumerate(items):
+        if item is not None:
+            valid_count += 1
+            smiles[i] = "C" * valid_count
+    llm = _ScriptedLLM(smiles)
+    gen = make_generation_node(objective, llm, system_prompt="sys")
+    pred = make_prediction_node(objective)
+
+    state = make_initial_state()
+    for _ in items:
+        state = gen(state)
+        state = parse_node(state)
+        state = validation_node(state)
+        if state["is_valid"]:
+            state = pred(state)
+    state = gen(state)
+    return state, llm
+
+
+def _roles(messages):
+    return [m.type for m in messages]
+
+
+def _assert_alternating(messages):
+    roles = _roles(messages)
+    assert roles[0] == "system"
+    assert roles[1:] == ["human", "ai"] * ((len(roles) - 1) // 2) + (["human"] if len(roles) % 2 == 0 else [])
+
+
+def test_truncated_last_k_removes_older_iterations_completely():
+    state, llm = _run_sequence("truncated_last_k", [0.1, 0.2, 0.3, 0.4, 0.5], k=2)
+    prompt = llm.calls[-1]
+    _assert_alternating(prompt)
+    assert prompt[-1].type == "human"
+    assert len(prompt) == 2 + 2 * 2  # system + task + two assistant/feedback pairs
+    text = " ".join(m.content for m in prompt)
+    assert "Iteration: 4 / 100" in text and "Iteration: 5 / 100" in text
+    assert "Iteration: 3 / 100" not in text and "Iteration: 1 / 100" not in text
+    assert len(_explained_in(prompt)) == 2
+    assert all("Explanation omitted" not in m.content for m in prompt)
+    entry = state["context_log"][-1]
+    assert entry["form"] == "truncated"
+    assert entry["explained_iterations"] == [4, 5]
+    assert entry["dropped_iterations"] == [1, 2, 3]
+    assert entry["counter_appended"] is False
+    assert len(state["messages"]) == 2 + 2 * 5 + 1  # full conversation untouched
+
+
+def test_truncated_equals_full_before_budget_is_reached():
+    state, llm = _run_sequence("truncated_last_k", [0.1, 0.2], k=3)
+    assert [m.content for m in llm.calls[-1]] == [m.content for m in state["messages"][:-1]]
+    state, llm = _run_sequence("truncated_best_worst_k", [0.1, 0.2, 0.3, 0.4], k=2)
+    assert [m.content for m in llm.calls[-1]] == [m.content for m in state["messages"][:-1]]
+
+
+def test_truncated_best_worst_keeps_only_best_and_worst_and_adds_counter():
+    state, llm = _run_sequence("truncated_best_worst_k", [0.9, 0.1, 0.8, 0.2, 0.4, 0.5], k=1)
+    prompt = llm.calls[-1]
+    _assert_alternating(prompt)
+    entry = state["context_log"][-1]
+    assert entry["explained_iterations"] == [1, 2]
+    assert entry["dropped_iterations"] == [3, 4, 5, 6]
+    assert entry["best_iterations"] == [1] and entry["worst_iterations"] == [2]
+    assert entry["counter_appended"] is True
+    assert prompt[-1].content.endswith("Iteration: 6 / 100")
+    # the counter is only in the copy sent to the LLM
+    stored_feedback = [m for m in state["messages"] if m.type == "human"][-1].content
+    assert stored_feedback.count("Iteration: 6 / 100") == 1 and not stored_feedback.endswith("Iteration: 6 / 100")
+    assert sum("Iteration: " in m.content for m in prompt if m.type == "human") == 2  # feedback 2 + counter line
+    assert len(_explained_in(prompt)) == 2
+
+
+def test_truncated_best_worst_shows_latest_when_it_is_best():
+    state, llm = _run_sequence("truncated_best_worst_k", [0.5, 0.5, 0.5, 0.5, 0.9], k=1)
+    entry = state["context_log"][-1]
+    assert 5 in entry["explained_iterations"]
+    assert entry["counter_appended"] is False
+
+
+def test_truncated_drops_old_invalid_attempts_but_keeps_the_latest():
+    # call 2 is invalid (old), call 5 is invalid and the most recent attempt
+    state, llm = _run_sequence("truncated_last_k", [0.1, None, 0.2, 0.3, None], k=2)
+    prompt = llm.calls[-1]
+    entry = state["context_log"][-1]
+    assert entry["explained_iterations"] == [3, 4]
+    assert entry["dropped_iterations"] == [1, 2]
+    _assert_alternating(prompt)
+    assert prompt[-1].content.startswith("Invalid SMILES")
+    assert len(prompt) == 2 + 2 * 3  # two valid pairs + the latest invalid attempt with its error
+
+
+def test_truncated_older_invalid_attempt_removed_even_if_its_retry_is_kept():
+    state, llm = _run_sequence("truncated_last_k", [None, 0.1, 0.2, 0.3], k=3)
+    entry = state["context_log"][-1]
+    assert entry["explained_iterations"] == [2, 3, 4]
+    assert entry["dropped_iterations"] == [1]
+    assert all(not m.content.startswith("Invalid SMILES") for m in llm.calls[-1])
+
+
 if __name__ == "__main__":
     test_last_k_keeps_most_recent_k()
     test_last_k_equals_full_before_k_iterations()
@@ -170,4 +288,10 @@ if __name__ == "__main__":
     test_best_worst_k_prompt_and_log()
     test_full_policy_logs_nothing_and_sends_everything()
     test_invalid_history_k()
+    test_truncated_last_k_removes_older_iterations_completely()
+    test_truncated_equals_full_before_budget_is_reached()
+    test_truncated_best_worst_keeps_only_best_and_worst_and_adds_counter()
+    test_truncated_best_worst_shows_latest_when_it_is_best()
+    test_truncated_drops_old_invalid_attempts_but_keeps_the_latest()
+    test_truncated_older_invalid_attempt_removed_even_if_its_retry_is_kept()
     print("ok")
